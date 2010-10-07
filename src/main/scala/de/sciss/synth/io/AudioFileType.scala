@@ -33,7 +33,7 @@ import java.io.DataInputStream
 import collection.immutable.{ Set => ISet }
 
 abstract /* sealed */ class AudioFileType( val id: String, val ext: String ) {
-   def factory: Option[ AudioFileHeaderFactory ]
+   private[io] def factory: Option[ AudioFileHeaderFactory ]
 }
 
 /**
@@ -43,7 +43,7 @@ object AudioFileType {
 //   private val sync  = new AnyRef
    private var set   = Set[ AudioFileType ]( AIFF, NeXT, Wave, IRCAM, Wave64 )
 
-   def register( fileType: AudioFileType ) {
+   private[io] def register( fileType: AudioFileType ) {
 //      sync.synchronized {
          set += fileType
 //      }
@@ -56,21 +56,21 @@ object AudioFileType {
    def known : ISet[ AudioFileType ] = set // sync.synchronized { set }
 
    case object AIFF   extends AudioFileType( "aiff",  "aif" ) {
-      def factory = Some( AIFFHeader )
+      private[io] def factory = Some( AIFFHeader )
    }
    case object NeXT   extends AudioFileType( "next",  "snd" ) {
-      def factory = None // XXX
+      private[io] def factory = None // XXX
    }
    case object Wave   extends AudioFileType( "wav",   "wav" ) {
-      def factory = Some( WaveHeader )
+      private[io] def factory = Some( WaveHeader )
    }
    case object IRCAM  extends AudioFileType( "ircam", "irc ") {
-      def factory = None // XXX
+      private[io] def factory = None // XXX
    }
    case object Raw    extends AudioFileType( "raw",   "raw" ) {
-      def factory = None // XXX
+      private[io] def factory = None // XXX
    }
    case object Wave64 extends AudioFileType( "w64",   "w64" ) {
-      def factory = None // XXX
+      private[io] def factory = None // XXX
    }
 }

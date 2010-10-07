@@ -34,7 +34,7 @@ import java.io.{ DataInput, DataInputStream, DataOutput, DataOutputStream, IOExc
 /**
  *    @version 0.11, 17-Jul-10
  */
-object AudioFileHeader {
+private[io] object AudioFileHeader {
    @throws( classOf[ IOException ])
    @inline def readLittleUShort( din: DataInput ) : Int = {
       val i = din.readUnsignedShort()
@@ -98,7 +98,7 @@ object AudioFileHeader {
    def incompleteError  = throw new IOException( "Header data is incomplete" )
 }
 
-trait AudioFileHeaderFactory {
+private[io] trait AudioFileHeaderFactory {
    def createHeaderReader : Option[ AudioFileHeaderReader ]
    def createHeaderWriter : Option[ AudioFileHeaderWriter ]
 
@@ -106,7 +106,7 @@ trait AudioFileHeaderFactory {
    def identify( dis: DataInputStream ) : Boolean
 }
 
-trait AudioFileHeader {
+private[io] trait AudioFileHeader {
 //   def sampleDataOffset : Long
    def byteOrder : ByteOrder
    def spec : AudioFileSpec
@@ -125,11 +125,16 @@ trait AudioFileHeader {
 //   def seekFrame( frame: Long ) : Unit
 }
 
+private[io] trait WritableAudioFileHeader extends AudioFileHeader {
+   @throws( classOf[ IOException ])
+   def update( numFrames: Long ) : Unit
+}
+
 //trait ReadableAudioFileHeader extends AudioFileHeader {
 //   def createBufferReader( bufSize: Int ) : Option[ BufferReader ]
 //}
 
-trait AudioFileHeaderReader {
+private[io] trait AudioFileHeaderReader {
    /**
     *    Reads in the header information. Seek position
     *    should remain at the first frame of the audio data.
@@ -152,12 +157,16 @@ trait AudioFileHeaderReader {
 //   def readAppCode { /* empty */ }
 }
 
-trait AudioFileHeaderWriter extends AudioFileHeader {
+private[io] trait AudioFileHeaderWriter {
    @throws( classOf[ IOException ])
-   def write( spec: AudioFileSpec ) : Unit
-   @throws( classOf[ IOException ])
-   def update( numFrames: Long ) : Unit
+   def write( dos: DataOutputStream, spec: AudioFileSpec ) : WritableAudioFileHeader
 
-   def createBufferWriter : Option[ BufferWriter ]
-   def createBufferHandler : Option[ BufferHandler ]
+   @throws( classOf[ IOException ])
+   def write( raf: RandomAccessFile, spec: AudioFileSpec ) : WritableAudioFileHeader
+
+//   @throws( classOf[ IOException ])
+//   def update( numFrames: Long ) : Unit
+//
+//   def createBufferWriter : Option[ BufferWriter ]
+//   def createBufferHandler : Option[ BufferHandler ]
 }

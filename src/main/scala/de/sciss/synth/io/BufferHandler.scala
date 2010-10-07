@@ -34,7 +34,7 @@ import java.nio.channels.{ ReadableByteChannel, WritableByteChannel }
 import math._
 import java.nio._
 
-trait BufferHandler {
+private[io] trait BufferHandler {
    protected def byteBuf : ByteBuffer
    def numChannels : SInt
    protected def bitsPerSample : SInt
@@ -44,23 +44,23 @@ trait BufferHandler {
    protected def checkCapacity = require( bufFrames > 0, "Buffer too small" )
 }
 
-trait BufferReader extends BufferHandler {
+private[io] trait BufferReader extends BufferHandler {
    @throws( classOf[ IOException ])
    def readFrames( frames: Frames, off: SInt, len: SInt ) : Unit
    protected val read : ReadableByteChannel
 }
 
-trait BufferWriter extends BufferHandler {
+private[io] trait BufferWriter extends BufferHandler {
    @throws( classOf[ IOException ])
    def writeFrames( frames: Frames, off: SInt, len: SInt ) : Unit
    protected val write : WritableByteChannel
 }
 
-trait BufferBidi extends BufferReader with BufferWriter
+private[io] trait BufferBidi extends BufferReader with BufferWriter
 
 // -------------- Basic --------------
 
-object BufferHandler {
+private[io] object BufferHandler {
    abstract class Byte extends BufferHandler {
       protected def bitsPerSample   = 8
       protected val arrayBuf        = new Array[ SByte ]( byteBuf.capacity() )
@@ -111,10 +111,10 @@ object BufferHandler {
 
 // -------------- Reader --------------
 
-trait BufferReaderFactory {
+private[io] trait BufferReaderFactory {
    def apply( read: ReadableByteChannel, byteBuf: ByteBuffer, numChannels: SInt ) : BufferReader
 }
-object BufferReader {
+private[io] object BufferReader {
    object Byte extends BufferReaderFactory
    case class Byte( read: ReadableByteChannel, byteBuf: ByteBuffer, numChannels: SInt )
    extends BufferHandler.Byte with ByteLike {
@@ -421,10 +421,10 @@ object BufferReader {
 
 // -------------- Write --------------
 
-trait BufferWriterFactory {
+private[io] trait BufferWriterFactory {
    def apply( write: WritableByteChannel, byteBuf: ByteBuffer, numChannels: SInt ) : BufferWriter
 }
-object BufferWriter {
+private[io] object BufferWriter {
    object Byte extends BufferWriterFactory
    case class Byte( write: WritableByteChannel, byteBuf: ByteBuffer,numChannels: SInt )
    extends BufferHandler.Byte with ByteLike {
@@ -716,11 +716,11 @@ object BufferWriter {
 
 // -------------- Handler -------------- 
 
-trait BufferBidiFactory {
+private[io] trait BufferBidiFactory {
    def apply( read: ReadableByteChannel, write: WritableByteChannel, byteBuf: ByteBuffer,
               numChannels: SInt ) : BufferBidi
 }
-object BufferBidi {
+private[io] object BufferBidi {
    object Byte extends BufferBidiFactory
    case class Byte( read: ReadableByteChannel, write: WritableByteChannel, byteBuf: ByteBuffer, numChannels: SInt )
    extends BufferHandler.Byte with BufferReader.ByteLike with BufferWriter.ByteLike with BufferBidi {

@@ -28,9 +28,11 @@
 
 package de.sciss.synth.io
 
+import java.io.IOException
+
 object ScalaAudioFile {
    val name          = "ScalaAudioFile"
-   val version       = 0.13
+   val version       = 0.14
    val copyright     = "(C)opyright 2004-2010 Hanns Holger Rutz"
 
    def versionString = (version + 0.001).toString.substring( 0, 4 )
@@ -54,4 +56,6 @@ object ScalaAudioFile {
       println( "\n" + name + " v" + versionString + "\n" + copyright +
          ". All rights reserved.\n\nThis is a library which cannot be executed directly.\n" )
    }
+
+   private[ io ] def opNotSupported = throw new IOException( "Operation not supported" )
 }

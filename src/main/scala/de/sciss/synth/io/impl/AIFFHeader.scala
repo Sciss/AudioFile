@@ -31,10 +31,11 @@ package de.sciss.synth.io.impl
 import de.sciss.synth.io._
 import java.nio.ByteOrder
 import ByteOrder.{ BIG_ENDIAN, LITTLE_ENDIAN }
-import java.io.{ DataInput, DataInputStream, EOFException, IOException, RandomAccessFile }
 import math._
+import java.io.{DataOutput, DataOutputStream, DataInput, DataInputStream, EOFException, IOException, RandomAccessFile}
+import ScalaAudioFile._
 
-object AIFFHeader extends AudioFileHeaderFactory {
+private[io] object AIFFHeader extends AudioFileHeaderFactory {
    private val FORM_MAGIC		= 0x464F524D	// 'FORM'
    private val AIFF_MAGIC		= 0x41494646	// 'AIFF'   (off 8)
    private val AIFC_MAGIC		= 0x41494643	// 'AIFC'   (off 8)
@@ -62,12 +63,14 @@ object AIFFHeader extends AudioFileHeaderFactory {
 
    private val AIFCVersion1	= 0xA2805140	// FVER chunk
 // private val NONE_HUMAN	   = "uncompressed"
-   private val fl32_HUMAN	   = "32-bit float"
-   private val fl64_HUMAN	   = "64-bit float"
+   private val fl32_HUMAN	   = Array[Byte]( 12, 51, 50, 45, 98, 105, 116, 32, 102, 108, 111, 97, 116, 0 ) // "32-bit float"
+   private val fl64_HUMAN	   = Array[Byte]( 12, 54, 52, 45, 98, 105, 116, 32, 102, 108, 111, 97, 116, 0 ) // "64-bit float"
+
+   private val LN2            = math.log( 2 )
 
    // ---- AudioFileHeaderFactory ----
    def createHeaderReader : Option[ AudioFileHeaderReader ] = Some( new Reader )
-   def createHeaderWriter : Option[ AudioFileHeaderWriter ] = None // XXX
+   def createHeaderWriter : Option[ AudioFileHeaderWriter ] = Some( new Writer )
 
    @throws( classOf[ IOException ])
    def identify( dis: DataInputStream ) = dis.readInt() match {
@@ -255,6 +258,224 @@ object AIFFHeader extends AudioFileHeaderFactory {
 //      def createBufferReader( read: ReadableByteChannel, bufSize: Int ) : Option[ BufferReader ] =
 //         spec.sampleFormat.readerFactory.map( _.apply( read, byt, spec.numChannels ))
    }
+
+   private class Writer extends AudioFileHeaderWriter {
+      import AudioFileHeader._
+
+      @throws( classOf[ IOException ])
+      def write( raf: RandomAccessFile, spec: AudioFileSpec ) : WritableAudioFileHeader = {
+         val (otherLen, commLen) = writeDataOutput( raf, spec )
+         new WritableFileHeader( raf, spec, otherLen, commLen )
+      }
+
+      @throws( classOf[ IOException ])
+      def write( dos: DataOutputStream, spec: AudioFileSpec ) : WritableAudioFileHeader = {
+         writeDataOutput( dos, spec )
+         WritableStreamHeader( spec )
+      }
+
+      @throws( classOf[ IOException ])
+      private def writeDataOutput( dout: DataOutput, spec: AudioFileSpec ) : (Int, Int) = {
+         val smpForm       = spec.sampleFormat
+         val bitsPerSample = smpForm.bitsPerSample
+         val sr            = spec.sampleRate
+         val numFrames     = spec.numFrames  // initial value, only needed for stream files
+         val numChannels   = spec.numChannels
+
+         val isAIFC = smpForm == SampleFormat.Float || smpForm == SampleFormat.Double  // floating point requires AIFC compression extension
+
+         val otherLen      = if( isAIFC ) 24 else 12   // FORM, MAGIC and FVER
+         val commLen       = if( isAIFC ) 44 else 26   // 8 + 2 + 4 + 2 + 10 + (isAIFC ? 4 + fl32_HUMAN.size : 0)
+         val ssndLen       = (bitsPerSample >> 3) * numFrames * numChannels + 16
+         val fileLen       = otherLen + commLen + ssndLen
+
+         dout.writeInt( FORM_MAGIC )
+         dout.writeInt( (fileLen - 8).toInt )				// Laenge ohne FORM-Header (Dateilaenge minus 8); unknown now
+
+         // MAGIC and FVER Chunk
+         if( isAIFC ) {
+            dout.writeInt( AIFC_MAGIC )
+            dout.writeInt( FVER_MAGIC )
+            dout.writeInt( 4 )
+            dout.writeInt( AIFCVersion1 )
+         } else {
+            dout.writeInt( AIFF_MAGIC )
+         }
+
+         // COMM Chunk
+         dout.writeInt( COMM_MAGIC )
+//         pos = dis.getFilePointer();
+//         dis.writeInt( 0 );				// not known yet
+         dout.writeInt( commLen - 8 )
+
+         dout.writeShort( numChannels )
+//         commSmpNumOffset = dis.getFilePointer();
+         dout.writeInt( numFrames.toInt )			// updated later
+         dout.writeShort( if( isAIFC ) 16 else bitsPerSample ) // a quite strange convention ...
+
+         // suckers never die.
+         val srs  = if( sr < 0.0 ) 128 else 0
+         val sra  = math.abs( sr )
+         val srl	= (math.log( sra ) / LN2 + 16383.0).toInt & 0xFFFF
+         val sre	= sra * (1 << (0x401E - srl))
+         dout.writeShort( (((srs | (srl >> 8)) & 0xFF) << 8) | (srl & 0xFF) )
+         dout.writeInt( sre.toInt )
+         dout.writeInt( ((sre % 1.0) * 4294967296.0).toInt )
+
+         if( isAIFC ) {
+            if( bitsPerSample == 32 ) {
+               dout.writeInt( fl32_MAGIC )
+               dout.write( fl32_HUMAN )
+            } else {
+               dout.writeInt( fl64_MAGIC )
+               dout.write( fl64_HUMAN )
+            }
+         }
+         // ...chunk len update...
+//         pos2 = dis.getFilePointer();
+//         dis.seek( pos );
+//         dis.writeInt( (int) (pos2 - pos - 4) );
+//         dis.seek( pos2 );
+
+//         // INST Chunk
+//         dis.writeInt( INST_MAGIC );
+//         dis.writeInt( 20 );
+//
+//         dis.writeInt( (69 << 24) | (0 << 16) | 0x007F );	// char: MIDI Note, Detune, LowNote, HighNote
+//
+//         // XXX the gain information could be updated in updateHeader()
+//         o = descr.getProperty( AudioFileInfo.KEY_GAIN );
+//         if( o != null ) {
+//            i1	= (int) (20 * Math.log( ((Float) o).floatValue() ) / Math.log( 10) + 0.5);
+//         } else {
+//            i1= 0;
+//         }
+//         dis.writeInt( (0x007F << 16) | (i1 & 0xFFFF) );		// char velLo, char velHi, short gain [dB]
+//
+//         region  = (Region) descr.getProperty( AudioFileInfo.KEY_LOOP );
+//         lp	= region != null;
+//         dis.writeShort( lp ? 1 : 0 );					// No loop vs. loop forward
+//         dis.writeInt( lp ? 0x00010002 : 0 );			// Sustain-Loop Markers
+//         dis.writeShort( 0 )					// No release loop
+//         dis.writeInt( 0 )
+
+//         markers= (List) descr.getProperty( AudioFileInfo.KEY_MARKERS );
+//         if( markers == null ) markers = Collections.EMPTY_LIST;
+//         // MARK Chunk
+//         if( lp || !markers.isEmpty() ) {
+//            dis.writeInt( MARK_MAGIC );
+//            pos= dis.getFilePointer();
+//            dis.writeInt( 0 );				// not known yet
+//   i1	= markers.size() + (lp? 2 : 0);
+//            dis.writeShort( i1 );
+//            i2	= 1;					// ascending marker ID
+//            if( lp ) {
+//               dis.writeShort( i2++ );						// loopstart ID
+//               dis.writeInt( (int) region.span.getStart() );	// sample off
+//               dis.writeLong( 0x06626567206C7000L );		// Pascal style String: "beg lp"
+//               dis.writeShort( i2++ );
+//               dis.writeInt((int) region.span.getStop() );
+//               dis.writeLong( 0x06656E64206C7000L );		// Pascal style String: "end lp"
+//            }
+//   for( i1 = 0; i1 < markers.size(); i1++ ) {
+//   dis.writeShort( i2++ );
+//               marker = (Marker) markers.get( i1 );
+//      dis.writeInt( (int) marker.pos );
+////	dis.writeByte( (marker.name.len() + 1) & 0xFE );
+//               dis.writeByte( marker.name.len()  & 0xFF );
+//               dis.writeBytes( marker.name);
+//               if( (marker.name.len() & 1) == 0 ) {
+//                  dis.writeByte( 0x00 );
+////					} else {
+////						dis.writeShort( 0x2000 );	// padding space + zero pad to even address
+//               }
+//            }
+//            // ...chunk len update...
+//            pos2 = dis.getFilePointer();
+//            dis.seek( pos );
+//            dis.writeInt( (int) (pos2 - pos - 4) );
+//         dis.seek( pos2 );
+//         }
+//
+//         // COMT Chunk
+//         str = (String) descr.getProperty( AudioFileInfo.KEY_COMMENT );
+//         if( (str != null) && (str.len() > 0) ) {
+//            dis.writeInt( COMT_MAGIC );
+//            dis.writeInt( (11 + str.len()) & ~1 );
+//            dis.writeShort( 1 );			// just one comment
+//            // time stamp "seconds since 1904"; this stupid idea dies around 2030
+//            // when 32bit unsigned will be overflowed
+//
+//            val SECONDS_FROM_1904_TO_1970 = 2021253247L
+//
+//            dis.writeInt( (int) (System.currentTimeMillis() + SECONDS_FROM_1904_TO_1970) );
+//            dis.writeShort( 0 );			// no marker association
+//            dis.writeShort( str.len() );// count
+//            dis.writeBytes( str );
+//            if( (str.len() & 1) == 1 ) {
+//               dis.writeByte( 0 );			// pad
+//            }
+//         }
+
+//         // APPL Chunk
+//         strBuf	= (byte[]) descr.getProperty( AudioFileInfo.KEY_APPCODE );
+//         if( (descr.appCode != null) && (strBuf != null) ){
+//            dis.writeInt( APPL_MAGIC );
+//            dis.writeInt( 4 + strBuf.len );
+//      dis.write( descr.appCode.getBytes(), 0, 4 );
+//         dis.write( strBuf );
+//            if( strBuf.len % 2 == 1 ) dis.write( 0 ); // pad
+//         }
+
+         // SSND Chunk (Header)
+         dout.writeInt( SSND_MAGIC )
+//         ssndLengthOffset = dis.getFilePointer();
+         dout.writeInt( (ssndLen - 8).toInt )		// 8 + stream.samples * frameLength )
+         dout.writeInt( 0 )		// sample
+         dout.writeInt( 0 )		// block size (?!)
+//         sampleDataOffset = dis.getFilePointer();
+
+//         updateHeader( descr );
+         (otherLen, commLen)
+      }
+   }
+
+   private class WritableFileHeader( raf: RandomAccessFile, var spec: AudioFileSpec, otherLen: Int, commLen: Int )
+   extends WritableAudioFileHeader {
+      @throws( classOf[ IOException ])
+      def update( numFrames: Long ) {
+         if( numFrames == spec.numFrames ) return
+         
+         val ssndLen = (spec.sampleFormat.bitsPerSample >> 3) * numFrames * spec.numChannels + 16
+         val oldPos	= raf.getFilePointer()
+         
+         // FORM Chunk len
+         raf.seek( 4L )
+         val fileLen = otherLen + commLen + ssndLen
+         raf.writeInt( (fileLen - 8).toInt )
+
+         // COMM: numFrames
+         raf.seek( otherLen + 4 )
+         raf.writeInt( numFrames.toInt )								
+
+         // SSND Chunk len
+         raf.seek( otherLen + commLen + 4 )
+         raf.writeInt( (ssndLen - 8).toInt )
+
+         raf.seek( oldPos )
+         spec = spec.copy( numFrames = numFrames )
+      }
+
+      def byteOrder : ByteOrder = ByteOrder.BIG_ENDIAN  // currently fixed (original AIFF spec)
+   }
+
+   private case class WritableStreamHeader( val spec: AudioFileSpec )
+   extends WritableAudioFileHeader {
+      @throws( classOf[ IOException ])
+      def update( numFrames: Long ) = opNotSupported
+
+      def byteOrder : ByteOrder = ByteOrder.BIG_ENDIAN  // currently fixed (original AIFF spec)
+   }
 }
 
    /*
@@ -293,162 +514,6 @@ class AIFFHeader extends AudioFileHeaderReader with AudioFileHeaderWriter {
       long			pos, pos2;
       boolean			lp;
 
-      isAIFC= descr.sampleFormat == AudioFileInfo.FORMAT_FLOAT;	// floating point requires AIFC compression extension
-      dis.writeInt( FORM_MAGIC );
-      dis.writeInt( 0 );				// Laenge ohne FORM-Header (Dateilaenge minus8); unknown now
-      dis.writeInt( isAIFC ? AIFC_MAGIC : AIFF_MAGIC );
-
-      // FVER Chunk
-      if( isAIFC ) {
-         dis.writeInt( FVER_MAGIC );
-dis.writeInt( 4 );
-         dis.writeInt( AIFCVersion1 );
-      }
-
-      // COMM Chunk
-      dis.writeInt( COMM_MAGIC );
-      pos =dis.getFilePointer();
-      dis.writeInt( 0 );				// not known yet
-      dis.writeShort( descr.channels );
-      commSmpNumOffset = dis.getFilePointer();
-      dis.writeInt( 0 );			// updated later
-      dis.writeShort( isAIFC ? 16 : descr.bitsPerSample );	// a quite strange convention ...
-
-      // suckers never die.
-      i2		= (descr.rate <0.0) ? 128 : 0;
-d2		= Math.abs( descr.rate  );
-      i1		= (int) (Math.log( d2 ) / Math.log( 2 ) + 16383.0) & 0xFFFF;
-d1		= d2 * (1 << (0x401E-i1));	// Math.pow( 2.0,0x401E - i1 );
-      dis.writeShort( (((i2 | (i1 >> 8)) & 0xFF) << 8) | (i1 & 0xFF) );
-      dis.writeInt( (int) ((long) d1 & 0xFFFFFFFF) );
-      dis.writeInt( (int) ((long) ((d1 % 1.0) * 4294967296.0) & 0xFFFFFFFF) );
-
-      if( isAIFC ) {
-         if( descr.bitsPerSample == 32 ) {
-            str	= fl32_HUMAN;
-            i1	= fl32_MAGIC;
-         } else {
-            str = fl64_HUMAN;
-   i1	= fl64_MAGIC;
-         }
-         dis.writeInt( i1 );
-         dis.writeByte( str.len() );
-         dis.writeBytes( str );
-         if( (str.len() & 1) == 0 ) {
-            dis.writeByte( 0x00);
-//				} else {
-//					dis.writeShort( 0x0000 );
-         }
-      }
-      // ...chunk len update...
-      pos2 = dis.getFilePointer();
-      dis.seek( pos );
-      dis.writeInt( (int) (pos2 - pos - 4) );
-      dis.seek( pos2 );
-
-      // INST Chunk
-      dis.writeInt( INST_MAGIC );
-      dis.writeInt( 20 );
-
-//			f1	= (float) (12 * Math.log( (double) stream.base / 440.0 ) / Constants.ln2);
-//			i1	= (int) (f1 + 0.5f);
-//			b1	= (byte) ((f1 - (float) i1) * 100.0f);
-//			writeInt( (((i1 + 69) & 0xFF) << 24) | ((int) b1 << 16) | 0x007F );	// char: MIDI Note, Detune, LowNote, HighNote
-      dis.writeInt( (69 << 24) | (0 << 16) | 0x007F );	// char: MIDI Note, Detune, LowNote, HighNote
-
-      // XXX the gain information could be updated in updateHeader()
-      o = descr.getProperty( AudioFileInfo.KEY_GAIN );
-      if( o != null ) {
-         i1	= (int) (20 * Math.log( ((Float) o).floatValue() ) / Math.log( 10) + 0.5);
-      } else {
-         i1= 0;
-      }
-      dis.writeInt( (0x007F << 16) | (i1 & 0xFFFF) );		// char velLo, char velHi, short gain [dB]
-
-      region  = (Region) descr.getProperty( AudioFileInfo.KEY_LOOP );
-      lp	= region != null;
-      dis.writeShort( lp ? 1 : 0 );					// No loop vs. loop forward
-dis.writeInt( lp ? 0x00010002 : 0 );			// Sustain-Loop Markers
-      dis.writeShort( 0 );							// No release loop
-      dis.writeInt( 0 );
-
-      markers= (List) descr.getProperty( AudioFileInfo.KEY_MARKERS );
-      if( markers == null ) markers = Collections.EMPTY_LIST;
-      // MARK Chunk
-      if( lp || !markers.isEmpty() ) {
-         dis.writeInt( MARK_MAGIC );
-         pos= dis.getFilePointer();
-         dis.writeInt( 0 );				// not known yet
-i1	= markers.size() + (lp? 2 : 0);
-         dis.writeShort( i1 );
-         i2	= 1;					// ascending marker ID
-         if( lp ) {
-            dis.writeShort( i2++ );						// loopstart ID
-            dis.writeInt( (int) region.span.getStart() );	// sample off
-            dis.writeLong( 0x06626567206C7000L );		// Pascal style String: "beg lp"
-            dis.writeShort( i2++ );
-            dis.writeInt((int) region.span.getStop() );
-            dis.writeLong( 0x06656E64206C7000L );		// Pascal style String: "end lp"
-         }
-for( i1 = 0; i1 < markers.size(); i1++ ) {
-dis.writeShort( i2++ );
-            marker = (Marker) markers.get( i1 );
-   dis.writeInt( (int) marker.pos );
-//	dis.writeByte( (marker.name.len() + 1) & 0xFE );
-            dis.writeByte( marker.name.len()  & 0xFF );
-            dis.writeBytes( marker.name);
-            if( (marker.name.len() & 1) == 0 ) {
-               dis.writeByte( 0x00 );
-//					} else {
-//						dis.writeShort( 0x2000 );	// padding space + zero pad to even address
-            }
-         }
-         // ...chunk len update...
-         pos2 = dis.getFilePointer();
-         dis.seek( pos );
-         dis.writeInt( (int) (pos2 - pos - 4) );
-      dis.seek( pos2 );
-      }
-
-      // COMT Chunk
-      str = (String) descr.getProperty( AudioFileInfo.KEY_COMMENT );
-      if( (str != null) && (str.len() > 0) ) {
-         dis.writeInt( COMT_MAGIC );
-dis.writeInt( (11 + str.len()) & ~1 );
-         dis.writeShort( 1 );			// just one comment
-         // time stamp "seconds since 1904"; this stupid idea dies around 2030
-         // when 32bit unsigned will be overflowed
-
-protected val SECONDS_FROM_1904_TO_1970 = 2021253247L
-
-dis.writeInt( (int) (System.currentTimeMillis() + SECONDS_FROM_1904_TO_1970) );
-         dis.writeShort( 0 );			// no marker association
-         dis.writeShort( str.len() );// count
-         dis.writeBytes( str );
-         if( (str.len() & 1) == 1 ) {
-            dis.writeByte( 0 );			// pad
-         }
-      }
-
-      // APPL Chunk
-      strBuf	= (byte[]) descr.getProperty( AudioFileInfo.KEY_APPCODE );
-      if( (descr.appCode != null) && (strBuf != null) ){
-         dis.writeInt( APPL_MAGIC );
-         dis.writeInt( 4 + strBuf.len );
-   dis.write( descr.appCode.getBytes(), 0, 4 );
-      dis.write( strBuf );
-         if( strBuf.len % 2 == 1 ) dis.write( 0 ); // pad
-      }
-
-      // SSND Chunk (Header)
-      dis.writeInt( SSND_MAGIC );
-      ssndLengthOffset = dis.getFilePointer();
-      dis.writeInt( 8);		// + stream.samples * frameLength );
-      dis.writeInt( 0 );		// sample
-dis.writeInt( 0 );		// block size (?!)
-      sampleDataOffset = dis.getFilePointer();
-
-      updateHeader( descr );
    }
 
    @throws( classOf[ IOException ])
@@ -473,7 +538,7 @@ dis.writeInt( 0 );		// block size (?!)
       lastUpdateLength = len;
    }
 
-//   protected longgetSampleDataOffset()
+//   protected long getSampleDataOffset()
 //   {
 //      return sampleDataOffset;
 //   }

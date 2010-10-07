@@ -32,7 +32,7 @@ import de.sciss.synth.io._
 import java.io.{ DataInput, DataInputStream, EOFException, IOException, RandomAccessFile, Reader }
 import java.nio.ByteOrder
 
-trait AbstractRIFFHeader {
+private[io] trait AbstractRIFFHeader {
    protected val ADTL_MAGIC		= 0x6164746C	// 'adtl'
    protected val LABL_MAGIC		= 0x6C61626C	// 'labl'
    protected val LTXT_MAGIC		= 0x6C747874	// 'ltxt'
@@ -53,7 +53,7 @@ trait AbstractRIFFHeader {
 //   protected boolean	unsignedPCM;
 }
 
-object WaveHeader extends AudioFileHeaderFactory with AbstractRIFFHeader {
+private[io] object WaveHeader extends AudioFileHeaderFactory with AbstractRIFFHeader {
    import AudioFileHeader._ 
 
    private val RIFF_MAGIC		= 0x52494646	// 'RIFF'
