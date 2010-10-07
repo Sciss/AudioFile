@@ -1,4 +1,4 @@
-h2. ScalaAudioFile ==<small>-- version 0.10 (built 16-may-10) --</small>==
+h2. ScalaAudioFile ==<small>-- version 0.14 (built 07-oct-10) --</small>==
 
 h3. statement
 
@@ -18,11 +18,13 @@ h3. getting started
 
 ScalaAudioFile is a refactored version of the Java class @de.sciss.io.AudioFile@ from "ScissLib":http://sourceforge.net/projects/scisslib . It is far from complete and in alpha state. So be *warned* that this is not production quality and has received little testing!
 
-Currently, only the AIFF and WAVE decoder have been implemented. The writers and the codecs of Wave64, IRCAM, and NeXT still need to be converted.
+Currently, the only formats supported are AIFF (read, write), WAVE (read), and Wave64 (read)!
 
 To open an audio file for reading: @AudioFile.openRead( aFile )@ or @AudioFile.openRead( anInputStream )@. The @InputStream@ variant has limited functionality, e.g. you cannot seek into the file, but only read sequentially. The stream variant can be used to decode files from an HTTP connection or in-memory (@ByteArrayInputStream@).
 
-To the user, frame data is always represented as de-interleaved 32-bit floating point data, so you create a user buffer through @Array.ofDim[ Float ]( numChannels, bufFrames )@.
+To open a file for writing: @AudioFile.openWrite( aFile, spec )@ or @AudioFile.openWrite( anOutputStream, spec )@
+
+To the user, frame data is always represented as de-interleaved 32-bit floating point data, so you create a user buffer through @Array.ofDim[ Float ]( numChannels, bufFrames )@, or use a convenience method such as @AudioFile.frameBuffer(...)@.
 
 The @AudioFile@ implementation is currently not thread-safe, but synchronization is planned.
 

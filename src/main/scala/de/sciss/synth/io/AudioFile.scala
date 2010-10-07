@@ -49,9 +49,8 @@ package de.sciss.synth.io
 import java.nio.{ ByteBuffer }
 import java.nio.channels.{ Channels }
 import math._
-import java.io.{ BufferedInputStream, DataInputStream, File, FileInputStream,
-   IOException, InputStream, RandomAccessFile }
 import ScalaAudioFile._
+import java.io.{DataOutputStream, BufferedOutputStream, OutputStream, BufferedInputStream, DataInputStream, File, FileInputStream, IOException, InputStream, RandomAccessFile}
 
 /**
  *	 The <code>AudioFile</code> allows reading and writing
@@ -149,9 +148,13 @@ object AudioFile {
    }
 
    private def dataInput( is: InputStream )   = new DataInputStream( new BufferedInputStream( is, 1024 ))
+   private def dataOutput( os: OutputStream )  = new DataOutputStream( new BufferedOutputStream( os, 1024 ))
 
    private def noDecoder( msg: AnyRef ) = throw new IOException( "No decoder for " + msg )
    private def noEncoder( msg: AnyRef ) = throw new IOException( "No encoder for " + msg )
+
+   @throws( classOf[ IOException ])
+   def openWrite( path: String, spec: AudioFileSpec ) : AudioFile = openWrite( new File( path ), spec )
 
    /**
     *  Opens an audiofile for reading/writing. The pathname
@@ -174,15 +177,13 @@ object AudioFile {
     */
    @throws( classOf[ IOException ])
    def openWrite( f: File, spec: AudioFileSpec ) : AudioFile = {
-      val fileType   = spec.fileType
-      val factory    = fileType.factory.getOrElse( noEncoder( fileType ))
-      val afhw       = factory.createHeaderWriter.getOrElse( noEncoder( fileType ))
+      val afhw = createHeaderWriter( spec )
       if( f.exists ) f.delete
-      val raf        = new RandomAccessFile( f, "rw" )
-      val afh        = afhw.write( raf, spec )
-      val buf        = createBuffer( afh )
-      val sf         = spec.sampleFormat
-      val ch         = raf.getChannel()
+      val raf  = new RandomAccessFile( f, "rw" )
+      val afh  = afhw.write( raf, spec )
+      val buf  = createBuffer( afh )
+      val sf   = spec.sampleFormat
+      val ch   = raf.getChannel()
       sf.bidiFactory match {
          case Some( bbf ) =>
             val bb   = bbf( ch, ch, buf, spec.numChannels )
@@ -191,6 +192,24 @@ object AudioFile {
             val bw = sf.writerFactory.map( _.apply( ch, buf, spec.numChannels )).getOrElse( noEncoder( sf ))
             new WritableFileImpl( f, raf, afh, bw )
       }
+   }
+
+   @throws( classOf[ IOException ])
+   def openWrite( os: OutputStream, spec: AudioFileSpec ) : AudioFile = {
+      val afhw = createHeaderWriter( spec )
+      val dos  = dataOutput( os )
+      val afh  = afhw.write( dos, spec )
+      val buf  = createBuffer( afh )
+      val sf   = spec.sampleFormat
+      val bw   = sf.writerFactory.map( _.apply( Channels.newChannel( dos ), buf, spec.numChannels ))
+         .getOrElse( noEncoder( sf ))
+      new WritableStreamImpl( dos, afh, bw )
+   }
+
+   private def createHeaderWriter( spec: AudioFileSpec ) : AudioFileHeaderWriter = {
+      val fileType   = spec.fileType
+      val factory    = fileType.factory.getOrElse( noEncoder( fileType ))
+      factory.createHeaderWriter.getOrElse( noEncoder( fileType ))
    }
 
    def frameBuffer( numChannels: Int, bufFrames: Int = 8192 ) : Frames =
@@ -282,6 +301,15 @@ object AudioFile {
          this
       }
 
+      override def toString = {
+         val s          = spec.toString
+         val specString = s.substring( 14 )
+         "AudioFile@" + accessString + "(" + sourceString + ", " + specString
+      }
+
+      protected def accessString : String
+      protected def sourceString : String
+
       def cleanUp : AudioFile = {
          try { close } catch { case e: IOException => }
          this
@@ -292,7 +320,7 @@ object AudioFile {
       def isReadable = true
 
       protected def bh: BufferReader
-      def numFrames : Long = afh.spec.numFrames
+      def numFrames : Long = spec.numFrames
 
       @throws( classOf[ IOException ])
       def readFrames( data: Frames, off: Int, len: Int ) : AudioFile = {
@@ -311,11 +339,13 @@ object AudioFile {
       @throws( classOf[ IOException ])
       def writeFrames( data: Frames, off: Int, len : Int ) : AudioFile = opNotSupported
 
-      @throws( classOf[ IOException ])
-      def numFrames_=( frames : Long ) : AudioFile = opNotSupported
+//      @throws( classOf[ IOException ])
+//      def numFrames_=( frames : Long ) : AudioFile = opNotSupported
+//
+//      @throws( classOf[ IOException ])
+//      def truncate : AudioFile = opNotSupported
 
-      @throws( classOf[ IOException ])
-      def truncate : AudioFile = opNotSupported
+      protected def accessString = "r"
    }
 
    private trait Writable extends Basic {
@@ -324,7 +354,7 @@ object AudioFile {
       protected def bh: BufferWriter
       protected def afh: WritableAudioFileHeader
       protected var numFramesVar: Long = 0L
-      override def numFrames : Long = numFramesVar 
+      override def numFrames : Long = numFramesVar
       override def spec : AudioFileSpec   = afh.spec.copy( numFrames = numFramesVar )
 
       @throws( classOf[ IOException ])
@@ -332,16 +362,26 @@ object AudioFile {
          bh.writeFrames( data, off, len )
          framePositionVar += len
          if( framePositionVar > numFramesVar ) numFramesVar = framePositionVar
+//println( "writeFrames : " + len + " / " + framePositionVar + " / " + numFramesVar + " / " + numFrames )
+         this
+      }
+
+      @throws( classOf[ IOException ])
+      def flush : AudioFile = {
+         afh.update( numFrames )
          this
       }
    }
 
    private trait Bidi extends Readable with Writable {
       override protected def bh: BufferBidi
+      protected def accessString = "rw"
    }
 
    private trait WriteOnly extends Writable {
       def isReadable = false
+
+      protected def accessString = "w"
 
       @throws( classOf[ IOException ])
       def readFrames( data: Frames, off: Int, len : Int ) : AudioFile = opNotSupported
@@ -352,6 +392,8 @@ object AudioFile {
 
       @throws( classOf[ IOException ])
       def seekFrame( frame : Long ) : AudioFile = opNotSupported
+
+      protected def sourceString = "<stream>"
    }
 
    private trait FileLike extends Basic {
@@ -361,6 +403,8 @@ object AudioFile {
       def file: Option[ File ] = Some( f )
 
       private val sampleDataOffset = raf.getFilePointer()
+
+      protected def sourceString = f.toString
       
       @throws( classOf[ IOException ])
       def seekFrame( frame : Long ) : AudioFile = {
@@ -380,12 +424,6 @@ object AudioFile {
    }
 
    private trait WritableFileLike extends FileLike with Writable {
-      @throws( classOf[ IOException ])
-      def flush : AudioFile = {
-         afh.update( numFrames )
-         this
-      }
-
       @throws( classOf[ IOException ])
       def close : AudioFile = {
          flush
@@ -408,6 +446,17 @@ object AudioFile {
       }
    }
 
+   private trait WriteOnlyStreamLike extends StreamLike with WriteOnly {
+      protected def dos: DataOutputStream
+
+      @throws( classOf[ IOException ])
+      def close : AudioFile = {
+         flush
+         dos.close()
+         this
+      }
+   }
+
    private class ReadableStreamImpl( protected val dis: DataInputStream, protected val afh: AudioFileHeader,
                                      protected val bh: BufferReader )
    extends ReadOnlyStreamLike
@@ -421,6 +470,10 @@ object AudioFile {
                                    protected val raf: RandomAccessFile, protected val afh: WritableAudioFileHeader,
                                    protected val bh: BufferWriter )
    extends WriteOnlyFileLike
+
+   private class WritableStreamImpl( protected val dos: DataOutputStream, protected val afh: WritableAudioFileHeader,
+                                     protected val bh: BufferWriter )
+   extends WriteOnlyStreamLike
 
    private class BidiFileImpl( protected val f: File,
                                protected val raf: RandomAccessFile, protected val afh: WritableAudioFileHeader,

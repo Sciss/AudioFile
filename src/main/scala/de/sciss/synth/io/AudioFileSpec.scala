@@ -28,5 +28,5 @@
 
 package de.sciss.synth.io
 
-case class AudioFileSpec( fileType: AudioFileType, sampleFormat: SampleFormat, numChannels: Int, sampleRate: Double,
-                          numFrames: Long = 0L ) 
+case class AudioFileSpec( fileType: AudioFileType = AudioFileType.AIFF, sampleFormat: SampleFormat = SampleFormat.Float,
+                          numChannels: Int, sampleRate: Double, numFrames: Long = 0L ) 

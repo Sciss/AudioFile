@@ -66,7 +66,7 @@ private[io] object AIFFHeader extends AudioFileHeaderFactory {
    private val fl32_HUMAN	   = Array[Byte]( 12, 51, 50, 45, 98, 105, 116, 32, 102, 108, 111, 97, 116, 0 ) // "32-bit float"
    private val fl64_HUMAN	   = Array[Byte]( 12, 54, 52, 45, 98, 105, 116, 32, 102, 108, 111, 97, 116, 0 ) // "64-bit float"
 
-   private val LN2            = math.log( 2 )
+   private val LN2R           = 1.0 / math.log( 2 )
 
    // ---- AudioFileHeaderFactory ----
    def createHeaderReader : Option[ AudioFileHeaderReader ] = Some( new Reader )
@@ -314,13 +314,13 @@ private[io] object AIFFHeader extends AudioFileHeaderFactory {
          dout.writeShort( if( isAIFC ) 16 else bitsPerSample ) // a quite strange convention ...
 
          // suckers never die.
-         val srs  = if( sr < 0.0 ) 128 else 0
+         val srs  = if( sr < 0.0 ) 0x80 else 0
          val sra  = math.abs( sr )
-         val srl	= (math.log( sra ) / LN2 + 16383.0).toInt & 0xFFFF
+         val srl	= (math.log( sra ) * LN2R + 0x3FFF).toInt & 0xFFFF
          val sre	= sra * (1 << (0x401E - srl))
          dout.writeShort( (((srs | (srl >> 8)) & 0xFF) << 8) | (srl & 0xFF) )
-         dout.writeInt( sre.toInt )
-         dout.writeInt( ((sre % 1.0) * 4294967296.0).toInt )
+         dout.writeInt( sre.toLong.toInt ) // WARNING: a direct sre.toInt yields a wrong result (Int.MaxValue)
+         dout.writeInt( ((sre % 1.0) * 0x100000000L).toLong.toInt ) // WARNING: same here
 
          if( isAIFC ) {
             if( bitsPerSample == 32 ) {
@@ -455,7 +455,7 @@ private[io] object AIFFHeader extends AudioFileHeaderFactory {
          raf.writeInt( (fileLen - 8).toInt )
 
          // COMM: numFrames
-         raf.seek( otherLen + 4 )
+         raf.seek( otherLen + 10 )
          raf.writeInt( numFrames.toInt )								
 
          // SSND Chunk len
@@ -472,7 +472,11 @@ private[io] object AIFFHeader extends AudioFileHeaderFactory {
    private case class WritableStreamHeader( val spec: AudioFileSpec )
    extends WritableAudioFileHeader {
       @throws( classOf[ IOException ])
-      def update( numFrames: Long ) = opNotSupported
+      def update( numFrames: Long ) {
+         if( numFrames == spec.numFrames ) return
+
+         opNotSupported
+      }
 
       def byteOrder : ByteOrder = ByteOrder.BIG_ENDIAN  // currently fixed (original AIFF spec)
    }
