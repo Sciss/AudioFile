@@ -2,7 +2,7 @@
  *  AudioFileHeader.java
  *  (ScalaAudioFile)
  *
- *  Copyright (c) 2004-2010 Hanns Holger Rutz. All rights reserved.
+ *  Copyright (c) 2004-2011 Hanns Holger Rutz. All rights reserved.
  *
  *  This software is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -48,6 +48,12 @@ private[io] object AudioFileHeader {
    }
 
    @throws( classOf[ IOException ])
+   @inline def readLittleFloat( din: DataInput ) : Float = {
+      val i = din.readInt()
+      java.lang.Float.intBitsToFloat( ((i>> 24) & 0xFF) | ((i >> 8) & 0xFF00) | ((i << 8) & 0xFF0000) | (i << 24) )
+   }
+
+   @throws( classOf[ IOException ])
    @inline def readLittleLong( din: DataInput ) : Long = {
       val n = din.readLong()
       ((n >> 56) & 0xFFL) |
@@ -66,12 +72,18 @@ private[io] object AudioFileHeader {
    }
 
    @throws( classOf[ IOException ])
-   @inline def writeLittleInt( dout: DataOutputStream, i: Int ) {
+   @inline def writeLittleInt( dout: DataOutput, i: Int ) {
       dout.writeInt( ((i >> 24) & 0xFF) | ((i >> 8) & 0xFF00) | ((i << 8)& 0xFF0000) | (i << 24) )
    }
 
    @throws( classOf[ IOException ])
-   @inline def writeLittleLong( dout: DataOutputStream, n: Long ) {
+   @inline def writeLittleFloat( dout: DataOutput, f: Float ) {
+      val i = java.lang.Float.floatToIntBits( f )
+      dout.writeInt( ((i >> 24) & 0xFF) | ((i >> 8) & 0xFF00) | ((i << 8)& 0xFF0000) | (i << 24) )
+   }
+
+   @throws( classOf[ IOException ])
+   @inline def writeLittleLong( dout: DataOutput, n: Long ) {
       dout.writeLong( ((n >> 56) & 0xFFL) |
                      ((n >> 40) & 0xFF00L) |
                      ((n >> 24) & 0xFF0000L) |
@@ -96,6 +108,62 @@ private[io] object AudioFileHeader {
    def formatError      = throw new IOException( "A header format error occurred" )
    def encodingError    = throw new IOException( "File has unsupported encoding" )
    def incompleteError  = throw new IOException( "Header data is incomplete" )
+
+   trait DataInputReader {
+      @throws( classOf[ IOException ]) def readInt() : Int
+      @throws( classOf[ IOException ]) def readFloat() : Float
+      def byteOrder() : ByteOrder
+   }
+
+   trait DataOutputWriter {
+      @throws( classOf[ IOException ]) def writeInt( i: Int ) : Unit
+      @throws( classOf[ IOException ]) def writeFloat( f: Float ) : Unit
+      def byteOrder() : ByteOrder
+   }
+
+   def dataInputReader( din: DataInput, byteOrder: ByteOrder ) : DataInputReader = {
+      if( byteOrder == ByteOrder.LITTLE_ENDIAN ) {
+         new LittleDataInputReader( din )
+      } else {
+         new BigDataInputReader( din )
+      }
+   }
+
+   def nativeDataInputReader( din: DataInput ) : DataInputReader = dataInputReader( din, ByteOrder.nativeOrder )
+
+   def dataOutputWriter( dout: DataOutput, byteOrder: ByteOrder ) : DataOutputWriter = {
+      if( byteOrder == ByteOrder.LITTLE_ENDIAN ) {
+         new LittleDataOutputWriter( dout )
+      } else {
+         new BigDataOutputWriter( dout )
+      }
+   }
+
+   def nativeDataOutputWriter( dout: DataOutput ) : DataOutputWriter = dataOutputWriter( dout, ByteOrder.nativeOrder )
+
+   class BigDataInputReader( din: DataInput ) extends DataInputReader {
+      @throws( classOf[ IOException ]) def readInt()    = din.readInt()
+      @throws( classOf[ IOException ]) def readFloat()  = din.readFloat()
+      def byteOrder  = ByteOrder.BIG_ENDIAN
+   }
+
+   class LittleDataInputReader( din: DataInput ) extends DataInputReader {
+      @throws( classOf[ IOException ]) def readInt()    = readLittleInt( din )
+      @throws( classOf[ IOException ]) def readFloat()  = readLittleFloat( din )
+      def byteOrder  = ByteOrder.LITTLE_ENDIAN
+   }
+
+   class BigDataOutputWriter( dout: DataOutput ) extends DataOutputWriter {
+      @throws( classOf[ IOException ]) def writeInt( i: Int )     = dout.writeInt( i )
+      @throws( classOf[ IOException ]) def writeFloat( f: Float ) = dout.writeFloat( f )
+      def byteOrder  = ByteOrder.BIG_ENDIAN
+   }
+
+   class LittleDataOutputWriter( dout: DataOutput ) extends DataOutputWriter {
+      @throws( classOf[ IOException ]) def writeInt( i: Int )     = writeLittleInt( dout, i )
+      @throws( classOf[ IOException ]) def writeFloat( f: Float ) = writeLittleFloat( dout, f )
+      def byteOrder  = ByteOrder.LITTLE_ENDIAN
+   }
 }
 
 private[io] trait AudioFileHeaderFactory {
@@ -124,6 +192,9 @@ private[io] trait AudioFileHeader {
 //   @throws( classOf[ IOException ])
 //   def seekFrame( frame: Long ) : Unit
 }
+
+private[io] case class ReadableAudioFileHeader( spec: AudioFileSpec, byteOrder: ByteOrder )
+extends AudioFileHeader
 
 private[io] trait WritableAudioFileHeader extends AudioFileHeader {
    @throws( classOf[ IOException ])

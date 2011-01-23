@@ -2,7 +2,7 @@
  *  WaveHeader.java
  *  (ScalaAudioFile)
  *
- *  Copyright (c) 2004-2010 Hanns Holger Rutz. All rights reserved.
+ *  Copyright (c) 2004-2011 Hanns Holger Rutz. All rights reserved.
  *
  *  This software is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -175,8 +175,9 @@ private[io] object WaveHeader extends AudioFileHeaderFactory with AbstractRIFFHe
                case DATA_MAGIC => {
                   if( bpf == -1 ) throw new IOException( "WAVE header misses fmt chunk" )
                   val numFrames  = chunkLen / bpf
-                  val spec       = new AudioFileSpec( AudioFileType.Wave, sampleFormat, numChannels, sampleRate, numFrames )
-                  afh            = new ReadableHeader( spec )
+                  val spec       = new AudioFileSpec( AudioFileType.Wave, sampleFormat, numChannels, sampleRate,
+                     Some( ByteOrder.LITTLE_ENDIAN ), numFrames )
+                  afh            = new ReadableAudioFileHeader( spec, ByteOrder.LITTLE_ENDIAN )
                }
 
 //               case CUE_MAGIC => {
@@ -536,11 +537,6 @@ private[io] object WaveHeader extends AudioFileHeaderFactory with AbstractRIFFHe
 //finally {
 //         raf.seek( oldPos );
 //      }
-   }
-
-   private case class ReadableHeader( spec: AudioFileSpec )
-   extends AudioFileHeader {
-      def byteOrder = ByteOrder.LITTLE_ENDIAN
    }
 } // class WAVEHeader
 

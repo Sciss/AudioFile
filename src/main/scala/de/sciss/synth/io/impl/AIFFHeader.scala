@@ -2,7 +2,7 @@
  *  AIFFHeader.scala
  *  (ScalaAudioFile)
  *
- *  Copyright (c) 2004-2010 Hanns Holger Rutz. All rights reserved.
+ *  Copyright (c) 2004-2011 Hanns Holger Rutz. All rights reserved.
  *
  *  This software is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -26,9 +26,9 @@
  *  Changelog:
  */
 
-package de.sciss.synth.io.impl
+package de.sciss.synth.io
+package impl
 
-import de.sciss.synth.io._
 import java.nio.ByteOrder
 import ByteOrder.{ BIG_ENDIAN, LITTLE_ENDIAN }
 import math._
@@ -63,8 +63,12 @@ private[io] object AIFFHeader extends AudioFileHeaderFactory {
 
    private val AIFCVersion1	= 0xA2805140	// FVER chunk
 // private val NONE_HUMAN	   = "uncompressed"
-   private val fl32_HUMAN	   = Array[Byte]( 12, 51, 50, 45, 98, 105, 116, 32, 102, 108, 111, 97, 116, 0 ) // "32-bit float"
-   private val fl64_HUMAN	   = Array[Byte]( 12, 54, 52, 45, 98, 105, 116, 32, 102, 108, 111, 97, 116, 0 ) // "64-bit float"
+//   private val fl32_HUMAN	   = Array[Byte]( 12, 51, 50, 45, 98, 105, 116, 32, 102, 108, 111, 97, 116, 0 ) // "32-bit float"
+//   private val fl64_HUMAN	   = Array[Byte]( 12, 54, 52, 45, 98, 105, 116, 32, 102, 108, 111, 97, 116, 0 ) // "64-bit float"
+//   private val in16_HUMAN	   = Array[Byte]( 12, 49, 54, 45, 98, 105, 116, 32, 105, 110, 116, 32,  32, 0 ) // "16-bit int  "
+   private val fl32_HUMAN	   = Array[Byte]( 0x66, 0x6C, 0x33, 0x32, 12, 51, 50, 45, 98, 105, 116, 32, 102, 108, 111, 97, 116, 0 ) // "32-bit float"
+   private val fl64_HUMAN	   = Array[Byte]( 0x66, 0x6C, 0x36, 0x34, 12, 54, 52, 45, 98, 105, 116, 32, 102, 108, 111, 97, 116, 0 ) // "64-bit float"
+   private val in16_HUMAN	   = Array[Byte]( 0x73, 0x6F, 0x77, 0x74, 12, 49, 54, 45, 98, 105, 116, 32, 105, 110, 116, 32,  32, 0 ) // "16-bit int  "
 
    private val LN2R           = 1.0 / math.log( 2 )
 
@@ -73,13 +77,13 @@ private[io] object AIFFHeader extends AudioFileHeaderFactory {
    def createHeaderWriter : Option[ AudioFileHeaderWriter ] = Some( new Writer )
 
    @throws( classOf[ IOException ])
-   def identify( dis: DataInputStream ) = dis.readInt() match {
-      case FORM_MAGIC => {	         // -------- probably AIFF --------
+   def identify( dis: DataInputStream ) = {
+      val cookie = dis.readInt()
+      if( cookie == FORM_MAGIC ) {	         // -------- probably AIFF --------
          dis.readInt()
          val magic = dis.readInt()
          magic == AIFC_MAGIC || magic == AIFF_MAGIC
-      }
-      case _ => false
+      } else false
    }
 
    private class Reader extends AudioFileHeaderReader {
@@ -150,8 +154,8 @@ private[io] object AIFFHeader extends AudioFileHeaderFactory {
                      }
                   } else (BIG_ENDIAN, intSampleFormat( bitsPerSample ))
 
-                  val spec = new AudioFileSpec( AudioFileType.AIFF, sampleFormat, numChannels, sampleRate, numFrames )
-                  afh = new ReadableHeader( spec, byteOrder )
+                  val spec = new AudioFileSpec( AudioFileType.AIFF, sampleFormat, numChannels, sampleRate, Some( byteOrder ), numFrames )
+                  afh = new ReadableAudioFileHeader( spec, byteOrder )
                }
 
                case INST_MAGIC => {
@@ -253,39 +257,47 @@ private[io] object AIFFHeader extends AudioFileHeaderFactory {
       }
    }
 
-   private case class ReadableHeader( spec: AudioFileSpec, byteOrder: ByteOrder )
-   extends AudioFileHeader {
-//      def createBufferReader( read: ReadableByteChannel, bufSize: Int ) : Option[ BufferReader ] =
-//         spec.sampleFormat.readerFactory.map( _.apply( read, byt, spec.numChannels ))
-   }
-
    private class Writer extends AudioFileHeaderWriter {
       import AudioFileHeader._
 
       @throws( classOf[ IOException ])
       def write( raf: RandomAccessFile, spec: AudioFileSpec ) : WritableAudioFileHeader = {
-         val (otherLen, commLen) = writeDataOutput( raf, spec )
-         new WritableFileHeader( raf, spec, otherLen, commLen )
+         val (otherLen, commLen, spec1) = writeDataOutput( raf, spec )
+         new WritableFileHeader( raf, spec1, otherLen, commLen )
       }
 
       @throws( classOf[ IOException ])
       def write( dos: DataOutputStream, spec: AudioFileSpec ) : WritableAudioFileHeader = {
-         writeDataOutput( dos, spec )
-         WritableStreamHeader( spec )
+         val (_, _, spec1) = writeDataOutput( dos, spec )
+         WritableStreamHeader( spec1 )
       }
 
       @throws( classOf[ IOException ])
-      private def writeDataOutput( dout: DataOutput, spec: AudioFileSpec ) : (Int, Int) = {
+      private def writeDataOutput( dout: DataOutput, spec: AudioFileSpec ) : (Int, Int, AudioFileSpec) = {
          val smpForm       = spec.sampleFormat
          val bitsPerSample = smpForm.bitsPerSample
          val sr            = spec.sampleRate
          val numFrames     = spec.numFrames  // initial value, only needed for stream files
          val numChannels   = spec.numChannels
+         val byteOrder     = spec.byteOrder.getOrElse( ByteOrder.BIG_ENDIAN )
 
-         val isAIFC = smpForm == SampleFormat.Float || smpForm == SampleFormat.Double  // floating point requires AIFC compression extension
+         val le16 = if( byteOrder == ByteOrder.LITTLE_ENDIAN ) {
+            if( spec.sampleFormat != SampleFormat.Int16 ) throw new IOException( "AIFF little endian only supported for Int16" )
+            true
+         } else false
+
+         val aifcExt = if( smpForm == SampleFormat.Float ) {
+            fl32_HUMAN
+         } else if( smpForm == SampleFormat.Double ) {
+            fl64_HUMAN
+         } else if( le16 ) {
+            in16_HUMAN
+         } else null
+
+         val isAIFC = aifcExt != null  // floating point requires AIFC compression extension
 
          val otherLen      = if( isAIFC ) 24 else 12   // FORM, MAGIC and FVER
-         val commLen       = if( isAIFC ) 44 else 26   // 8 + 2 + 4 + 2 + 10 + (isAIFC ? 4 + fl32_HUMAN.size : 0)
+         val commLen       = if( isAIFC ) 30 + aifcExt.size else 26   // 8 + 2 + 4 + 2 + 10 + (isAIFC ? 4 + fl32_HUMAN.size : 0)
          val ssndLen       = (bitsPerSample >> 3) * numFrames * numChannels + 16
          val fileLen       = otherLen + commLen + ssndLen
 
@@ -323,13 +335,7 @@ private[io] object AIFFHeader extends AudioFileHeaderFactory {
          dout.writeInt( ((sre % 1.0) * 0x100000000L).toLong.toInt ) // WARNING: same here
 
          if( isAIFC ) {
-            if( bitsPerSample == 32 ) {
-               dout.writeInt( fl32_MAGIC )
-               dout.write( fl32_HUMAN )
-            } else {
-               dout.writeInt( fl64_MAGIC )
-               dout.write( fl64_HUMAN )
-            }
+            dout.write( aifcExt )
          }
          // ...chunk len update...
 //         pos2 = dis.getFilePointer();
@@ -436,12 +442,14 @@ private[io] object AIFFHeader extends AudioFileHeaderFactory {
 //         sampleDataOffset = dis.getFilePointer();
 
 //         updateHeader( descr );
-         (otherLen, commLen)
+         (otherLen, commLen, spec.copy( byteOrder = Some( byteOrder )))
       }
    }
 
-   private class WritableFileHeader( raf: RandomAccessFile, var spec: AudioFileSpec, otherLen: Int, commLen: Int )
+   private class WritableFileHeader( raf: RandomAccessFile, spec0: AudioFileSpec, otherLen: Int, commLen: Int )
    extends WritableAudioFileHeader {
+      private var numFrames0 = spec0.numFrames
+
       @throws( classOf[ IOException ])
       def update( numFrames: Long ) {
          if( numFrames == spec.numFrames ) return
@@ -463,10 +471,12 @@ private[io] object AIFFHeader extends AudioFileHeaderFactory {
          raf.writeInt( (ssndLen - 8).toInt )
 
          raf.seek( oldPos )
-         spec = spec.copy( numFrames = numFrames )
+//         spec = spec.copy( numFrames = numFrames )
+         numFrames0 = numFrames
       }
 
-      def byteOrder : ByteOrder = ByteOrder.BIG_ENDIAN  // currently fixed (original AIFF spec)
+      def spec = spec0.copy( numFrames = numFrames0 )
+      def byteOrder : ByteOrder = spec0.byteOrder.getOrElse( ByteOrder.BIG_ENDIAN  )
    }
 
    private case class WritableStreamHeader( val spec: AudioFileSpec )
@@ -478,7 +488,7 @@ private[io] object AIFFHeader extends AudioFileHeaderFactory {
          opNotSupported
       }
 
-      def byteOrder : ByteOrder = ByteOrder.BIG_ENDIAN  // currently fixed (original AIFF spec)
+      def byteOrder : ByteOrder = spec.byteOrder.getOrElse( ByteOrder.BIG_ENDIAN  )
    }
 }
 

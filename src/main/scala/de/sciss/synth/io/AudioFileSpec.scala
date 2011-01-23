@@ -2,7 +2,7 @@
  *  AudioFileSpec.scala
  *  (ScalaAudioFile)
  *
- *  Copyright (c) 2004-2010 Hanns Holger Rutz. All rights reserved.
+ *  Copyright (c) 2004-2011 Hanns Holger Rutz. All rights reserved.
  *
  *  This software is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -28,5 +28,21 @@
 
 package de.sciss.synth.io
 
+import java.nio.ByteOrder
+
+//trait AudioFileSpecLike {
+//   def fileType: AudioFileType
+//   def sampleFormat: SampleFormat
+//   def numChannels: Int
+//   def sampleRate: Double
+//   def numFrames: Long
+//}
+//
+//trait AudioFileInputSpec extends AudioFileSpecLike {
+//   def byteOrder: ByteOrder
+//   def toOutput : AudioFileSpec
+//}
+
 case class AudioFileSpec( fileType: AudioFileType = AudioFileType.AIFF, sampleFormat: SampleFormat = SampleFormat.Float,
-                          numChannels: Int, sampleRate: Double, numFrames: Long = 0L ) 
+                          numChannels: Int, sampleRate: Double, byteOrder: Option[ ByteOrder ] = None, numFrames: Long = 0L )
+// extends AudioFileSpecLike

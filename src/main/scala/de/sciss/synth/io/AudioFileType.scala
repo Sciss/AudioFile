@@ -2,7 +2,7 @@
  *  AudioFileType.scala
  *  (ScalaAudioFile)
  *
- *  Copyright (c) 2004-2010 Hanns Holger Rutz. All rights reserved.
+ *  Copyright (c) 2004-2011 Hanns Holger Rutz. All rights reserved.
  *
  *  This software is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -64,8 +64,12 @@ object AudioFileType {
    case object Wave   extends AudioFileType( "wav",   "wav" ) {
       private[io] def factory = Some( WaveHeader )
    }
+
+   /**
+    * See http://www-mmsp.ece.mcgill.ca/Documents/AudioFormats/IRCAM/IRCAM.html
+    */
    case object IRCAM  extends AudioFileType( "ircam", "irc ") {
-      private[io] def factory = None // XXX
+      private[io] def factory = Some( IRCAMHeader )
    }
    case object Raw    extends AudioFileType( "raw",   "raw" ) {
       private[io] def factory = None // XXX

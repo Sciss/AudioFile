@@ -2,7 +2,7 @@
  *  ScalaAudioFile.scala
  *  (ScalaAudioFile)
  *
- *  Copyright (c) 2004-2010 Hanns Holger Rutz. All rights reserved.
+ *  Copyright (c) 2004-2011 Hanns Holger Rutz. All rights reserved.
  *
  *  This software is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -33,7 +33,7 @@ import java.io.IOException
 object ScalaAudioFile {
    val name          = "ScalaAudioFile"
    val version       = 0.14
-   val copyright     = "(C)opyright 2004-2010 Hanns Holger Rutz"
+   val copyright     = "(C)opyright 2004-2011 Hanns Holger Rutz"
 
    def versionString = (version + 0.001).toString.substring( 0, 4 )
 

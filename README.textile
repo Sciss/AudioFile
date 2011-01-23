@@ -1,12 +1,12 @@
-h2. ScalaAudioFile ==<small>-- version 0.14 (built 07-oct-10) --</small>==
+h2. ScalaAudioFile
 
 h3. statement
 
-ScalaAudioFile is a Scala library to read and write audio files. It is (C)opyright 2004-2010 by Hanns Holger Rutz. All rights reserved. ScalaAudioFile is released under the "GNU General Public License":http://github.com/Sciss/ScalaAudioFile/blob/master/licenses/ScalaAudioFile-License.txt and comes with absolutely no warranties. To contact the author, send an email to @contact at sciss.de@
+ScalaAudioFile is a Scala library to read and write audio files. It is (C)opyright 2004-2011 by Hanns Holger Rutz. All rights reserved. ScalaAudioFile is released under the "GNU General Public License":http://github.com/Sciss/ScalaAudioFile/blob/master/licenses/ScalaAudioFile-License.txt and comes with absolutely no warranties. To contact the author, send an email to @contact at sciss.de@
 
 h3. requirements / installation
 
-ScalaAudioFile currently compiles against Scala 2.8.0. The repository contains a project file for Intellij IDEA 9 CE, and project files for sbt. Targets for sbt:
+ScalaAudioFile currently compiles against Scala 2.8.1. The repository contains a project file for Intellij IDEA 10 CE, and project files for sbt. Targets for sbt:
 
 * @clean@
 * @compile@
@@ -18,7 +18,7 @@ h3. getting started
 
 ScalaAudioFile is a refactored version of the Java class @de.sciss.io.AudioFile@ from "ScissLib":http://sourceforge.net/projects/scisslib . It is far from complete and in alpha state. So be *warned* that this is not production quality and has received little testing!
 
-Currently, the only formats supported are AIFF (read, write), WAVE (read), and Wave64 (read)!
+Currently, the only formats supported are AIFF (read, write), WAVE (read), and IRCAM (read, write)!
 
 To open an audio file for reading: @AudioFile.openRead( aFile )@ or @AudioFile.openRead( anInputStream )@. The @InputStream@ variant has limited functionality, e.g. you cannot seek into the file, but only read sequentially. The stream variant can be used to decode files from an HTTP connection or in-memory (@ByteArrayInputStream@).
 
