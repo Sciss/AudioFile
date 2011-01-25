@@ -297,7 +297,7 @@ private[io] object AIFFHeader extends AudioFileHeaderFactory {
          val isAIFC = aifcExt != null  // floating point requires AIFC compression extension
 
          val otherLen      = if( isAIFC ) 24 else 12   // FORM, MAGIC and FVER
-         val commLen       = if( isAIFC ) 30 + aifcExt.size else 26   // 8 + 2 + 4 + 2 + 10 + (isAIFC ? 4 + fl32_HUMAN.size : 0)
+         val commLen       = if( isAIFC ) 26 + aifcExt.size else 26   // 8 + 2 + 4 + 2 + 10 + (isAIFC ? 4 + fl32_HUMAN.size : 0)
          val ssndLen       = (bitsPerSample >> 3) * numFrames * numChannels + 16
          val fileLen       = otherLen + commLen + ssndLen
 
