@@ -6,7 +6,7 @@ ScalaAudioFile is a Scala library to read and write audio files. It is (C)opyrig
 
 h3. requirements / installation
 
-ScalaAudioFile currently compiles against Scala 2.8.1. The repository contains a project file for Intellij IDEA 10 CE, and project files for sbt. Targets for sbt:
+ScalaAudioFile currently compiles against Scala 2.9.0 and 2.8.1. The repository contains a project file for Intellij IDEA 10 CE, and project files for sbt. Targets for sbt:
 
 * @clean@
 * @compile@
