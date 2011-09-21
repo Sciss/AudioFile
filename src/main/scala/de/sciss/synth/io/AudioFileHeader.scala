@@ -102,7 +102,7 @@ private[io] object AudioFileHeader {
          buf.append( b.toChar )
          b	= din.readByte()
       }
-      buf.toString()
+      buf.toString
    }
 
    def formatError      = throw new IOException( "A header format error occurred" )
@@ -154,14 +154,14 @@ private[io] object AudioFileHeader {
    }
 
    class BigDataOutputWriter( dout: DataOutput ) extends DataOutputWriter {
-      @throws( classOf[ IOException ]) def writeInt( i: Int )     = dout.writeInt( i )
-      @throws( classOf[ IOException ]) def writeFloat( f: Float ) = dout.writeFloat( f )
+      @throws( classOf[ IOException ]) def writeInt( i: Int )     { dout.writeInt( i )}
+      @throws( classOf[ IOException ]) def writeFloat( f: Float ) { dout.writeFloat( f )}
       def byteOrder  = ByteOrder.BIG_ENDIAN
    }
 
    class LittleDataOutputWriter( dout: DataOutput ) extends DataOutputWriter {
-      @throws( classOf[ IOException ]) def writeInt( i: Int )     = writeLittleInt( dout, i )
-      @throws( classOf[ IOException ]) def writeFloat( f: Float ) = writeLittleFloat( dout, f )
+      @throws( classOf[ IOException ]) def writeInt( i: Int )     { writeLittleInt( dout, i )}
+      @throws( classOf[ IOException ]) def writeFloat( f: Float ) { writeLittleFloat( dout, f )}
       def byteOrder  = ByteOrder.LITTLE_ENDIAN
    }
 }

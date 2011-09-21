@@ -258,7 +258,7 @@ private[io] object AIFFHeader extends AudioFileHeaderFactory {
    }
 
    private class Writer extends AudioFileHeaderWriter {
-      import AudioFileHeader._
+//      import AudioFileHeader._
 
       @throws( classOf[ IOException ])
       def write( raf: RandomAccessFile, spec: AudioFileSpec ) : WritableAudioFileHeader = {
@@ -455,7 +455,7 @@ private[io] object AIFFHeader extends AudioFileHeaderFactory {
          if( numFrames == spec.numFrames ) return
          
          val ssndLen = (spec.sampleFormat.bitsPerSample >> 3) * numFrames * spec.numChannels + 16
-         val oldPos	= raf.getFilePointer()
+         val oldPos	= raf.getFilePointer
          
          // FORM Chunk len
          raf.seek( 4L )
@@ -479,7 +479,7 @@ private[io] object AIFFHeader extends AudioFileHeaderFactory {
       def byteOrder : ByteOrder = spec0.byteOrder.getOrElse( ByteOrder.BIG_ENDIAN  )
    }
 
-   private case class WritableStreamHeader( val spec: AudioFileSpec )
+   private case class WritableStreamHeader( spec: AudioFileSpec )
    extends WritableAudioFileHeader {
       @throws( classOf[ IOException ])
       def update( numFrames: Long ) {

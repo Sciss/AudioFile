@@ -32,7 +32,7 @@ import java.io.IOException
 
 object ScalaAudioFile {
    val name          = "ScalaAudioFile"
-   val version       = 0.16
+   val version       = 0.17
    val copyright     = "(C)opyright 2004-2011 Hanns Holger Rutz"
 
    def versionString = (version + 0.001).toString.substring( 0, 4 )
@@ -46,13 +46,13 @@ object ScalaAudioFile {
             )
          }
          case _ => {
-            printInfo
+            printInfo()
             System.exit( 1 )
          }
       }
    }
 
-   def printInfo {
+   def printInfo() {
       println( "\n" + name + " v" + versionString + "\n" + copyright +
          ". All rights reserved.\n\nThis is a library which cannot be executed directly.\n" )
    }

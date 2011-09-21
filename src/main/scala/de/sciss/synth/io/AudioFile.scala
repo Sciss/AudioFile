@@ -106,14 +106,14 @@ object AudioFile {
    @throws( classOf[ IOException ])
    def openRead( f: File ) : AudioFile = {
       val raf        = new RandomAccessFile( f, "r" )
-      val dis        = dataInput( Channels.newInputStream( raf.getChannel() ))
+      val dis        = dataInput( Channels.newInputStream( raf.getChannel ))
       val afhr       = createHeaderReader( dis )
       raf.seek( 0L ) // BufferedInputStream did advance the position!
       val afh        = afhr.read( raf )
       val buf        = createBuffer( afh )
       val spec       = afh.spec
       val sf         = spec.sampleFormat
-      val br         = sf.readerFactory.map( _.apply( raf.getChannel(), buf, spec.numChannels ))
+      val br         = sf.readerFactory.map( _.apply( raf.getChannel, buf, spec.numChannels ))
          .getOrElse( noDecoder( sf ))
       new ReadableFileImpl( f, raf, afh, br )
    }
@@ -183,7 +183,7 @@ object AudioFile {
       val afh  = afhw.write( raf, spec )
       val buf  = createBuffer( afh )
       val sf   = spec.sampleFormat
-      val ch   = raf.getChannel()
+      val ch   = raf.getChannel
       sf.bidiFactory match {
          case Some( bbf ) =>
             val bb   = bbf( ch, ch, buf, spec.numChannels )
@@ -220,7 +220,7 @@ object AudioFile {
    def readSpec( f: File ) : AudioFileSpec = {
       val raf  = new RandomAccessFile( f, "r" )
       try {
-         val dis  = dataInput( Channels.newInputStream( raf.getChannel() ))
+         val dis  = dataInput( Channels.newInputStream( raf.getChannel ))
          val afhr = createHeaderReader( dis )
          raf.seek( 0L ) // BufferedInputStream did advance the position!
          afhr.read( raf ).spec
@@ -402,7 +402,7 @@ object AudioFile {
       
       def file: Option[ File ] = Some( f )
 
-      private val sampleDataOffset = raf.getFilePointer()
+      private val sampleDataOffset = raf.getFilePointer
 
       protected def sourceString = f.toString
       
@@ -561,7 +561,7 @@ object AudioFile {
 }
 
 trait AudioFile {
-   import AudioFile._
+//   import AudioFile._
 
 //-------- public methods --------
 
@@ -643,7 +643,7 @@ trait AudioFile {
 	def framePosition : Long
 
    @throws( classOf[ IOException ])
-   final def framePosition_=( frame: Long ) : Unit = seekFrame( frame )
+   final def framePosition_=( frame: Long ) { seekFrame( frame )}
 
 	/**
 	 *	 Writes sample frames to the file starting at the current position.

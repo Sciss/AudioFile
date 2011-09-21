@@ -32,7 +32,7 @@ import java.io.IOException
 import scala.{ Byte => SByte, Double => SDouble, Float => SFloat, Int => SInt, Short => SShort }
 import java.nio.channels.{ ReadableByteChannel, WritableByteChannel }
 import math._
-import java.nio._
+import java.nio.{ByteOrder, ByteBuffer}
 
 private[io] trait BufferHandler {
    protected def byteBuf : ByteBuffer
@@ -41,19 +41,19 @@ private[io] trait BufferHandler {
    val frameSize : SInt = (bitsPerSample >> 3) * numChannels  // bytes per frame
    protected val bufFrames = byteBuf.capacity / frameSize
 
-   protected def checkCapacity = require( bufFrames > 0, "Buffer too small" )
+   protected def checkCapacity() { require( bufFrames > 0, "Buffer too small" )}
 }
 
 private[io] trait BufferReader extends BufferHandler {
    @throws( classOf[ IOException ])
    def readFrames( frames: Frames, off: SInt, len: SInt ) : Unit
-   protected val read : ReadableByteChannel
+   protected def read : ReadableByteChannel
 }
 
 private[io] trait BufferWriter extends BufferHandler {
    @throws( classOf[ IOException ])
    def writeFrames( frames: Frames, off: SInt, len: SInt ) : Unit
-   protected val write : WritableByteChannel
+   protected def write : WritableByteChannel
 }
 
 private[io] trait BufferBidi extends BufferReader with BufferWriter
@@ -118,7 +118,7 @@ private[io] object BufferReader {
    object Byte extends BufferReaderFactory
    case class Byte( read: ReadableByteChannel, byteBuf: ByteBuffer, numChannels: SInt )
    extends BufferHandler.Byte with ByteLike {
-      checkCapacity
+      checkCapacity()
    }
 
    // float to byte = f*0x7F+0x80 (-1 ... +1becomes 0x01 to 0xFF)
@@ -126,13 +126,13 @@ private[io] object BufferReader {
    object UByte extends BufferReaderFactory
    case class UByte( read: ReadableByteChannel, byteBuf: ByteBuffer, numChannels: SInt )
    extends BufferHandler.UByte with UByteLike {
-      checkCapacity
+      checkCapacity()
    }
 
    object Short extends BufferReaderFactory
    case class Short( read: ReadableByteChannel, byteBuf: ByteBuffer, numChannels: SInt )
    extends BufferHandler.Short with ShortLike {
-      checkCapacity
+      checkCapacity()
    }
 
    object ThreeBytes extends BufferReaderFactory {
@@ -151,7 +151,7 @@ private[io] object BufferReader {
     */
    case class ThreeBytesBE( read: ReadableByteChannel, byteBuf: ByteBuffer, numChannels: SInt )
    extends BufferHandler.ThreeBytes with ThreeBytesBELike {
-      checkCapacity
+      checkCapacity()
    }
 
    /*
@@ -159,25 +159,25 @@ private[io] object BufferReader {
     */
    case class ThreeBytesLE( read: ReadableByteChannel, byteBuf: ByteBuffer, numChannels: SInt )
    extends BufferHandler.ThreeBytes with ThreeBytesLELike {
-      checkCapacity
+      checkCapacity()
    }
 
    object Int extends BufferReaderFactory
    case class Int( read: ReadableByteChannel, byteBuf: ByteBuffer, numChannels: SInt )
    extends BufferHandler.Int with IntLike {
-      checkCapacity
+      checkCapacity()
    }
 
    object Float extends BufferReaderFactory
    case class Float( read: ReadableByteChannel, byteBuf: ByteBuffer, numChannels: SInt )
    extends BufferHandler.Float with FloatLike {
-      checkCapacity
+      checkCapacity()
    }
 
    object Double extends BufferReaderFactory
    case class Double( read: ReadableByteChannel, byteBuf: ByteBuffer, numChannels: SInt )
    extends BufferHandler.Double with DoubleLike {
-      checkCapacity
+      checkCapacity()
    }
 
    trait ByteLike extends BufferReader {
@@ -428,7 +428,7 @@ private[io] object BufferWriter {
    object Byte extends BufferWriterFactory
    case class Byte( write: WritableByteChannel, byteBuf: ByteBuffer,numChannels: SInt )
    extends BufferHandler.Byte with ByteLike {
-      checkCapacity
+      checkCapacity()
    }
 
    // float to byte = f*0x7F+0x80 (-1 ... +1becomes 0x01 to 0xFF)
@@ -436,13 +436,13 @@ private[io] object BufferWriter {
    object UByte extends BufferWriterFactory
    case class UByte( write: WritableByteChannel, byteBuf: ByteBuffer, numChannels: SInt )
    extends BufferHandler.UByte with UByteLike {
-      checkCapacity
+      checkCapacity()
    }
 
    object Short extends BufferWriterFactory
    case class Short( write: WritableByteChannel, byteBuf: ByteBuffer, numChannels: SInt )
    extends BufferHandler.Short with ShortLike {
-      checkCapacity
+      checkCapacity()
    }
 
    object ThreeBytes extends BufferWriterFactory {
@@ -457,30 +457,30 @@ private[io] object BufferWriter {
 
    case class ThreeBytesBE( write: WritableByteChannel, byteBuf: ByteBuffer, numChannels: SInt )
    extends BufferHandler.ThreeBytes with ThreeBytesBELike {
-      checkCapacity
+      checkCapacity()
    }
 
    case class ThreeBytesLE( write: WritableByteChannel, byteBuf: ByteBuffer, numChannels: SInt )
    extends BufferHandler.ThreeBytes with ThreeBytesLELike {
-      checkCapacity
+      checkCapacity()
    }
 
    object Int extends BufferWriterFactory
    case class Int( write: WritableByteChannel, byteBuf: ByteBuffer, numChannels: SInt )
    extends BufferHandler.Int with IntLike {
-      checkCapacity
+      checkCapacity()
    }
 
    object Float extends BufferWriterFactory
    case class Float( write: WritableByteChannel, byteBuf: ByteBuffer, numChannels: SInt )
    extends BufferHandler.Float with FloatLike {
-      checkCapacity
+      checkCapacity()
    }
 
    object Double extends BufferWriterFactory
    case class Double( write: WritableByteChannel, byteBuf: ByteBuffer, numChannels: SInt )
    extends BufferHandler.Double with DoubleLike {
-      checkCapacity
+      checkCapacity()
    }
 
    trait ByteLike extends BufferWriter {
@@ -724,19 +724,19 @@ private[io] object BufferBidi {
    object Byte extends BufferBidiFactory
    case class Byte( read: ReadableByteChannel, write: WritableByteChannel, byteBuf: ByteBuffer, numChannels: SInt )
    extends BufferHandler.Byte with BufferReader.ByteLike with BufferWriter.ByteLike with BufferBidi {
-      checkCapacity
+      checkCapacity()
    }
 
    object UByte extends BufferBidiFactory
    case class UByte( read: ReadableByteChannel, write: WritableByteChannel, byteBuf: ByteBuffer, numChannels: SInt )
    extends BufferHandler.UByte with BufferReader.UByteLike with BufferWriter.UByteLike with BufferBidi {
-      checkCapacity
+      checkCapacity()
    }
 
    object Short extends BufferBidiFactory
    case class Short( read: ReadableByteChannel, write: WritableByteChannel, byteBuf: ByteBuffer, numChannels: SInt )
    extends BufferHandler.Short with BufferReader.ShortLike with BufferWriter.ShortLike with BufferBidi {
-      checkCapacity
+      checkCapacity()
    }
 
    object ThreeBytes extends BufferBidiFactory {
@@ -754,31 +754,31 @@ private[io] object BufferBidi {
                             byteBuf: ByteBuffer, numChannels: SInt )
    extends BufferHandler.ThreeBytes with BufferReader.ThreeBytesBELike with BufferWriter.ThreeBytesBELike
    with BufferBidi {
-      checkCapacity
+      checkCapacity()
    }
 
    case class ThreeBytesLE( read: ReadableByteChannel, write: WritableByteChannel,
                             byteBuf: ByteBuffer, numChannels: SInt )
    extends BufferHandler.ThreeBytes with BufferReader.ThreeBytesLELike with BufferWriter.ThreeBytesLELike
    with BufferBidi {
-      checkCapacity
+      checkCapacity()
    }
 
    object Int extends BufferBidiFactory
    case class Int( read: ReadableByteChannel, write: WritableByteChannel, byteBuf: ByteBuffer, numChannels: SInt )
    extends BufferHandler.Int with BufferReader.IntLike with BufferWriter.IntLike with BufferBidi {
-      checkCapacity
+      checkCapacity()
    }
 
    object Float extends BufferBidiFactory
    case class Float( read: ReadableByteChannel, write: WritableByteChannel, byteBuf: ByteBuffer, numChannels: SInt )
    extends BufferHandler.Float with BufferReader.FloatLike with BufferWriter.FloatLike with BufferBidi {
-      checkCapacity
+      checkCapacity()
    }
 
    object Double extends BufferBidiFactory
    case class Double( read: ReadableByteChannel, write: WritableByteChannel, byteBuf: ByteBuffer, numChannels: SInt )
    extends BufferHandler.Double with BufferReader.DoubleLike with BufferWriter.DoubleLike with BufferBidi {
-      checkCapacity
+      checkCapacity()
    }
 }

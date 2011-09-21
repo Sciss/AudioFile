@@ -29,7 +29,6 @@
 package de.sciss.synth.io
 
 import impl._
-import java.io.DataInputStream
 import collection.immutable.{ Set => ISet }
 
 abstract /* sealed */ class AudioFileType( val id: String, val ext: String ) {
