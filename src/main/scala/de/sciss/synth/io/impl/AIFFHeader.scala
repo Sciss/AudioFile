@@ -172,7 +172,7 @@ private[io] object AIFFHeader extends AudioFileHeaderFactory {
                }
 
                case MARK_MAGIC => {
-//               markersOffset = dis.getFilePointer();		// read them out later
+//               markersOffset = dis.getFilePointer();		// reader them out later
                }
 
                case SSND_MAGIC => {
@@ -204,7 +204,7 @@ private[io] object AIFFHeader extends AudioFileHeaderFactory {
 //         // all text documents describing the chunk assume a plain string
 //                     //; PString wouldn't make sense anyway because we have
 //                     // the dedicated count field. Logic Pro 6 writes a PString
-//         // but leaves count at zero, so this won't get read...
+//         // but leaves count at zero, so this won't get reader...
 //                     dis.readFully( strBuf );
 //                     descr.setProperty( AudioFileInfo.KEY_COMMENT, new String( strBuf ));
 //                  if( (i2 & 1) == 1 ) {
@@ -428,9 +428,9 @@ private[io] object AIFFHeader extends AudioFileHeaderFactory {
 //         if( (descr.appCode != null) && (strBuf != null) ){
 //            dis.writeInt( APPL_MAGIC );
 //            dis.writeInt( 4 + strBuf.len );
-//      dis.write( descr.appCode.getBytes(), 0, 4 );
-//         dis.write( strBuf );
-//            if( strBuf.len % 2 == 1 ) dis.write( 0 ); // pad
+//      dis.writer( descr.appCode.getBytes(), 0, 4 );
+//         dis.writer( strBuf );
+//            if( strBuf.len % 2 == 1 ) dis.writer( 0 ); // pad
 //         }
 
          // SSND Chunk (Header)
@@ -516,7 +516,7 @@ class AIFFHeader extends AudioFileHeaderReader with AudioFileHeaderWriter {
    private var loopEnd		      = 0
 
    @throws( classOf[ IOException ])
-   def write( spec: AudioFileSpec ) {
+   def writer( spec: AudioFileSpec ) {
       int				i1, i2;
       String		str;
       byte[]			strBuf;

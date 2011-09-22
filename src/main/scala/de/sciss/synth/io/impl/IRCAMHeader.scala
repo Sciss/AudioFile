@@ -181,7 +181,7 @@ private[io] object IRCAMHeader extends AudioFileHeaderFactory {
 //               raf.writeInt( i1 );		// chunk header
 //               if( region.name.len() <= 64 ) {
 //                  raf.writeBytes( region.name );
-//                  raf.write( strBuf, 0, 64 - region.name.len() );
+//                  raf.writer( strBuf, 0, 64 - region.name.len() );
 //               } else {
 //         raf.writeBytes( region.name.substring( 0, 64 ));
 //               }
@@ -276,7 +276,7 @@ private[io] object IRCAMHeader extends AudioFileHeaderFactory {
 					raf.writeInt( i1 );		// chunk header
 					if( region.name.len() <= 64 ) {
 						raf.writeBytes( region.name );
-						raf.write( strBuf, 0, 64 - region.name.len() );
+						raf.writer( strBuf, 0, 64 - region.name.len() );
 					} else {
 			raf.writeBytes( region.name.substring( 0, 64 ));
 					}
@@ -297,7 +297,7 @@ private[io] object IRCAMHeader extends AudioFileHeaderFactory {
 			pos				= raf.getFilePointer();
 			sampleDataOffset= (pos + 1023L) & ~1023L;		// aufgerundet auf ganze kilobyte
 			strBuf			= new byte[ (int) (sampleDataOffset - pos) ];
-			raf.write( strBuf );							// pad until sample off
+			raf.writer( strBuf );							// pad until sample off
 		}
 
 		protected void updateHeader( AudioFileInfo descr )

@@ -321,7 +321,7 @@ private[io] object WaveHeader extends AudioFileHeaderFactory with AbstractRIFFHe
 //         pos2 = raf.getFilePointer();
 //         i	 = (int)(pos2 - pos - 4);
 //         if( (i & 1) == 1 ) {
-//            raf.write( 0 );	// padding byte
+//            raf.writer( 0 );	// padding byte
 //            pos2++;
 //         }
 //         raf.seek( pos );
@@ -357,9 +357,9 @@ private[io] object WaveHeader extends AudioFileHeaderFactory with AbstractRIFFHe
 //         raf.writeInt( INST_MAGIC );
 //         writeLittleInt( 7 );
 //      raf.writeShort( (69 << 24) | (0 << 16) );	//char: MIDI Note, Detune
-//         raf.write( i1 );							// char gain (dB)
+//         raf.writer( i1 );							// char gain (dB)
 //         raf.writeInt( 0x007F007F );					// char LowNote, HighNote, velLo, char velHi
-//         raf.write( 0 );								// pad byte
+//         raf.writer( 0 );								// pad byte
 //      }
 //
 //      // data Chunk (Header)
@@ -755,7 +755,7 @@ enc.encode( cbuf, bbuf, true );
                writeLittleInt( bbuf.remaining() );
    raf.writeInt( 0 );		// padding
 //System.out.println( "writing " + bbuf.remaining() + " bytes at " + fch.position() );
-               fch.write( bbuf );
+               fch.writer( bbuf );
             }
          }
 
@@ -764,7 +764,7 @@ enc.encode( cbuf, bbuf, true );
          n1	 = pos2 - pos;
 //System.out.println( "n1 = " +n1 + "; pos = " + pos + "; pos2 = " + pos2 + "; pad = " + (int) (((n1 + 7) & 0xFFFFFFFFFFFFFFF8L) - n1) );
          final int pad = (int) (((n1 + 7) & 0xFFFFFFFFFFFFFFF8L)- n1);
-      for( int i = 0; i < pad; i++ ) raf.write( 0 );	// padding byte
+      for( int i = 0; i < pad; i++ ) raf.writer( 0 );	// padding byte
 
          raf.seek( pos );
          writeLittleLong( n1 + 16);
@@ -860,7 +860,7 @@ throws IOException
 
 //System.out.println( "reading " + bbuf.remaining() + " bytes from " + fch.position() );
 
-            fch.read( bbuf );
+            fch.reader( bbuf );
          if( (numBytes >= 2) &&
     (bbuf.get( numBytes - 2 ) == 0) &&
 (bbuf.get( numBytes -1 ) == 0) ) { // null term

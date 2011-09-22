@@ -49,13 +49,13 @@ private[io] trait BufferHandler {
 private[io] trait BufferReader extends BufferHandler {
    @throws( classOf[ IOException ])
    def readFrames( frames: Frames, off: SInt, len: SInt ) : Unit
-   protected def read : ReadableByteChannel
+   protected def reader : ReadableByteChannel
 }
 
 private[io] trait BufferWriter extends BufferHandler {
    @throws( classOf[ IOException ])
    def writeFrames( frames: Frames, off: SInt, len: SInt ) : Unit
-   protected def write : WritableByteChannel
+   protected def writer : WritableByteChannel
 }
 
 private[io] trait BufferBidi extends BufferReader with BufferWriter
@@ -118,7 +118,7 @@ private[io] trait BufferReaderFactory {
 }
 private[io] object BufferReader {
    object Byte extends BufferReaderFactory
-   final case class Byte( read: ReadableByteChannel, byteBuf: ByteBuffer, numChannels: SInt )
+   final case class Byte( reader: ReadableByteChannel, byteBuf: ByteBuffer, numChannels: SInt )
    extends BufferHandler.Byte with ByteLike {
 //      checkCapacity()
    }
@@ -126,13 +126,13 @@ private[io] object BufferReader {
    // float to byte = f*0x7F+0x80 (-1 ... +1becomes 0x01 to 0xFF)
    // which is how libsndfile behaves
    object UByte extends BufferReaderFactory
-   final case class UByte( read: ReadableByteChannel, byteBuf: ByteBuffer, numChannels: SInt )
+   final case class UByte( reader: ReadableByteChannel, byteBuf: ByteBuffer, numChannels: SInt )
    extends BufferHandler.UByte with UByteLike {
 //      checkCapacity()
    }
 
    object Short extends BufferReaderFactory
-   final case class Short( read: ReadableByteChannel, byteBuf: ByteBuffer, numChannels: SInt )
+   final case class Short( reader: ReadableByteChannel, byteBuf: ByteBuffer, numChannels: SInt )
    extends BufferHandler.Short with ShortLike {
 //      checkCapacity()
    }
@@ -151,7 +151,7 @@ private[io] object BufferReader {
    /*
     *  24bit big endian
     */
-   final case class ThreeBytesBE( read: ReadableByteChannel, byteBuf: ByteBuffer, numChannels: SInt )
+   final case class ThreeBytesBE( reader: ReadableByteChannel, byteBuf: ByteBuffer, numChannels: SInt )
    extends BufferHandler.ThreeBytes with ThreeBytesBELike {
 //      checkCapacity()
    }
@@ -159,25 +159,25 @@ private[io] object BufferReader {
    /*
     *  24bit little endian
     */
-   final case class ThreeBytesLE( read: ReadableByteChannel, byteBuf: ByteBuffer, numChannels: SInt )
+   final case class ThreeBytesLE( reader: ReadableByteChannel, byteBuf: ByteBuffer, numChannels: SInt )
    extends BufferHandler.ThreeBytes with ThreeBytesLELike {
 //      checkCapacity()
    }
 
    object Int extends BufferReaderFactory
-   final case class Int( read: ReadableByteChannel, byteBuf: ByteBuffer, numChannels: SInt )
+   final case class Int( reader: ReadableByteChannel, byteBuf: ByteBuffer, numChannels: SInt )
    extends BufferHandler.Int with IntLike {
 //      checkCapacity()
    }
 
    object Float extends BufferReaderFactory
-   final case class Float( read: ReadableByteChannel, byteBuf: ByteBuffer, numChannels: SInt )
+   final case class Float( reader: ReadableByteChannel, byteBuf: ByteBuffer, numChannels: SInt )
    extends BufferHandler.Float with FloatLike {
 //      checkCapacity()
    }
 
    object Double extends BufferReaderFactory
-   final case class Double( read: ReadableByteChannel, byteBuf: ByteBuffer, numChannels: SInt )
+   final case class Double( reader: ReadableByteChannel, byteBuf: ByteBuffer, numChannels: SInt )
    extends BufferHandler.Double with DoubleLike {
 //      checkCapacity()
    }
@@ -192,7 +192,7 @@ private[io] object BufferReader {
             val chunkLen   = math.min( bufFrames, remaining )
             val m			   = chunkLen * frameSize
             byteBuf.rewind().limit( m )
-            read.read( byteBuf )
+            reader.read( byteBuf )
             byteBuf.flip()
             byteBuf.get( arrayBuf, 0, m )
             var ch = 0; while( ch < numChannels ) {
@@ -221,7 +221,7 @@ private[io] object BufferReader {
             val chunkLen   = min( bufFrames, remaining )
             val m          = chunkLen * frameSize
             byteBuf.rewind().limit( m )
-            read.read( byteBuf )
+            reader.read( byteBuf )
             byteBuf.flip()
             byteBuf.get( arrayBuf, 0, m )
             var ch = 0; while( ch < numChannels ) {
@@ -252,7 +252,7 @@ private[io] object BufferReader {
             val chunkLen   = min( bufFrames, remaining )
             val m			   = chunkLen * numChannels
             byteBuf.rewind().limit( chunkLen * frameSize )
-            read.read( byteBuf )
+            reader.read( byteBuf )
             viewBuf.clear()
             viewBuf.get( arrayBuf, 0, m )
             var ch = 0; while( ch < numChannels ) {
@@ -281,7 +281,7 @@ private[io] object BufferReader {
             val chunkLen   = min( bufFrames, remaining )
             val m			   = chunkLen * frameSize
             byteBuf.rewind().limit( m )
-            read.read( byteBuf )
+            reader.read( byteBuf )
             byteBuf.flip()
             byteBuf.get( arrayBuf, 0, m )
             var ch = 0; var p = 0; while( ch < numChannels ) {
@@ -312,7 +312,7 @@ private[io] object BufferReader {
             val chunkLen   = min( bufFrames, remaining )
             val m			   = chunkLen * frameSize
             byteBuf.rewind().limit( m )
-            read.read( byteBuf )
+            reader.read( byteBuf )
             byteBuf.flip()
             byteBuf.get( arrayBuf, 0, m )
             var ch = 0; var p = 0; while( ch < numChannels ) {
@@ -343,7 +343,7 @@ private[io] object BufferReader {
             val chunkLen   = min( bufFrames, remaining )
             val m			   = chunkLen * numChannels
             byteBuf.rewind().limit( chunkLen * frameSize )
-            read.read( byteBuf )
+            reader.read( byteBuf )
             viewBuf.clear()
             viewBuf.get( arrayBuf, 0, m )
             var ch = 0; while( ch < numChannels ) {
@@ -372,7 +372,7 @@ private[io] object BufferReader {
             val chunkLen   = min( bufFrames, remaining )
             val m          = chunkLen * numChannels
             byteBuf.rewind().limit( chunkLen * frameSize )
-            read.read( byteBuf )
+            reader.read( byteBuf )
             viewBuf.clear()
             viewBuf.get( arrayBuf, 0, m )
             var ch = 0; while( ch < numChannels ) {
@@ -401,7 +401,7 @@ private[io] object BufferReader {
             val chunkLen   = min( bufFrames, remaining )
             val m			   = chunkLen * numChannels
             byteBuf.rewind().limit( chunkLen * frameSize )
-            read.read( byteBuf )
+            reader.read( byteBuf )
             viewBuf.clear()
             viewBuf.get( arrayBuf, 0, m )
             var ch = 0; while( ch < numChannels ) {
@@ -428,7 +428,7 @@ private[io] trait BufferWriterFactory {
 }
 private[io] object BufferWriter {
    object Byte extends BufferWriterFactory
-   final case class Byte( write: WritableByteChannel, byteBuf: ByteBuffer,numChannels: SInt )
+   final case class Byte( writer: WritableByteChannel, byteBuf: ByteBuffer,numChannels: SInt )
    extends BufferHandler.Byte with ByteLike {
 //      checkCapacity()
    }
@@ -436,13 +436,13 @@ private[io] object BufferWriter {
    // float to byte = f*0x7F+0x80 (-1 ... +1becomes 0x01 to 0xFF)
    // which is how libsndfile behaves
    object UByte extends BufferWriterFactory
-   final case class UByte( write: WritableByteChannel, byteBuf: ByteBuffer, numChannels: SInt )
+   final case class UByte( writer: WritableByteChannel, byteBuf: ByteBuffer, numChannels: SInt )
    extends BufferHandler.UByte with UByteLike {
 //      checkCapacity()
    }
 
    object Short extends BufferWriterFactory
-   final case class Short( write: WritableByteChannel, byteBuf: ByteBuffer, numChannels: SInt )
+   final case class Short( writer: WritableByteChannel, byteBuf: ByteBuffer, numChannels: SInt )
    extends BufferHandler.Short with ShortLike {
 //      checkCapacity()
    }
@@ -457,30 +457,30 @@ private[io] object BufferWriter {
       }
    }
 
-   final case class ThreeBytesBE( write: WritableByteChannel, byteBuf: ByteBuffer, numChannels: SInt )
+   final case class ThreeBytesBE( writer: WritableByteChannel, byteBuf: ByteBuffer, numChannels: SInt )
    extends BufferHandler.ThreeBytes with ThreeBytesBELike {
 //      checkCapacity()
    }
 
-   final case class ThreeBytesLE( write: WritableByteChannel, byteBuf: ByteBuffer, numChannels: SInt )
+   final case class ThreeBytesLE( writer: WritableByteChannel, byteBuf: ByteBuffer, numChannels: SInt )
    extends BufferHandler.ThreeBytes with ThreeBytesLELike {
 //      checkCapacity()
    }
 
    object Int extends BufferWriterFactory
-   final case class Int( write: WritableByteChannel, byteBuf: ByteBuffer, numChannels: SInt )
+   final case class Int( writer: WritableByteChannel, byteBuf: ByteBuffer, numChannels: SInt )
    extends BufferHandler.Int with IntLike {
 //      checkCapacity()
    }
 
    object Float extends BufferWriterFactory
-   final case class Float( write: WritableByteChannel, byteBuf: ByteBuffer, numChannels: SInt )
+   final case class Float( writer: WritableByteChannel, byteBuf: ByteBuffer, numChannels: SInt )
    extends BufferHandler.Float with FloatLike {
 //      checkCapacity()
    }
 
    object Double extends BufferWriterFactory
-   final case class Double( write: WritableByteChannel, byteBuf: ByteBuffer, numChannels: SInt )
+   final case class Double( writer: WritableByteChannel, byteBuf: ByteBuffer, numChannels: SInt )
    extends BufferHandler.Double with DoubleLike {
 //      checkCapacity()
    }
@@ -505,7 +505,7 @@ private[io] object BufferWriter {
             byteBuf.clear()
             byteBuf.put( arrayBuf, 0, m )
             byteBuf.flip()
-            write.write( byteBuf )
+            writer.write( byteBuf )
             remaining -= chunkLen
             position  += chunkLen
          }
@@ -532,7 +532,7 @@ private[io] object BufferWriter {
             byteBuf.clear()
             byteBuf.put( arrayBuf, 0, m )
             byteBuf.flip()
-            write.write( byteBuf )
+            writer.write( byteBuf )
             remaining -= chunkLen
             position  += chunkLen
          }
@@ -561,7 +561,7 @@ private[io] object BufferWriter {
             viewBuf.clear()
             viewBuf.put( arrayBuf, 0, m )
             byteBuf.rewind().limit( chunkLen * frameSize )
-            write.write( byteBuf )
+            writer.write( byteBuf )
             remaining -= chunkLen
             position  += chunkLen
          }
@@ -591,7 +591,7 @@ private[io] object BufferWriter {
             byteBuf.clear()
             byteBuf.put( arrayBuf, 0, m )
             byteBuf.flip()
-            write.write( byteBuf )
+            writer.write( byteBuf )
             remaining -= chunkLen
             position  += chunkLen
          }
@@ -623,7 +623,7 @@ private[io] object BufferWriter {
             byteBuf.clear()
             byteBuf.put( arrayBuf, 0, m )
             byteBuf.flip()
-            write.write( byteBuf )
+            writer.write( byteBuf )
             remaining -= chunkLen
             position  += chunkLen
          }
@@ -652,7 +652,7 @@ private[io] object BufferWriter {
             viewBuf.clear()
             viewBuf.put( arrayBuf, 0, m )
             byteBuf.rewind().limit( chunkLen * frameSize )
-            write.write( byteBuf )
+            writer.write( byteBuf )
             remaining -= chunkLen
             position  += chunkLen
          }
@@ -679,7 +679,7 @@ private[io] object BufferWriter {
             viewBuf.clear()
             viewBuf.put( arrayBuf, 0, m )
             byteBuf.rewind().limit( chunkLen * frameSize )
-            write.write( byteBuf )
+            writer.write( byteBuf )
             remaining -= chunkLen
             position  += chunkLen
          }
@@ -708,7 +708,7 @@ private[io] object BufferWriter {
             viewBuf.clear()
             viewBuf.put( arrayBuf, 0, m )
             byteBuf.rewind().limit( chunkLen * frameSize )
-            write.write( byteBuf )
+            writer.write( byteBuf )
             remaining -= chunkLen
             position  += chunkLen
          }
@@ -724,19 +724,19 @@ private[io] trait BufferBidiFactory {
 }
 private[io] object BufferBidi {
    object Byte extends BufferBidiFactory
-   final case class Byte( read: ReadableByteChannel, write: WritableByteChannel, byteBuf: ByteBuffer, numChannels: SInt )
+   final case class Byte( reader: ReadableByteChannel, writer: WritableByteChannel, byteBuf: ByteBuffer, numChannels: SInt )
    extends BufferHandler.Byte with BufferReader.ByteLike with BufferWriter.ByteLike with BufferBidi {
 //      checkCapacity()
    }
 
    object UByte extends BufferBidiFactory
-   final case class UByte( read: ReadableByteChannel, write: WritableByteChannel, byteBuf: ByteBuffer, numChannels: SInt )
+   final case class UByte( reader: ReadableByteChannel, writer: WritableByteChannel, byteBuf: ByteBuffer, numChannels: SInt )
    extends BufferHandler.UByte with BufferReader.UByteLike with BufferWriter.UByteLike with BufferBidi {
 //      checkCapacity()
    }
 
    object Short extends BufferBidiFactory
-   final case class Short( read: ReadableByteChannel, write: WritableByteChannel, byteBuf: ByteBuffer, numChannels: SInt )
+   final case class Short( reader: ReadableByteChannel, writer: WritableByteChannel, byteBuf: ByteBuffer, numChannels: SInt )
    extends BufferHandler.Short with BufferReader.ShortLike with BufferWriter.ShortLike with BufferBidi {
 //      checkCapacity()
    }
@@ -752,14 +752,14 @@ private[io] object BufferBidi {
       }
    }
 
-   final case class ThreeBytesBE( read: ReadableByteChannel, write: WritableByteChannel,
+   final case class ThreeBytesBE( reader: ReadableByteChannel, writer: WritableByteChannel,
                             byteBuf: ByteBuffer, numChannels: SInt )
    extends BufferHandler.ThreeBytes with BufferReader.ThreeBytesBELike with BufferWriter.ThreeBytesBELike
    with BufferBidi {
 //      checkCapacity()
    }
 
-   final case class ThreeBytesLE( read: ReadableByteChannel, write: WritableByteChannel,
+   final case class ThreeBytesLE( reader: ReadableByteChannel, writer: WritableByteChannel,
                             byteBuf: ByteBuffer, numChannels: SInt )
    extends BufferHandler.ThreeBytes with BufferReader.ThreeBytesLELike with BufferWriter.ThreeBytesLELike
    with BufferBidi {
@@ -767,19 +767,19 @@ private[io] object BufferBidi {
    }
 
    object Int extends BufferBidiFactory
-   final case class Int( read: ReadableByteChannel, write: WritableByteChannel, byteBuf: ByteBuffer, numChannels: SInt )
+   final case class Int( reader: ReadableByteChannel, writer: WritableByteChannel, byteBuf: ByteBuffer, numChannels: SInt )
    extends BufferHandler.Int with BufferReader.IntLike with BufferWriter.IntLike with BufferBidi {
 //      checkCapacity()
    }
 
    object Float extends BufferBidiFactory
-   final case class Float( read: ReadableByteChannel, write: WritableByteChannel, byteBuf: ByteBuffer, numChannels: SInt )
+   final case class Float( reader: ReadableByteChannel, writer: WritableByteChannel, byteBuf: ByteBuffer, numChannels: SInt )
    extends BufferHandler.Float with BufferReader.FloatLike with BufferWriter.FloatLike with BufferBidi {
 //      checkCapacity()
    }
 
    object Double extends BufferBidiFactory
-   final case class Double( read: ReadableByteChannel, write: WritableByteChannel, byteBuf: ByteBuffer, numChannels: SInt )
+   final case class Double( reader: ReadableByteChannel, writer: WritableByteChannel, byteBuf: ByteBuffer, numChannels: SInt )
    extends BufferHandler.Double with BufferReader.DoubleLike with BufferWriter.DoubleLike with BufferBidi {
 //      checkCapacity()
    }
