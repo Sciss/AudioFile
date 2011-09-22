@@ -18,8 +18,8 @@ publishTo := Some(ScalaToolsReleases)
 pomExtra :=
 <licenses>
   <license>
-    <name>LGPL v2.1+</name>
-    <url>http://www.gnu.org/licenses/lgpl-2.1.txt</url>
+    <name>GPL v2+</name>
+    <url>http://www.gnu.org/licenses/gpl-2.0.txt</url>
     <distribution>repo</distribution>
   </license>
 </licenses>

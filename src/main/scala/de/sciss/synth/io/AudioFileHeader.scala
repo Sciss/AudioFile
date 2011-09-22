@@ -112,13 +112,13 @@ private[io] object AudioFileHeader {
    trait DataInputReader {
       @throws( classOf[ IOException ]) def readInt() : Int
       @throws( classOf[ IOException ]) def readFloat() : Float
-      def byteOrder() : ByteOrder
+      def byteOrder : ByteOrder
    }
 
    trait DataOutputWriter {
       @throws( classOf[ IOException ]) def writeInt( i: Int ) : Unit
       @throws( classOf[ IOException ]) def writeFloat( f: Float ) : Unit
-      def byteOrder() : ByteOrder
+      def byteOrder : ByteOrder
    }
 
    def dataInputReader( din: DataInput, byteOrder: ByteOrder ) : DataInputReader = {

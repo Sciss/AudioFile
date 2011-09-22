@@ -304,7 +304,7 @@ object AudioFile {
       override def toString = {
          val s          = spec.toString
          val specString = s.substring( 14 )
-         "AudioFile@" + accessString + "(" + sourceString + ", " + specString
+         "AudioFile@" + accessString + "(" + sourceString + "," + specString
       }
 
       protected def accessString : String
