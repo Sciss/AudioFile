@@ -613,8 +613,18 @@ trait AudioFile extends NIOChannel {
    def read( data: Frames, off: Int, len: Int ) : AudioFile
 
    @throws( classOf[ IOException ])
-   final def read( data: Frames ) : AudioFile =
-      read( data, 0, data.find( _ != null ).map( _.length ).getOrElse( 0 ))
+   final def read( data: Frames ) : AudioFile = {
+      var ch = 0; var num = 0; while( ch < data.length ) {
+         val cd = data( ch )
+         if( cd != null ) {
+            num   = cd.length
+            ch    = data.length
+         } else {
+            ch   += 1
+         }
+      }
+      read( data, 0, num )
+   }
 
    def buffer( bufFrames: Int = 8192 ) : Frames =
       AudioFile.buffer( numChannels, bufFrames )
@@ -674,8 +684,18 @@ trait AudioFile extends NIOChannel {
 	def write( data: Frames, off: Int, len : Int ) : AudioFile
 
    @throws( classOf[ IOException ])
-	final def write( data: Frames ) : AudioFile =
-      write( data, 0, data.find( _ != null ).map( _.length ).getOrElse( 0 ))
+	final def write( data: Frames ) : AudioFile = {
+      var ch = 0; var num = 0; while( ch < data.length ) {
+         val cd = data( ch )
+         if( cd != null ) {
+            num   = cd.length
+            ch    = data.length
+         } else {
+            ch   += 1
+         }
+      }
+      write( data, 0, num )
+   }
 
 	/**
 	 *	Returns the number of frames
