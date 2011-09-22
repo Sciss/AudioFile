@@ -190,7 +190,7 @@ private[io] trait AudioFileHeader {
 //   def numFrames : Long
 //
 //   @throws( classOf[ IOException ])
-//   def seekFrame( frame: Long ) : Unit
+//   def seek( frame: Long ) : Unit
 }
 
 private[io] case class ReadableAudioFileHeader( spec: AudioFileSpec, byteOrder: ByteOrder )

@@ -32,7 +32,7 @@ import java.io.IOException
 
 object ScalaAudioFile {
    val name          = "ScalaAudioFile"
-   val version       = 0.17
+   val version       = 0.20
    val copyright     = "(C)opyright 2004-2011 Hanns Holger Rutz"
 
    def versionString = (version + 0.001).toString.substring( 0, 4 )

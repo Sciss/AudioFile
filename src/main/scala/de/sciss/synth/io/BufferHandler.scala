@@ -31,7 +31,6 @@ package de.sciss.synth.io
 import java.io.IOException
 import scala.{ Byte => SByte, Double => SDouble, Float => SFloat, Int => SInt, Short => SShort }
 import java.nio.channels.{ ReadableByteChannel, WritableByteChannel }
-import math._
 import java.nio.{ByteOrder, ByteBuffer}
 
 private[io] trait BufferHandler {
@@ -48,13 +47,13 @@ private[io] trait BufferHandler {
 
 private[io] trait BufferReader extends BufferHandler {
    @throws( classOf[ IOException ])
-   def readFrames( frames: Frames, off: SInt, len: SInt ) : Unit
+   def read( frames: Frames, off: SInt, len: SInt ) : Unit
    protected def reader : ReadableByteChannel
 }
 
 private[io] trait BufferWriter extends BufferHandler {
    @throws( classOf[ IOException ])
-   def writeFrames( frames: Frames, off: SInt, len: SInt ) : Unit
+   def write( frames: Frames, off: SInt, len: SInt ) : Unit
    protected def writer : WritableByteChannel
 }
 
@@ -185,7 +184,7 @@ private[io] object BufferReader {
    trait ByteLike extends BufferReader {
       me: BufferHandler.Byte =>
 
-      final def readFrames( frames: Frames, off: SInt, len: SInt ) {
+      final def read( frames: Frames, off: SInt, len: SInt ) {
          var remaining  = len
          var position   = off
          while( remaining > 0 ) {
@@ -214,11 +213,11 @@ private[io] object BufferReader {
    trait UByteLike extends BufferReader {
       me: BufferHandler.UByte =>
       
-      final def readFrames( frames: Frames, off: SInt, len: SInt ) {
+      final def read( frames: Frames, off: SInt, len: SInt ) {
          var remaining  = len
          var position   = off
          while( remaining > 0 ) {
-            val chunkLen   = min( bufFrames, remaining )
+            val chunkLen   = math.min( bufFrames, remaining )
             val m          = chunkLen * frameSize
             byteBuf.rewind().limit( m )
             reader.read( byteBuf )
@@ -245,11 +244,11 @@ private[io] object BufferReader {
    trait ShortLike extends BufferReader {
       me: BufferHandler.Short =>
 
-      final def readFrames( frames: Frames, off: SInt, len: SInt ) {
+      final def read( frames: Frames, off: SInt, len: SInt ) {
          var remaining  = len
          var position   = off
          while( remaining > 0 ) {
-            val chunkLen   = min( bufFrames, remaining )
+            val chunkLen   = math.min( bufFrames, remaining )
             val m			   = chunkLen * numChannels
             byteBuf.rewind().limit( chunkLen * frameSize )
             reader.read( byteBuf )
@@ -274,11 +273,11 @@ private[io] object BufferReader {
    trait ThreeBytesBELike extends BufferReader {
       me: BufferHandler.ThreeBytes =>
 
-      final def readFrames( frames: Frames, off: SInt, len: SInt ) {
+      final def read( frames: Frames, off: SInt, len: SInt ) {
          var remaining  = len
          var position   = off
          while( remaining > 0 ) {
-            val chunkLen   = min( bufFrames, remaining )
+            val chunkLen   = math.min( bufFrames, remaining )
             val m			   = chunkLen * frameSize
             byteBuf.rewind().limit( m )
             reader.read( byteBuf )
@@ -305,11 +304,11 @@ private[io] object BufferReader {
    trait ThreeBytesLELike extends BufferReader {
       me: BufferHandler.ThreeBytes =>
 
-      final def readFrames( frames: Frames, off: SInt, len: SInt ) {
+      final def read( frames: Frames, off: SInt, len: SInt ) {
          var remaining  = len
          var position   = off
          while( remaining > 0 ) {
-            val chunkLen   = min( bufFrames, remaining )
+            val chunkLen   = math.min( bufFrames, remaining )
             val m			   = chunkLen * frameSize
             byteBuf.rewind().limit( m )
             reader.read( byteBuf )
@@ -336,11 +335,11 @@ private[io] object BufferReader {
    trait IntLike extends BufferReader {
       me: BufferHandler.Int =>
 
-      final def readFrames( frames: Frames, off: SInt, len: SInt ) {
+      final def read( frames: Frames, off: SInt, len: SInt ) {
          var remaining  = len
          var position   = off
          while( remaining > 0 ) {
-            val chunkLen   = min( bufFrames, remaining )
+            val chunkLen   = math.min( bufFrames, remaining )
             val m			   = chunkLen * numChannels
             byteBuf.rewind().limit( chunkLen * frameSize )
             reader.read( byteBuf )
@@ -365,11 +364,11 @@ private[io] object BufferReader {
    trait FloatLike extends BufferReader {
       me: BufferHandler.Float =>
 
-      final def readFrames( frames: Frames, off: SInt, len: SInt ) {
+      final def read( frames: Frames, off: SInt, len: SInt ) {
          var remaining  = len
          var position   = off
          while( remaining > 0 ) {
-            val chunkLen   = min( bufFrames, remaining )
+            val chunkLen   = math.min( bufFrames, remaining )
             val m          = chunkLen * numChannels
             byteBuf.rewind().limit( chunkLen * frameSize )
             reader.read( byteBuf )
@@ -394,11 +393,11 @@ private[io] object BufferReader {
    trait DoubleLike extends BufferReader {
       me: BufferHandler.Double =>
 
-      final def readFrames( frames: Frames, off: SInt, len: SInt ) {
+      final def read( frames: Frames, off: SInt, len: SInt ) {
          var remaining  = len
          var position   = off
          while( remaining > 0 ) {
-            val chunkLen   = min( bufFrames, remaining )
+            val chunkLen   = math.min( bufFrames, remaining )
             val m			   = chunkLen * numChannels
             byteBuf.rewind().limit( chunkLen * frameSize )
             reader.read( byteBuf )
@@ -488,7 +487,7 @@ private[io] object BufferWriter {
    trait ByteLike extends BufferWriter {
       me: BufferHandler.Byte =>
       
-      final def writeFrames( frames: Frames, off: SInt, len: SInt ) {
+      final def write( frames: Frames, off: SInt, len: SInt ) {
          var remaining  = len
          var position   = off
          while( remaining > 0 ) {
@@ -515,11 +514,11 @@ private[io] object BufferWriter {
    trait UByteLike extends BufferWriter {
       me: BufferHandler.UByte =>
       
-      final def writeFrames( frames: Frames, off: SInt, len: SInt ) {
+      final def write( frames: Frames, off: SInt, len: SInt ) {
          var remaining  = len
          var position   = off
          while( remaining > 0 ) {
-            val chunkLen   = min( bufFrames, remaining )
+            val chunkLen   = math.min( bufFrames, remaining )
             val m			   = chunkLen * frameSize
             var ch = 0; while( ch < numChannels ) {
                val b = frames( ch )
@@ -542,11 +541,11 @@ private[io] object BufferWriter {
    trait ShortLike extends BufferWriter {
       me: BufferHandler.Short =>
 
-      final def writeFrames( frames: Frames, off: SInt, len: SInt ) {
+      final def write( frames: Frames, off: SInt, len: SInt ) {
          var remaining  = len
          var position   = off
          while( remaining > 0 ) {
-            val chunkLen   = min( bufFrames, remaining )
+            val chunkLen   = math.min( bufFrames, remaining )
             val m			   = chunkLen * numChannels
             var ch = 0; while( ch < numChannels ) {
                val b = frames( ch )
@@ -571,11 +570,11 @@ private[io] object BufferWriter {
    trait ThreeBytesBELike extends BufferWriter {
       me: BufferHandler.ThreeBytes =>
 
-      final def writeFrames( frames: Frames, off: SInt, len: SInt ) {
+      final def write( frames: Frames, off: SInt, len: SInt ) {
          var remaining  = len
          var position   = off
          while( remaining > 0 ) {
-            val chunkLen   = min( bufFrames, remaining )
+            val chunkLen   = math.min( bufFrames, remaining )
             val m			   = chunkLen * frameSize
             var ch = 0; var p = 0; while( ch < numChannels ) {
                val b = frames( ch )
@@ -601,11 +600,11 @@ private[io] object BufferWriter {
    trait ThreeBytesLELike extends BufferWriter {
       me: BufferHandler.ThreeBytes =>
 
-      final def writeFrames( frames: Frames, off: SInt, len: SInt ) {
+      final def write( frames: Frames, off: SInt, len: SInt ) {
          var remaining  = len
          var position   = off
          while( remaining > 0 ) {
-            val chunkLen   = min( bufFrames, remaining )
+            val chunkLen   = math.min( bufFrames, remaining )
             val m			   = chunkLen * frameSize
             var ch = 0; var p = 0; while( ch < numChannels ) {
                val b = frames( ch )
@@ -633,11 +632,11 @@ private[io] object BufferWriter {
    trait IntLike extends BufferWriter {
       me: BufferHandler.Int =>
 
-      final def writeFrames( frames: Frames, off: SInt, len: SInt ) {
+      final def write( frames: Frames, off: SInt, len: SInt ) {
          var remaining  = len
          var position   = off
          while( remaining > 0 ) {
-            val chunkLen   = min( bufFrames, remaining )
+            val chunkLen   = math.min( bufFrames, remaining )
             val m	         = chunkLen * numChannels
             var ch = 0; while( ch < numChannels ) {
                val b = frames( ch )
@@ -662,11 +661,11 @@ private[io] object BufferWriter {
    trait FloatLike extends BufferWriter {
       me: BufferHandler.Float =>
 
-      final def writeFrames( frames: Frames, off: SInt, len: SInt ) {
+      final def write( frames: Frames, off: SInt, len: SInt ) {
          var remaining  = len
          var position   = off
          while( remaining > 0 ) {
-            val chunkLen   = min( bufFrames, remaining )
+            val chunkLen   = math.min( bufFrames, remaining )
             val m			   = chunkLen * numChannels
             var ch = 0; while( ch < numChannels ) {
                val b = frames( ch )
@@ -689,11 +688,11 @@ private[io] object BufferWriter {
    trait DoubleLike extends BufferWriter {
       me: BufferHandler.Double =>
 
-      final def writeFrames( frames: Frames, off: SInt, len: SInt ) {
+      final def write( frames: Frames, off: SInt, len: SInt ) {
          var remaining  = len
          var position   = off
          while( remaining > 0 ) {
-            val chunkLen   = min( bufFrames, remaining )
+            val chunkLen   = math.min( bufFrames, remaining )
             val m			   = chunkLen * numChannels
             var ch = 0; while( ch < numChannels ) {
                val b = frames( ch )

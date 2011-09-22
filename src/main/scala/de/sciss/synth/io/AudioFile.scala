@@ -47,10 +47,10 @@
 package de.sciss.synth.io
 
 import java.nio.{ ByteBuffer }
-import java.nio.channels.{ Channels }
 import math._
 import ScalaAudioFile._
 import java.io.{DataOutputStream, BufferedOutputStream, OutputStream, BufferedInputStream, DataInputStream, File, FileInputStream, IOException, InputStream, RandomAccessFile}
+import java.nio.channels.{Channel => NIOChannel, Channels}
 
 /**
  *	 The <code>AudioFile</code> allows reading and writing
@@ -277,17 +277,17 @@ object AudioFile {
       }).getOrElse( false ))
 
    private trait Basic extends AudioFile {
-      protected var framePositionVar: Long = 0L
+      protected final var framePositionVar: Long = 0L
 
       protected def afh: AudioFileHeader
       protected def bh: BufferHandler 
 
 //      def numFrames : Long       = afh.spec.numFrames
-      def framePosition: Long    = framePositionVar
+      final def position: Long    = framePositionVar
       def spec : AudioFileSpec   = afh.spec
 
       @throws( classOf[ IOException ])
-      def copyTo( target: AudioFile, len: Long ) : AudioFile = {
+      final def copyTo( target: AudioFile, len: Long ) : AudioFile = {
          val tempBufSize	= min( len, 8192 ).toInt
          val tempBuf		   = Array.ofDim[ Float ]( spec.numChannels, tempBufSize )
          var remaining     = len
@@ -310,34 +310,33 @@ object AudioFile {
       protected def accessString : String
       protected def sourceString : String
 
-      def cleanUp : AudioFile = {
-         try { close } catch { case e: IOException => }
-         this
+      final def cleanUp() {
+         try { close() } catch { case e: IOException => }
       }
    }
 
    private trait Readable extends Basic {
-      def isReadable = true
+      final def isReadable = true
 
       protected def bh: BufferReader
       def numFrames : Long = spec.numFrames
 
       @throws( classOf[ IOException ])
-      def read( data: Frames, off: Int, len: Int ) : AudioFile = {
-         bh.readFrames( data, off, len )
+      final def read( data: Frames, off: Int, len: Int ) : AudioFile = {
+         bh.read( data, off, len )
          framePositionVar += len
          this
       }
    }
 
    private trait ReadOnly extends Readable {
-      def isWritable = false
+      final def isWritable = false
 
       @throws( classOf[ IOException ])
-      def flush : AudioFile = opNotSupported
+      final def flush() = opNotSupported
 
       @throws( classOf[ IOException ])
-      def write( data: Frames, off: Int, len : Int ) : AudioFile = opNotSupported
+      final def write( data: Frames, off: Int, len : Int ) : AudioFile = opNotSupported
 
 //      @throws( classOf[ IOException ])
 //      def numFrames_=( frames : Long ) : AudioFile = opNotSupported
@@ -345,21 +344,21 @@ object AudioFile {
 //      @throws( classOf[ IOException ])
 //      def truncate : AudioFile = opNotSupported
 
-      protected def accessString = "r"
+      protected final def accessString = "r"
    }
 
    private trait Writable extends Basic {
-      def isWritable = true
+      final def isWritable = true
 
       protected def bh: BufferWriter
       protected def afh: WritableAudioFileHeader
-      protected var numFramesVar: Long = 0L
-      override def numFrames : Long = numFramesVar
-      override def spec : AudioFileSpec   = afh.spec.copy( numFrames = numFramesVar )
+      protected final var numFramesVar: Long = 0L
+      override final def numFrames : Long = numFramesVar
+      override final def spec : AudioFileSpec   = afh.spec.copy( numFrames = numFramesVar )
 
       @throws( classOf[ IOException ])
-      def write( data: Frames, off: Int, len: Int ) : AudioFile = {
-         bh.writeFrames( data, off, len )
+      final def write( data: Frames, off: Int, len: Int ) : AudioFile = {
+         bh.write( data, off, len )
          framePositionVar += len
          if( framePositionVar > numFramesVar ) numFramesVar = framePositionVar
 //println( "writer : " + len + " / " + framePositionVar + " / " + numFramesVar + " / " + numFrames )
@@ -367,7 +366,7 @@ object AudioFile {
       }
 
       @throws( classOf[ IOException ])
-      def flush : AudioFile = {
+      final def flush() : AudioFile = {
          afh.update( numFrames )
          this
       }
@@ -375,60 +374,63 @@ object AudioFile {
 
    private trait Bidi extends Readable with Writable {
       override protected def bh: BufferBidi
-      protected def accessString = "rw"
+      protected final def accessString = "rw"
    }
 
    private trait WriteOnly extends Writable {
-      def isReadable = false
+      final def isReadable = false
 
-      protected def accessString = "w"
+      protected final def accessString = "w"
 
       @throws( classOf[ IOException ])
-      def read( data: Frames, off: Int, len : Int ) : AudioFile = opNotSupported
+      final def read( data: Frames, off: Int, len : Int ) : AudioFile = opNotSupported
    }
 
    private trait StreamLike extends Basic {
-      def file: Option[ File ] = None
+      final def file: Option[ File ] = None
 
       @throws( classOf[ IOException ])
-      def seekFrame( frame : Long ) : AudioFile = opNotSupported
+      final def seek( frame : Long ) : AudioFile = opNotSupported
 
-      protected def sourceString = "<stream>"
+      protected final def sourceString = "<stream>"
    }
 
    private trait FileLike extends Basic {
       protected def f: File
       protected def raf: RandomAccessFile
       
-      def file: Option[ File ] = Some( f )
+      final def file: Option[ File ] = Some( f )
 
       private val sampleDataOffset = raf.getFilePointer
 
-      protected def sourceString = f.toString
+      protected final def sourceString = f.toString
       
       @throws( classOf[ IOException ])
-      def seekFrame( frame : Long ) : AudioFile = {
+      final def seek( frame : Long ) : AudioFile = {
          val physical = sampleDataOffset + frame * bh.frameSize
          raf.seek( physical )
          framePositionVar = frame
          this
       }
+
+      final def isOpen = raf.getChannel.isOpen
    }
 
    private trait ReadOnlyFileLike extends FileLike with ReadOnly {
       @throws( classOf[ IOException ])
-      def close : AudioFile = {
+      final def close() {
          raf.close()
-         this
       }
    }
 
    private trait WritableFileLike extends FileLike with Writable {
       @throws( classOf[ IOException ])
-      def close : AudioFile = {
-         flush
-         raf.close()
-         this
+      final def close() {
+         try {
+            flush()
+         } finally {
+            raf.close()
+         }
       }
    }
 
@@ -438,44 +440,53 @@ object AudioFile {
 
    private trait ReadOnlyStreamLike extends StreamLike with ReadOnly {
       protected def dis: DataInputStream
+      private var closed: Boolean = false
 
       @throws( classOf[ IOException ])
-      def close : AudioFile = {
+      final def close() {
+         closed = true
          dis.close()
-         this
       }
+
+      final def isOpen = closed
    }
 
    private trait WriteOnlyStreamLike extends StreamLike with WriteOnly {
       protected def dos: DataOutputStream
+      private var closed: Boolean = false
 
       @throws( classOf[ IOException ])
-      def close : AudioFile = {
-         flush
-         dos.close()
-         this
+      final def close() {
+         closed = true
+         try {
+            flush()
+         } finally {
+            dos.close()
+         }
       }
+
+      final def isOpen = closed
    }
 
-   private class ReadableStreamImpl( protected val dis: DataInputStream, protected val afh: AudioFileHeader,
+   private final class ReadableStreamImpl( protected val dis: DataInputStream, protected val afh: AudioFileHeader,
                                      protected val bh: BufferReader )
    extends ReadOnlyStreamLike
 
-   private class ReadableFileImpl( protected val f: File,
+   private final class ReadableFileImpl( protected val f: File,
                                    protected val raf: RandomAccessFile, protected val afh: AudioFileHeader,
                                    protected val bh: BufferReader )
    extends ReadOnlyFileLike
 
-   private class WritableFileImpl( protected val f: File,
+   private final class WritableFileImpl( protected val f: File,
                                    protected val raf: RandomAccessFile, protected val afh: WritableAudioFileHeader,
                                    protected val bh: BufferWriter )
    extends WriteOnlyFileLike
 
-   private class WritableStreamImpl( protected val dos: DataOutputStream, protected val afh: WritableAudioFileHeader,
+   private final class WritableStreamImpl( protected val dos: DataOutputStream, protected val afh: WritableAudioFileHeader,
                                      protected val bh: BufferWriter )
    extends WriteOnlyStreamLike
 
-   private class BidiFileImpl( protected val f: File,
+   private final class BidiFileImpl( protected val f: File,
                                protected val raf: RandomAccessFile, protected val afh: WritableAudioFileHeader,
                                protected val bh: BufferBidi )
    extends BidiFileLike
@@ -498,7 +509,7 @@ object AudioFile {
 
       private def resetUpdate {
          updateTime	= System.currentTimeMillis() + 10000
-         updatePos   = framePosition + updateStep
+         updatePos   = position + updateStep
       }
 
       @throws( classOf[ IOException ])
@@ -507,7 +518,7 @@ object AudioFile {
             val physical = afh.sampleDataOffset + frames * bh.frameSize
 
             raf.setLength( physical )
-            if( framePosition > frames ) framePosition = frames
+            if( position > frames ) position = frames
             numFramesVar = frames
             resetUpdate
             this
@@ -527,11 +538,11 @@ object AudioFile {
       @throws( classOf[ IOException ])
       def writer( data: Frames, off: Int, len : Int ) : AudioFile = {
          bh.writer( data, off, len )
-         framePosition += len
+         position += len
 
-         if( framePosition > numFrames ) {
-            numFrames = framePosition
-            if( (framePosition > updatePos) || (System.currentTimeMillis() > updateTime) ) {
+         if( position > numFrames ) {
+            numFrames = position
+            if( (position > updatePos) || (System.currentTimeMillis() > updateTime) ) {
                flush
             }
          }
@@ -541,8 +552,8 @@ object AudioFile {
       @throws( classOf[ IOException ])
       def truncate : AudioFile = {
          fch.truncate( fch.position() )
-         if( framePosition != numFrames ) {
-            numFrames	= framePosition
+         if( position != numFrames ) {
+            numFrames	= position
             afhw.update( numFrames )
             resetUpdate
          }
@@ -560,7 +571,7 @@ object AudioFile {
    */
 }
 
-trait AudioFile {
+trait AudioFile extends NIOChannel {
 //   import AudioFile._
 
 //-------- public methods --------
@@ -619,7 +630,7 @@ trait AudioFile {
 	 *						seek past the file's end.
 	 */
    @throws( classOf[ IOException ])
-	def seekFrame( frame : Long ) : AudioFile
+	def seek( frame : Long ) : AudioFile
 	
 	/**
 	 * Flushes pending buffer content, and
@@ -630,7 +641,7 @@ trait AudioFile {
 	 *	and want the file information to appear
 	 *	as accurate as possible.
 	 */
-	def flush : AudioFile
+	def flush() : AudioFile
 	
 	/**
 	 *  Returns the current file pointer in sample frames
@@ -640,10 +651,10 @@ trait AudioFile {
 	 *
 	 *  @throws IOException		when the position cannot be queried
 	 */
-	def framePosition : Long
+	def position : Long
 
    @throws( classOf[ IOException ])
-   final def framePosition_=( frame: Long ) { seekFrame( frame )}
+   final def position_=( frame: Long ) { seek( frame )}
 
 	/**
 	 *	 Writes sample frames to the file starting at the current position.
@@ -703,7 +714,7 @@ trait AudioFile {
 //	 *	must have been opened in writer mode.
 //	 *	Truncation occurs only if frames exist
 //	 *	beyond the current file position, which implicates
-//	 *	that you have set the position using <code>seekFrame</code>
+//	 *	that you have set the position using <code>seek</code>
 //	 *	to a location before the end of the file.
 //	 *	The header information is immediately updated.
 //	 *
@@ -736,7 +747,7 @@ trait AudioFile {
 	 *			or closing the file.
     */
    @throws( classOf[ IOException ])
-	def close : AudioFile
+	def close() : Unit // : AudioFile
 
 	/**
 	 *  Flushes and closes the file. As opposed
@@ -745,7 +756,7 @@ trait AudioFile {
 	 *
 	 *	@see	#close()
 	 */
-	def cleanUp : AudioFile
+	def cleanUp() : Unit //  : AudioFile
 
 	/**
 	 *  Reads markers into the audio file description
