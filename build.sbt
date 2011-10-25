@@ -13,7 +13,11 @@ unmanagedClasspath in Compile += Attributed.blank(new java.io.File("doesnotexist
 
 // ---- publishing ----
 
-publishTo := Some(ScalaToolsReleases)
+publishTo <<= version { (v: String) =>
+   Some( "Scala Tools Nexus" at "http://nexus.scala-tools.org/content/repositories/".+(
+      if( v.endsWith( "-SNAPSHOT")) "snapshots/" else "releases/"
+   ))
+}
 
 pomExtra :=
 <licenses>
