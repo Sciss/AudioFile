@@ -2,9 +2,5 @@ target/
 lib_managed/
 src_managed/
 project/boot/
-out/
-index.html
-style.css
-_creation
-ScalaColliderSwing-full.jar
-.idea/workspace.xml
+.idea/
+.idea_modules/
