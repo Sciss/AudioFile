@@ -1,12 +1,12 @@
-name := "scalaaudiofile"
+name := "ScalaAudioFile"
 
 version := "0.20"
 
 organization := "de.sciss"
 
-scalaVersion := "2.9.1"
+scalaVersion := "2.9.2"
 
-crossScalaVersions := Seq("2.9.1", "2.9.0", "2.8.1")
+// crossScalaVersions := Seq("2.9.1", "2.9.0", "2.8.1")
 
 description := "A library to read and write uncompressed audio files (AIFF, WAVE, etc.)"
 
@@ -19,22 +19,32 @@ unmanagedClasspath in Compile += Attributed.blank(new java.io.File("doesnotexist
 
 // ---- publishing ----
 
+publishMavenStyle := true
+
 publishTo <<= version { (v: String) =>
-   Some( "Scala Tools Nexus" at "http://nexus.scala-tools.org/content/repositories/".+(
-      if( v.endsWith( "-SNAPSHOT")) "snapshots/" else "releases/"
-   ))
+   Some( if( v.endsWith( "-SNAPSHOT" ))
+      "Sonatype Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots"
+   else
+      "Sonatype Releases"  at "https://oss.sonatype.org/service/local/staging/deploy/maven2"
+   )
 }
 
-pomExtra :=
-<licenses>
-  <license>
-    <name>GPL v2+</name>
-    <url>http://www.gnu.org/licenses/gpl-2.0.txt</url>
-    <distribution>repo</distribution>
-  </license>
-</licenses>
+publishArtifact in Test := false
 
-credentials += Credentials(Path.userHome / ".ivy2" / ".credentials")
+pomIncludeRepository := { _ => false }
+
+pomExtra :=
+<scm>
+  <url>git@github.com:Sciss/ScalaAudioFile.git</url>
+  <connection>scm:git:git@github.com:Sciss/ScalaAudioFile.git</connection>
+</scm>
+<developers>
+   <developer>
+      <id>sciss</id>
+      <name>Hanns Holger Rutz</name>
+      <url>http://www.sciss.de</url>
+   </developer>
+</developers>
 
 // ---- ls.implicit.ly ----
 
