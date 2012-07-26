@@ -4,7 +4,7 @@ version := "0.20"
 
 organization := "de.sciss"
 
-scalaVersion := "2.10.0-M5"
+scalaVersion := "2.10.0-M6"
 
 // crossScalaVersions := Seq("2.9.1", "2.9.0", "2.8.1")
 
