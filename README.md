@@ -6,26 +6,21 @@ ScalaAudioFile is a Scala library to read and write audio files. It is (C)opyrig
 
 ### requirements / installation
 
-ScalaAudioFile currently compiles against Scala 2.9.1 (default), 2.9.0 and 2.8.1. It builds with sbt 0.11 (xsbt), with the standard targets:
+ScalaAudioFile currently compiles against Scala 2.9.2 using sbt 0.12.
 
-* `clean` &ndash; removes previous build artefacts
-* `compile` &ndash; compiles classes into target/scala-version/classes
-* `doc` &ndash; generates api in target/scala-version/api/index.html
-* `package` &ndash; packages jar in target/scala-version
-* `console` &ndash; runs the Scala REPL with ScalaAudioFile on the class path
+To use the library in your project:
+
+    "de.sciss" %% "scalaaudiofile" % "0.20"
 
 ### creating an IntelliJ IDEA project
 
-The IDEA project files have now been removed from the git repository, but they can be easily recreated, given that you have installed the sbt-idea plugin. If you haven't yet, create the following contents in `~/.sbt/plugins/build.sbt`:
+If you want to develop the library, you can set up an IntelliJ IDEA project, using the sbt-idea plugin yet. Have the following contents in `~/.sbt/plugins/build.sbt`:
 
     resolvers += "sbt-idea-repo" at "http://mpeltonen.github.com/maven/"
     
-    addSbtPlugin("com.github.mpeltonen" % "sbt-idea" % "0.11.0")
+    addSbtPlugin("com.github.mpeltonen" % "sbt-idea" % "1.0.0")
 
-Then to create the IDEA project, run the following two commands from the xsbt shell:
-
-    > set ideaProjectName := "ScalaAudioFile"
-    > gen-idea
+Then to create the IDEA project, run `sbt gen-idea`.
 
 ### getting started
 
@@ -92,7 +87,7 @@ Here is an example of opening an existing file, reading through it to determine 
     
 ```
 
-For all further information, please refer to the API docs. They can be created with `xsbt doc`.
+For all further information, please refer to the API docs. They can be created with `sbt doc`.
 
 ### download
 
