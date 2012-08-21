@@ -6,6 +6,8 @@ organization := "de.sciss"
 
 scalaVersion := "2.9.2"
 
+crossScalaVersions := Seq( "2.10.0-M7", "2.9.2" )
+
 description := "A library to read and write uncompressed audio files (AIFF, WAVE, etc.)"
 
 homepage := Some( url( "https://github.com/Sciss/ScalaAudioFile" ))
