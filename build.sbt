@@ -1,18 +1,33 @@
 name := "ScalaAudioFile"
 
-version := "0.20"
+version := "1.0.0"
 
 organization := "de.sciss"
 
 scalaVersion := "2.9.2"
 
-crossScalaVersions := Seq( "2.10.0-M7", "2.9.2" )
+// crossScalaVersions := Seq( "2.10.0-M7", "2.9.2" )
 
 description := "A library to read and write uncompressed audio files (AIFF, WAVE, etc.)"
 
 homepage := Some( url( "https://github.com/Sciss/ScalaAudioFile" ))
 
 licenses := Seq( "GPL v2+" -> url( "http://www.gnu.org/licenses/gpl-2.0.txt" ))
+
+initialCommands in console := """import de.sciss.synth.io._"""
+
+// ---- build info ----
+
+buildInfoSettings
+
+sourceGenerators in Compile <+= buildInfo
+
+buildInfoKeys := Seq( name, organization, version, scalaVersion, description,
+   BuildInfoKey.map( homepage ) { case (k, opt) => k -> opt.get },
+   BuildInfoKey.map( licenses ) { case (_, Seq( (lic, _) )) => "license" -> lic }
+)
+
+buildInfoPackage := "de.sciss.synth.io"
 
 // ---- publishing ----
 
