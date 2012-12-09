@@ -30,10 +30,10 @@ import java.nio.ByteOrder
 import ByteOrder.{ BIG_ENDIAN, LITTLE_ENDIAN }
 import math._
 import java.io.{DataOutput, DataOutputStream, DataInput, DataInputStream, EOFException, IOException, RandomAccessFile}
-import ScalaAudioFile.opNotSupported
 import annotation.switch
+import AudioFileHeader.opNotSupported
 
-private[io] object AIFFHeader extends AudioFileHeaderFactory {
+private[io] object AIFFHeader {
    private final val FORM_MAGIC		= 0x464F524D	// 'FORM'
    private final val AIFF_MAGIC		= 0x41494646	// 'AIFF'   (off 8)
    private final val AIFC_MAGIC		= 0x41494643	// 'AIFC'   (off 8)
@@ -70,10 +70,6 @@ private[io] object AIFFHeader extends AudioFileHeaderFactory {
 
    private final val LN2R           = 1.0 / math.log( 2 )
 
-   // ---- AudioFileHeaderFactory ----
-   def createHeaderReader : Option[ AudioFileHeaderReader ] = Some( new Reader )
-   def createHeaderWriter : Option[ AudioFileHeaderWriter ] = Some( new Writer )
-
    @throws( classOf[ IOException ])
    def identify( dis: DataInputStream ) = {
       val cookie = dis.readInt()
@@ -84,88 +80,87 @@ private[io] object AIFFHeader extends AudioFileHeaderFactory {
       } else false
    }
 
-   final private class Reader extends AudioFileHeaderReader {
-      import AudioFileHeader._
+   import AudioFileHeader._
 
-      @throws( classOf[ IOException ])
-      def read( raf: RandomAccessFile ) : AudioFileHeader = readDataInput( raf )
+   @throws( classOf[ IOException ])
+   def read( raf: RandomAccessFile ) : AudioFileHeader = readDataInput( raf )
 
-      @throws( classOf[ IOException ])
-      def read( dis: DataInputStream ) : AudioFileHeader = readDataInput( dis )
+   @throws( classOf[ IOException ])
+   def read( dis: DataInputStream ) : AudioFileHeader = readDataInput( dis )
 
-      @throws( classOf[ IOException ])
-      private def readDataInput( din: DataInput ) : AudioFileHeader = {
-         if( din.readInt() != FORM_MAGIC ) formatError()  // FORM
-         // trust the file len more than 32 bit form field which
-         // breaks for > 2 GB (> 1 GB if using signed ints)
-         din.readInt()
+   @throws( classOf[ IOException ])
+   private def readDataInput( din: DataInput ) : AudioFileHeader = {
+      if( din.readInt() != FORM_MAGIC ) formatError()  // FORM
+      // trust the file len more than 32 bit form field which
+      // breaks for > 2 GB (> 1 GB if using signed ints)
+      din.readInt()
 //       var len           = dis.length() - 8
 //			var len           = (dis.readInt() + 1).toLong & 0xFFFFFFFEL // this gives 32 bit unsigned space (4 GB)
-         val isAIFC        = (din.readInt(): @switch) match {
-            case AIFC_MAGIC   => true
-            case AIFF_MAGIC   => false
-            case m            => formatError()
-         }
+      val isAIFC        = (din.readInt(): @switch) match {
+         case AIFC_MAGIC   => true
+         case AIFF_MAGIC   => false
+         case m            => formatError()
+      }
 //         len	           -= 4
-         var chunkLen      = 0   // updated per chunk; after each chunk we skip the remaining bytes
+      var chunkLen      = 0   // updated per chunk; after each chunk we skip the remaining bytes
 
-         // these we need...
-         var afh: AudioFileHeader   = null
-         var ssndFound              = false
+      // these we need...
+      var afh: AudioFileHeader   = null
+      var ssndFound              = false
 
-         try {
-            while( !ssndFound ) {
-               if( chunkLen != 0 ) din.skipBytes( chunkLen )  // skip remainder from previous chunk
+      try {
+         while( !ssndFound ) {
+            if( chunkLen != 0 ) din.skipBytes( chunkLen )  // skip remainder from previous chunk
 
-               val magic   = din.readInt()
-               chunkLen	   = (din.readInt() + 1) & 0xFFFFFFFE
+            val magic   = din.readInt()
+            chunkLen	   = (din.readInt() + 1) & 0xFFFFFFFE
 
-               magic match {
-                  case COMM_MAGIC => { // reveals spec
-                     val numChannels   = din.readShort()
-   //                commSmpNumOffset  = dis.getFilePointer()
-                     val numFrames		= din.readInt().toLong & 0xFFFFFFFFL
-                     val bitsPerSample = din.readShort()
+            magic match {
+               case COMM_MAGIC => { // reveals spec
+                  val numChannels   = din.readShort()
+//                commSmpNumOffset  = dis.getFilePointer()
+                  val numFrames		= din.readInt().toLong & 0xFFFFFFFFL
+                  val bitsPerSample = din.readShort()
 
-                     // suckers never die. perhaps the most stupid data format to store a float:
-                     val l1 				= din.readLong()
-                     val l2	 			= din.readUnsignedShort()
-                     val l3	 			= l1 & 0x0000FFFFFFFFFFFFL
-                     val i1				= ((l1 >> 48).toInt & 0x7FFF) - 0x3FFE
-                     val sampleRate    = ((l3 * pow( 2.0, i1 - 48 )) +
-                                          (l2 * pow( 2.0, i1 - 64 ))) * signum( l1 )
+                  // suckers never die. perhaps the most stupid data format to store a float:
+                  val l1 				= din.readLong()
+                  val l2	 			= din.readUnsignedShort()
+                  val l3	 			= l1 & 0x0000FFFFFFFFFFFFL
+                  val i1				= ((l1 >> 48).toInt & 0x7FFF) - 0x3FFE
+                  val sampleRate    = ((l3 * pow( 2.0, i1 - 48 )) +
+                                       (l2 * pow( 2.0, i1 - 64 ))) * signum( l1 )
 
-                     chunkLen         -= 18
-                     val (byteOrder, sampleFormat) = if( isAIFC ) {
-                        chunkLen -= 4
-                        (din.readInt(): @switch) match {
-                           case NONE_MAGIC      => (BIG_ENDIAN, intSampleFormat( bitsPerSample ))
-                           case `in16_MAGIC`    => (BIG_ENDIAN, SampleFormat.Int16)
-                           case `in24_MAGIC`    => (BIG_ENDIAN, SampleFormat.Int24)
-                           case `in32_MAGIC`    => (BIG_ENDIAN, SampleFormat.Int32)
-                           case `fl32_MAGIC`    => (BIG_ENDIAN, SampleFormat.Float)
-                           case FL32_MAGIC      => (BIG_ENDIAN, SampleFormat.Float)
-                           case `fl64_MAGIC`    => (BIG_ENDIAN, SampleFormat.Double)
-                           case FL64_MAGIC      => (BIG_ENDIAN, SampleFormat.Double)
-                           case `in16LE_MAGIC`  => (LITTLE_ENDIAN, SampleFormat.Int16)
-                           case m               => throw new IOException( "Unsupported AIFF encoding (" + m + ")" )
-                        }
-                     } else (BIG_ENDIAN, intSampleFormat( bitsPerSample ))
+                  chunkLen         -= 18
+                  val (byteOrder, sampleFormat) = if( isAIFC ) {
+                     chunkLen -= 4
+                     (din.readInt(): @switch) match {
+                        case NONE_MAGIC      => (BIG_ENDIAN, intSampleFormat( bitsPerSample ))
+                        case `in16_MAGIC`    => (BIG_ENDIAN, SampleFormat.Int16)
+                        case `in24_MAGIC`    => (BIG_ENDIAN, SampleFormat.Int24)
+                        case `in32_MAGIC`    => (BIG_ENDIAN, SampleFormat.Int32)
+                        case `fl32_MAGIC`    => (BIG_ENDIAN, SampleFormat.Float)
+                        case FL32_MAGIC      => (BIG_ENDIAN, SampleFormat.Float)
+                        case `fl64_MAGIC`    => (BIG_ENDIAN, SampleFormat.Double)
+                        case FL64_MAGIC      => (BIG_ENDIAN, SampleFormat.Double)
+                        case `in16LE_MAGIC`  => (LITTLE_ENDIAN, SampleFormat.Int16)
+                        case m               => throw new IOException( "Unsupported AIFF encoding (" + m + ")" )
+                     }
+                  } else (BIG_ENDIAN, intSampleFormat( bitsPerSample ))
 
-                     val spec = new AudioFileSpec( AudioFileType.AIFF, sampleFormat, numChannels, sampleRate, Some( byteOrder ), numFrames )
-                     afh = new ReadableAudioFileHeader( spec, byteOrder )
-                  }
+                  val spec = new AudioFileSpec( AudioFileType.AIFF, sampleFormat, numChannels, sampleRate, Some( byteOrder ), numFrames )
+                  afh = new ReadableAudioFileHeader( spec, byteOrder )
+               }
 
 //                  case INST_MAGIC =>
 
 //                  case MARK_MAGIC =>
 
-                  case SSND_MAGIC => {
-                     val i1            = din.readInt() // sample data off
-                     din.readInt()
-                     din.skipBytes( i1 )
-                     ssndFound         = true   // important: this must be the last case block statement coz we catch EOF!
-                  }
+               case SSND_MAGIC => {
+                  val i1            = din.readInt() // sample data off
+                  din.readInt()
+                  din.skipBytes( i1 )
+                  ssndFound         = true   // important: this must be the last case block statement coz we catch EOF!
+               }
 
 //                  case APPL_MAGIC =>
 
@@ -173,124 +168,119 @@ private[io] object AIFFHeader extends AudioFileHeaderFactory {
 
 //                  case ANNO_MAGIC =>
 
-                  case _ => // ignore unknown chunks
-               } // magic match
-            } // essentials loop
-         } catch {
-            case e: EOFException =>
-         }
-
-         if( afh == null ) throw new IOException( "AIFF header misses COMM chunk" )
-         if( !ssndFound )  throw new IOException( "AIFF header misses SSND chunk")
-
-         afh
+               case _ => // ignore unknown chunks
+            } // magic match
+         } // essentials loop
+      } catch {
+         case e: EOFException =>
       }
 
-      /*
-       *    WARNING: it is crucial to add the return type here
-       *    (see scala ticket #3440)
-       */
-      private def intSampleFormat( bitsPerSample: Int ) : SampleFormat = (bitsPerSample: @switch) match {
-         case 8   => SampleFormat.Int8
-         case 16  => SampleFormat.Int16
-         case 24  => SampleFormat.Int24
-         case 32  => SampleFormat.Int32
-         case v   => throw new IOException( "Unsupported AIFF encoding (" + v + " bits-per-sample)" )
-      }
+      if( afh == null ) throw new IOException( "AIFF header misses COMM chunk" )
+      if( !ssndFound )  throw new IOException( "AIFF header misses SSND chunk")
+
+      afh
    }
 
-   final private class Writer extends AudioFileHeaderWriter {
-//      import AudioFileHeader._
+   /*
+    *    WARNING: it is crucial to add the return type here
+    *    (see scala ticket #3440)
+    */
+   private def intSampleFormat( bitsPerSample: Int ) : SampleFormat = (bitsPerSample: @switch) match {
+      case 8   => SampleFormat.Int8
+      case 16  => SampleFormat.Int16
+      case 24  => SampleFormat.Int24
+      case 32  => SampleFormat.Int32
+      case v   => throw new IOException( "Unsupported AIFF encoding (" + v + " bits-per-sample)" )
+   }
 
-      @throws( classOf[ IOException ])
-      def write( raf: RandomAccessFile, spec: AudioFileSpec ) : WritableAudioFileHeader = {
-         val (otherLen, commLen, spec1) = writeDataOutput( raf, spec )
-         new WritableFileHeader( raf, spec1, otherLen, commLen )
+   @throws( classOf[ IOException ])
+   def write( raf: RandomAccessFile, spec: AudioFileSpec ) : WritableAudioFileHeader = {
+      val (otherLen, commLen, spec1) = writeDataOutput( raf, spec )
+      new WritableFileHeader( raf, spec1, otherLen, commLen )
+   }
+
+   @throws( classOf[ IOException ])
+   def write( dos: DataOutputStream, spec: AudioFileSpec ) : WritableAudioFileHeader = {
+      val (_, _, spec1) = writeDataOutput( dos, spec )
+      WritableStreamHeader( spec1 )
+   }
+
+   @throws( classOf[ IOException ])
+   private def writeDataOutput( dout: DataOutput, spec: AudioFileSpec ) : (Int, Int, AudioFileSpec) = {
+      val smpForm       = spec.sampleFormat
+      val bitsPerSample = smpForm.bitsPerSample
+      val sr            = spec.sampleRate
+      val numFrames     = spec.numFrames  // initial value, only needed for stream files
+      val numChannels   = spec.numChannels
+      val byteOrder     = spec.byteOrder.getOrElse( ByteOrder.BIG_ENDIAN )
+
+      val le16 = if( byteOrder == ByteOrder.LITTLE_ENDIAN ) {
+         if( spec.sampleFormat != SampleFormat.Int16 ) throw new IOException( "AIFF little endian only supported for Int16" )
+         true
+      } else false
+
+      val aifcExt = if( smpForm == SampleFormat.Float ) {
+         fl32_HUMAN
+      } else if( smpForm == SampleFormat.Double ) {
+         fl64_HUMAN
+      } else if( le16 ) {
+         in16_HUMAN
+      } else null
+
+      val isAIFC = aifcExt != null  // floating point requires AIFC compression extension
+
+      val otherLen      = if( isAIFC ) 24 else 12   // FORM, MAGIC and FVER
+      val commLen       = if( isAIFC ) 26 + aifcExt.size else 26   // 8 + 2 + 4 + 2 + 10 + (isAIFC ? 4 + fl32_HUMAN.size : 0)
+      val ssndLen       = (bitsPerSample >> 3) * numFrames * numChannels + 16
+      val fileLen       = otherLen + commLen + ssndLen
+
+      dout.writeInt( FORM_MAGIC )
+      dout.writeInt( (fileLen - 8).toInt )				// Laenge ohne FORM-Header (Dateilaenge minus 8); unknown now
+
+      // MAGIC and FVER Chunk
+      if( isAIFC ) {
+         dout.writeInt( AIFC_MAGIC )
+         dout.writeInt( FVER_MAGIC )
+         dout.writeInt( 4 )
+         dout.writeInt( AIFCVersion1 )
+      } else {
+         dout.writeInt( AIFF_MAGIC )
       }
 
-      @throws( classOf[ IOException ])
-      def write( dos: DataOutputStream, spec: AudioFileSpec ) : WritableAudioFileHeader = {
-         val (_, _, spec1) = writeDataOutput( dos, spec )
-         WritableStreamHeader( spec1 )
-      }
-
-      @throws( classOf[ IOException ])
-      private def writeDataOutput( dout: DataOutput, spec: AudioFileSpec ) : (Int, Int, AudioFileSpec) = {
-         val smpForm       = spec.sampleFormat
-         val bitsPerSample = smpForm.bitsPerSample
-         val sr            = spec.sampleRate
-         val numFrames     = spec.numFrames  // initial value, only needed for stream files
-         val numChannels   = spec.numChannels
-         val byteOrder     = spec.byteOrder.getOrElse( ByteOrder.BIG_ENDIAN )
-
-         val le16 = if( byteOrder == ByteOrder.LITTLE_ENDIAN ) {
-            if( spec.sampleFormat != SampleFormat.Int16 ) throw new IOException( "AIFF little endian only supported for Int16" )
-            true
-         } else false
-
-         val aifcExt = if( smpForm == SampleFormat.Float ) {
-            fl32_HUMAN
-         } else if( smpForm == SampleFormat.Double ) {
-            fl64_HUMAN
-         } else if( le16 ) {
-            in16_HUMAN
-         } else null
-
-         val isAIFC = aifcExt != null  // floating point requires AIFC compression extension
-
-         val otherLen      = if( isAIFC ) 24 else 12   // FORM, MAGIC and FVER
-         val commLen       = if( isAIFC ) 26 + aifcExt.size else 26   // 8 + 2 + 4 + 2 + 10 + (isAIFC ? 4 + fl32_HUMAN.size : 0)
-         val ssndLen       = (bitsPerSample >> 3) * numFrames * numChannels + 16
-         val fileLen       = otherLen + commLen + ssndLen
-
-         dout.writeInt( FORM_MAGIC )
-         dout.writeInt( (fileLen - 8).toInt )				// Laenge ohne FORM-Header (Dateilaenge minus 8); unknown now
-
-         // MAGIC and FVER Chunk
-         if( isAIFC ) {
-            dout.writeInt( AIFC_MAGIC )
-            dout.writeInt( FVER_MAGIC )
-            dout.writeInt( 4 )
-            dout.writeInt( AIFCVersion1 )
-         } else {
-            dout.writeInt( AIFF_MAGIC )
-         }
-
-         // COMM Chunk
-         dout.writeInt( COMM_MAGIC )
+      // COMM Chunk
+      dout.writeInt( COMM_MAGIC )
 //         pos = dis.getFilePointer();
 //         dis.writeInt( 0 );				// not known yet
-         dout.writeInt( commLen - 8 )
+      dout.writeInt( commLen - 8 )
 
-         dout.writeShort( numChannels )
+      dout.writeShort( numChannels )
 //         commSmpNumOffset = dis.getFilePointer();
-         dout.writeInt( numFrames.toInt )			// updated later
-         dout.writeShort( if( isAIFC ) 16 else bitsPerSample ) // a quite strange convention ...
+      dout.writeInt( numFrames.toInt )			// updated later
+      dout.writeShort( if( isAIFC ) 16 else bitsPerSample ) // a quite strange convention ...
 
-         // suckers never die.
-         val srs  = if( sr < 0.0 ) 0x80 else 0
-         val sra  = math.abs( sr )
-         val srl	= (math.log( sra ) * LN2R + 0x3FFF).toInt & 0xFFFF
-         val sre	= sra * (1 << (0x401E - srl))
-         dout.writeShort( (((srs | (srl >> 8)) & 0xFF) << 8) | (srl & 0xFF) )
-         dout.writeInt( sre.toLong.toInt ) // WARNING: a direct sre.toInt yields a wrong result (Int.MaxValue)
-         dout.writeInt( ((sre % 1.0) * 0x100000000L).toLong.toInt ) // WARNING: same here
+      // suckers never die.
+      val srs  = if( sr < 0.0 ) 0x80 else 0
+      val sra  = math.abs( sr )
+      val srl	= (math.log( sra ) * LN2R + 0x3FFF).toInt & 0xFFFF
+      val sre	= sra * (1 << (0x401E - srl))
+      dout.writeShort( (((srs | (srl >> 8)) & 0xFF) << 8) | (srl & 0xFF) )
+      dout.writeInt( sre.toLong.toInt ) // WARNING: a direct sre.toInt yields a wrong result (Int.MaxValue)
+      dout.writeInt( ((sre % 1.0) * 0x100000000L).toLong.toInt ) // WARNING: same here
 
-         if( isAIFC ) {
-            dout.write( aifcExt )
-         }
+      if( isAIFC ) {
+         dout.write( aifcExt )
+      }
 
-         // SSND Chunk (Header)
-         dout.writeInt( SSND_MAGIC )
+      // SSND Chunk (Header)
+      dout.writeInt( SSND_MAGIC )
 //         ssndLengthOffset = dis.getFilePointer();
-         dout.writeInt( (ssndLen - 8).toInt )		// 8 + stream.samples * frameLength )
-         dout.writeInt( 0 )		// sample
-         dout.writeInt( 0 )		// block size (?!)
+      dout.writeInt( (ssndLen - 8).toInt )		// 8 + stream.samples * frameLength )
+      dout.writeInt( 0 )		// sample
+      dout.writeInt( 0 )		// block size (?!)
 //         sampleDataOffset = dis.getFilePointer();
 
 //         updateHeader( descr );
-         (otherLen, commLen, spec.copy( byteOrder = Some( byteOrder )))
-      }
+      (otherLen, commLen, spec.copy( byteOrder = Some( byteOrder )))
    }
 
    final private class WritableFileHeader( raf: RandomAccessFile, spec0: AudioFileSpec, otherLen: Int, commLen: Int )

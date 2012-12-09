@@ -27,9 +27,9 @@ package de.sciss.synth.io
 
 import java.nio.ByteBuffer
 import math._
-import ScalaAudioFile._
 import java.io.{DataOutputStream, BufferedOutputStream, OutputStream, BufferedInputStream, DataInputStream, File, FileInputStream, IOException, InputStream, RandomAccessFile}
 import java.nio.channels.{Channel => NIOChannel, Channels}
+import AudioFileHeader.opNotSupported
 
 /**
  *	 The <code>AudioFile</code> allows reading and writing
@@ -60,13 +60,10 @@ import java.nio.channels.{Channel => NIOChannel, Channels}
  *          check for the possibility to directly transfer data
  *          if input and output are compatible.
  */
-object AudioFile {
+object AudioFile extends ReaderFactory {
 //   private val NAME_LOOP		= "loop"
 //   private val NAME_MARK		= "mark"
 //   private val NAME_REGION		= "region"
-
-   @throws( classOf[ IOException ])
-   def openRead( path: String ) : AudioFile = openRead( new File( path ))
 
    /**
     *  Opens an audio file for reading.
@@ -108,10 +105,12 @@ object AudioFile {
    }
 
    @throws( classOf[ IOException ])
-   private def createHeaderReader( dis: DataInputStream ) : AudioFileHeaderReader = {
+   private def createHeaderReader( dis: DataInputStream ) : AudioFileType.CanRead = {
       val fileType   = identify( dis ).getOrElse( throw new IOException( "Unrecognized audio file format" ))
-      val factory    = fileType.factory.getOrElse( noDecoder( fileType ))
-      factory.createHeaderReader.getOrElse( noDecoder( fileType ))
+      fileType match {
+         case cr: AudioFileType.CanRead => cr
+         case _ => noDecoder( fileType )
+      }
    }
 
    private def createBuffer( afh: AudioFileHeader ) : ByteBuffer = {
@@ -182,10 +181,11 @@ object AudioFile {
       new WritableStreamImpl( dos, afh, bw )
    }
 
-   private def createHeaderWriter( spec: AudioFileSpec ) : AudioFileHeaderWriter = {
-      val fileType   = spec.fileType
-      val factory    = fileType.factory.getOrElse( noEncoder( fileType ))
-      factory.createHeaderWriter.getOrElse( noEncoder( fileType ))
+   private def createHeaderWriter( spec: AudioFileSpec ) : AudioFileType.CanWrite = {
+      spec.fileType match {
+         case cw: AudioFileType.CanWrite => cw
+         case other => noEncoder( other )
+      }
    }
 
    def buffer( numChannels: Int, bufFrames: Int = 8192 ) : Frames =
@@ -230,7 +230,7 @@ object AudioFile {
     *  @throws IOException if the file could not be reader
     */
    @throws( classOf[ IOException ])
-   def identify( f: File ) : Option[ AudioFileType ] = {
+   def identify( f: File ) : Option[ AudioFileType.CanIdentify ] = {
       val dis = dataInput( new FileInputStream( f ))
       try {
          identify( dis )
@@ -240,20 +240,17 @@ object AudioFile {
    }
 
    @throws( classOf[ IOException ])
-   def identify( dis: DataInputStream ) : Option[ AudioFileType ] =
-      AudioFileType.known.find( _.factory match {
-         case Some( f ) =>
-            dis.mark( 1024 )
-            try {
-               f.identify( dis )
-            } catch {
-               case e: IOException => false
-            } finally {
-               dis.reset()
-            }
-
-         case _ => false
-      })
+   def identify( dis: DataInputStream ) : Option[ AudioFileType.CanIdentify ] =
+      AudioFileType.known.find { f =>
+         dis.mark( 1024 )
+         try {
+            f.identify( dis )
+         } catch {
+            case e: IOException => false
+         } finally {
+            dis.reset()
+         }
+      }
 
    private trait Basic extends AudioFile {
       protected final var framePositionVar: Long = 0L

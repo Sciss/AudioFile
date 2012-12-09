@@ -33,7 +33,7 @@ import annotation.switch
 /**
  * http://www-mmsp.ece.mcgill.ca/documents/audioformats/IRCAM/IRCAM.html
  */
-private[io] object IRCAMHeader extends AudioFileHeaderFactory {
+private[io] object IRCAMHeader {
 
    private final val IRCAM_VAXLE_MAGIC	   = 0x64A30100
    private final val IRCAM_VAXBE_MAGIC	   = 0x0001A364
@@ -51,10 +51,6 @@ private[io] object IRCAMHeader extends AudioFileHeaderFactory {
 //   private final val BICSF_CUECODE		= 8
 //		private final val BICSF_PARENTCODE		= 11
 
-   // ---- AudioFileHeaderFactory ----
-   def createHeaderReader : Option[ AudioFileHeaderReader ] = Some( new Reader )
-   def createHeaderWriter : Option[ AudioFileHeaderWriter ] = Some( new Writer )
-
    @throws( classOf[ IOException ])
    def identify( dis: DataInputStream ) = {
       val magic = dis.readInt()
@@ -64,106 +60,100 @@ private[io] object IRCAMHeader extends AudioFileHeaderFactory {
        magic == IRCAM_NEXTBE_MAGIC)
    }
 
-   private class Reader extends AudioFileHeaderReader {
-      import AudioFileHeader._
+   import AudioFileHeader._
 
-      @throws( classOf[ IOException ])
-      def read( raf: RandomAccessFile ) : AudioFileHeader = readDataInput( raf, raf.length() )
+   @throws( classOf[ IOException ])
+   def read( raf: RandomAccessFile ) : AudioFileHeader = readDataInput( raf, raf.length() )
 
-      @throws( classOf[ IOException ])
-      def read( dis: DataInputStream ) : AudioFileHeader = readDataInput( dis, dis.available() )
+   @throws( classOf[ IOException ])
+   def read( dis: DataInputStream ) : AudioFileHeader = readDataInput( dis, dis.available() )
 
-      @throws( classOf[ IOException ])
-      private def readDataInput( din: DataInput, fileLen: Long ) : AudioFileHeader = {
-         val magic = din.readInt()
-         val reader = if( magic == IRCAM_VAXLE_MAGIC || magic == IRCAM_SUNLE_MAGIC || magic == IRCAM_MIPSLE_MAGIC ) {
-            new LittleDataInputReader( din )
-         } else if( magic == IRCAM_VAXBE_MAGIC || magic == IRCAM_SUNBE_MAGIC || magic == IRCAM_MIPSBE_MAGIC || magic == IRCAM_NEXTBE_MAGIC ) {
-            new BigDataInputReader( din )
-         } else formatError()
-         val sampleRate    = reader.readFloat()
-         val numChannels   = reader.readInt()
-         val sampleFormat  = (reader.readInt(): @switch) match {
-            case 1         => SampleFormat.Int8    // 8 bitlinear
-            case 2         => SampleFormat.Int16   // 16 bit linear
-            case 3         => SampleFormat.Int24   // 24 bit linear; existiert dieser wert offiziell?
-            case 0x40004   => SampleFormat.Int32	// 32 bit linear
-            case 4         => SampleFormat.Float	// 32 bit float
-            case 8         => SampleFormat.Double  // 64 bit float
-            case m         => throw new IOException( "Unsupported IRCAM encoding (" + m + ")" )
+   @throws( classOf[ IOException ])
+   private def readDataInput( din: DataInput, fileLen: Long ) : AudioFileHeader = {
+      val magic = din.readInt()
+      val reader = if( magic == IRCAM_VAXLE_MAGIC || magic == IRCAM_SUNLE_MAGIC || magic == IRCAM_MIPSLE_MAGIC ) {
+         new LittleDataInputReader( din )
+      } else if( magic == IRCAM_VAXBE_MAGIC || magic == IRCAM_SUNBE_MAGIC || magic == IRCAM_MIPSBE_MAGIC || magic == IRCAM_NEXTBE_MAGIC ) {
+         new BigDataInputReader( din )
+      } else formatError()
+      val sampleRate    = reader.readFloat()
+      val numChannels   = reader.readInt()
+      val sampleFormat  = (reader.readInt(): @switch) match {
+         case 1         => SampleFormat.Int8    // 8 bitlinear
+         case 2         => SampleFormat.Int16   // 16 bit linear
+         case 3         => SampleFormat.Int24   // 24 bit linear; existiert dieser wert offiziell?
+         case 0x40004   => SampleFormat.Int32	// 32 bit linear
+         case 4         => SampleFormat.Float	// 32 bit float
+         case 8         => SampleFormat.Double  // 64 bit float
+         case m         => throw new IOException( "Unsupported IRCAM encoding (" + m + ")" )
+      }
+
+      var done = false
+      var pos  = 16L
+
+      while( !done ) {
+         val i    = reader.readInt()
+         val sz   = i & 0xFFFF   // last short = block size
+         val id   = i >> 16      // first short = code
+         if( id == BICSF_END ) {
+            done = true
+         } else if( id == BICSF_LINKCODE ) {
+            throw new IOException( "Unsupported IRCAM feature (LINKCODE)" )
+         } else if( id == BICSF_VIRTUALCODE ) {
+            throw new IOException( "Unsupported IRCAM feature (VIRTUALCODE)" )
          }
 
-         var done = false
-         var pos  = 16L
-
-         while( !done ) {
-            val i    = reader.readInt()
-            val sz   = i & 0xFFFF   // last short = block size
-            val id   = i >> 16      // first short = code
-            if( id == BICSF_END ) {
-               done = true
-            } else if( id == BICSF_LINKCODE ) {
-               throw new IOException( "Unsupported IRCAM feature (LINKCODE)" )
-            } else if( id == BICSF_VIRTUALCODE ) {
-               throw new IOException( "Unsupported IRCAM feature (VIRTUALCODE)" )
-            }
-
-            if( sz > 0 ) din.skipBytes( sz )
-            pos += 4 + sz
-         }
-
-         val dataOffset = (pos + 1023L) & ~1023L   // skip to next full kilobyte
-         val skp        = (dataOffset - pos).toInt   // skip to next full kilobyte
-         if( skp > 0 ) din.skipBytes( skp )
-         val frameSize  = ((sampleFormat.bitsPerSample + 7) >> 3) * numChannels
-         val numFrames  = math.max( 0L, fileLen - dataOffset ) / frameSize
-
-         val spec = new AudioFileSpec( AudioFileType.IRCAM, sampleFormat, numChannels, sampleRate, Some( reader.byteOrder ), numFrames )
-         ReadableAudioFileHeader( spec, reader.byteOrder )
+         if( sz > 0 ) din.skipBytes( sz )
+         pos += 4 + sz
       }
+
+      val dataOffset = (pos + 1023L) & ~1023L   // skip to next full kilobyte
+      val skp        = (dataOffset - pos).toInt   // skip to next full kilobyte
+      if( skp > 0 ) din.skipBytes( skp )
+      val frameSize  = ((sampleFormat.bitsPerSample + 7) >> 3) * numChannels
+      val numFrames  = math.max( 0L, fileLen - dataOffset ) / frameSize
+
+      val spec = new AudioFileSpec( AudioFileType.IRCAM, sampleFormat, numChannels, sampleRate, Some( reader.byteOrder ), numFrames )
+      ReadableAudioFileHeader( spec, reader.byteOrder )
    }
 
-   private class Writer extends AudioFileHeaderWriter {
-      import AudioFileHeader._
-
-      @throws( classOf[ IOException ])
-      def write( raf: RandomAccessFile, spec: AudioFileSpec ) : WritableAudioFileHeader = {
-         val spec1 = writeDataOutput( raf, spec )
-         new WritableHeader( spec1 )
-      }
-
-      @throws( classOf[ IOException ])
-      def write( dos: DataOutputStream, spec: AudioFileSpec ) : WritableAudioFileHeader = {
-         val spec1 = writeDataOutput( dos, spec )
-         new WritableHeader( spec1 )
-      }
-
-      @throws( classOf[ IOException ])
-      private def writeDataOutput( dout: DataOutput, spec: AudioFileSpec ) : AudioFileSpec = {
-         val writer     = dataOutputWriter( dout, spec.byteOrder.getOrElse( ByteOrder.nativeOrder ))
-         val byteOrder  = spec.byteOrder.getOrElse( ByteOrder.nativeOrder )
-         dout.writeInt( if( byteOrder == ByteOrder.LITTLE_ENDIAN ) IRCAM_VAXLE_MAGIC else IRCAM_SUNBE_MAGIC )
-         writer.writeFloat( spec.sampleRate.toFloat )
-         writer.writeInt( spec.numChannels )
-         writer.writeInt( if( spec.sampleFormat == SampleFormat.Int32 ) {
-            0x40004
-         } else {
-            // 1 = 8bit int, 2 = 16bit lin; 3 = 24 bit, 4 = 32bit float, 8 = 64bit float
-            spec.sampleFormat.bitsPerSample >> 3
-         })
-         var pos = 16L
-
-			writer.writeInt( BICSF_END << 16 )
-         pos += 4
-         val dataOffset = (pos + 1023L) & ~1023L   // rounded up to full kilobyte
-         val skp = (dataOffset - pos).toInt
-         if( skp > 0 ) dout.write( new Array[ Byte ]( skp ))  // pad until sample off
-
-         spec.copy( byteOrder = Some( byteOrder ))
-      }
+   @throws( classOf[ IOException ])
+   def write( raf: RandomAccessFile, spec: AudioFileSpec ) : WritableAudioFileHeader = {
+      val spec1 = writeDataOutput( raf, spec )
+      new WritableHeader( spec1 )
    }
 
-   private class WritableHeader( spec0: AudioFileSpec )
+   @throws( classOf[ IOException ])
+   def write( dos: DataOutputStream, spec: AudioFileSpec ) : WritableAudioFileHeader = {
+      val spec1 = writeDataOutput( dos, spec )
+      new WritableHeader( spec1 )
+   }
+
+   @throws( classOf[ IOException ])
+   private def writeDataOutput( dout: DataOutput, spec: AudioFileSpec ) : AudioFileSpec = {
+      val writer     = dataOutputWriter( dout, spec.byteOrder.getOrElse( ByteOrder.nativeOrder ))
+      val byteOrder  = spec.byteOrder.getOrElse( ByteOrder.nativeOrder )
+      dout.writeInt( if( byteOrder == ByteOrder.LITTLE_ENDIAN ) IRCAM_VAXLE_MAGIC else IRCAM_SUNBE_MAGIC )
+      writer.writeFloat( spec.sampleRate.toFloat )
+      writer.writeInt( spec.numChannels )
+      writer.writeInt( if( spec.sampleFormat == SampleFormat.Int32 ) {
+         0x40004
+      } else {
+         // 1 = 8bit int, 2 = 16bit lin; 3 = 24 bit, 4 = 32bit float, 8 = 64bit float
+         spec.sampleFormat.bitsPerSample >> 3
+      })
+      var pos = 16L
+
+      writer.writeInt( BICSF_END << 16 )
+      pos += 4
+      val dataOffset = (pos + 1023L) & ~1023L   // rounded up to full kilobyte
+      val skp = (dataOffset - pos).toInt
+      if( skp > 0 ) dout.write( new Array[ Byte ]( skp ))  // pad until sample off
+
+      spec.copy( byteOrder = Some( byteOrder ))
+   }
+
+   final private class WritableHeader( spec0: AudioFileSpec )
    extends WritableAudioFileHeader {
       private var numFrames0 = spec0.numFrames    // XXX do we need to sync this because its a long?
 

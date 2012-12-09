@@ -51,7 +51,7 @@ private[io] trait AbstractRIFFHeader {
 //   protected boolean	unsignedPCM;
 }
 
-private[io] object WaveHeader extends AudioFileHeaderFactory with AbstractRIFFHeader {
+private[io] object WaveHeader extends AbstractRIFFHeader {
    import AudioFileHeader._ 
 
    private final val RIFF_MAGIC		= 0x52494646	// 'RIFF'
@@ -69,116 +69,112 @@ private[io] object WaveHeader extends AudioFileHeaderFactory with AbstractRIFFHe
 //   private final val LIST_MAGIC		= 0x6C697374	// 'list'
 //   private final val LIST_MAGIC2	   = 0x4C495354	// 'LIST'
 
-   // ---- AudioFileHeaderFactory ----
-   def createHeaderReader : Option[ AudioFileHeaderReader ] = Some( new Reader )
-   def createHeaderWriter : Option[ AudioFileHeaderWriter ] = None // XXX
-   
    @throws( classOf[ IOException ])
    def identify( dis: DataInputStream ) = dis.readInt() == RIFF_MAGIC && {
       dis.readInt()
       dis.readInt() == WAVE_MAGIC
    }
 
-   private class Reader extends AudioFileHeaderReader {
-      @throws( classOf[ IOException ])
-      def read( raf: RandomAccessFile ) : AudioFileHeader = readDataInput( raf )
+   @throws( classOf[ IOException ])
+   def read( raf: RandomAccessFile ) : AudioFileHeader = readDataInput( raf )
 
-      @throws( classOf[ IOException ])
-      def read( dis: DataInputStream ) : AudioFileHeader = readDataInput( dis )
+   @throws( classOf[ IOException ])
+   def read( dis: DataInputStream ) : AudioFileHeader = readDataInput( dis )
 
-      @throws( classOf[ IOException ])
-      private def readDataInput( din: DataInput ) : AudioFileHeader = {
-         if( din.readInt() != RIFF_MAGIC ) formatError()  // RIFF
-         din.readInt()
+   @throws( classOf[ IOException ])
+   private def readDataInput( din: DataInput ) : AudioFileHeader = {
+      if( din.readInt() != RIFF_MAGIC ) formatError()  // RIFF
+      din.readInt()
 //         len	= raf.len() - 8;
-         if( din.readInt() != WAVE_MAGIC ) formatError()	// WAVE
+      if( din.readInt() != WAVE_MAGIC ) formatError()	// WAVE
 //         len	   -= 4;
-         var chunkLen   = 0
+      var chunkLen   = 0
 
-         // these we need...
-         var afh: AudioFileHeader         = null
-         var bpf                          = -1
-         var sampleRate                   = -1  // wave uses int
-         var sampleFormat: SampleFormat   = null
-         var numChannels                  = -1
+      // these we need...
+      var afh: AudioFileHeader         = null
+      var bpf                          = -1
+      var sampleRate                   = -1  // wave uses int
+      var sampleFormat: SampleFormat   = null
+      var numChannels                  = -1
 
-         try {
-            while( afh == null ) {
-               if( chunkLen != 0 ) din.skipBytes( chunkLen )  // skip remainder from previous chunk
+      try {
+         while( afh == null ) {
+            if( chunkLen != 0 ) din.skipBytes( chunkLen )  // skip remainder from previous chunk
 
-               val magic   = din.readInt()
-               chunkLen	   = (readLittleInt( din ) + 1) & 0xFFFFFFFE
+            val magic   = din.readInt()
+            chunkLen	   = (readLittleInt( din ) + 1) & 0xFFFFFFFE
 //             len		   -= chunkLen + 8;
 
-               (magic: @switch) match {
-                  case FMT_MAGIC => {
-                     val form          = readLittleUShort( din )  // format
-                     numChannels       = readLittleUShort( din )  // # of channels
-                     sampleRate        = readLittleInt( din )     // sample rate (integer)
-                     val bps				= readLittleInt( din ) 	   // bytes per frame and second (=#chan * #bits/8* rate)
-                     bpf               = readLittleUShort( din )	// bytes per frame (=#chan * #bits/8)
-                     val bitsPerSample	= readLittleUShort( din )  // # of bits per sample
-                     if( ((bitsPerSample & 0x07) != 0) ||
-                         ((bitsPerSample >> 3) * numChannels != bpf) ||
-                         ((bitsPerSample >>3) * numChannels * sampleRate != bps) ) encodingError()
+            (magic: @switch) match {
+               case FMT_MAGIC => {
+                  val form          = readLittleUShort( din )  // format
+                  numChannels       = readLittleUShort( din )  // # of channels
+                  sampleRate        = readLittleInt( din )     // sample rate (integer)
+                  val bps				= readLittleInt( din ) 	   // bytes per frame and second (=#chan * #bits/8* rate)
+                  bpf               = readLittleUShort( din )	// bytes per frame (=#chan * #bits/8)
+                  val bitsPerSample	= readLittleUShort( din )  // # of bits per sample
+                  if( ((bitsPerSample & 0x07) != 0) ||
+                      ((bitsPerSample >> 3) * numChannels != bpf) ||
+                      ((bitsPerSample >>3) * numChannels * sampleRate != bps) ) encodingError()
 
-                     val unsignedPCM	 = bpf == 1 // XXX ??? bpf == numChannels ???
-                     chunkLen -= 16
+                  val unsignedPCM	 = bpf == 1 // XXX ??? bpf == numChannels ???
+                  chunkLen -= 16
 
-                     val isPCM   = (form: @switch) match {
-                        case FORMAT_PCM   => true
-                        case FORMAT_FLOAT => false
-                        case FORMAT_EXT => {
-                           if( chunkLen < 24 ) incompleteError()
-                           val i1 = readLittleUShort( din ) // extension size
-                           if( i1 < 22 ) incompleteError()
-                           val i2 = readLittleUShort( din ) // #valid bits per sample
-                           din.readInt()     				   // channel mask, ignore
-                           val i3 = readLittleUShort( din ) // GUID first two bytes
-                           if(  (i2 != bitsPerSample ) ||
-                               ((i3 != FORMAT_PCM) &&
-                                (i3 != FORMAT_FLOAT)) ) encodingError()
-                           chunkLen -= 10
-                           i3 == FORMAT_PCM
-                        }
-                        case _ => encodingError()
+                  val isPCM   = (form: @switch) match {
+                     case FORMAT_PCM   => true
+                     case FORMAT_FLOAT => false
+                     case FORMAT_EXT => {
+                        if( chunkLen < 24 ) incompleteError()
+                        val i1 = readLittleUShort( din ) // extension size
+                        if( i1 < 22 ) incompleteError()
+                        val i2 = readLittleUShort( din ) // #valid bits per sample
+                        din.readInt()     				   // channel mask, ignore
+                        val i3 = readLittleUShort( din ) // GUID first two bytes
+                        if(  (i2 != bitsPerSample ) ||
+                            ((i3 != FORMAT_PCM) &&
+                             (i3 != FORMAT_FLOAT)) ) encodingError()
+                        chunkLen -= 10
+                        i3 == FORMAT_PCM
                      }
-
-                     sampleFormat  = if( isPCM ) {
-                        (bitsPerSample: @switch) match {
-                           case  8 => if( unsignedPCM ) SampleFormat.UInt8 else SampleFormat.Int8
-                           case 16 => SampleFormat.Int16
-                           case 24 => SampleFormat.Int24
-                           case 32 => SampleFormat.Int32
-                           case _  => encodingError()
-                        }
-                     } else {
-                        (bitsPerSample: @switch) match {
-                           case 32 => SampleFormat.Float
-                           case 64 => SampleFormat.Double
-                           case _  => encodingError()
-                        }
-                     }
+                     case _ => encodingError()
                   }
 
-                  case DATA_MAGIC => {
-                     if( bpf == -1 ) throw new IOException( "WAVE header misses fmt chunk" )
-                     val numFrames  = chunkLen / bpf
-                     val spec       = new AudioFileSpec( AudioFileType.Wave, sampleFormat, numChannels, sampleRate,
-                        Some( ByteOrder.LITTLE_ENDIAN ), numFrames )
-                     afh            = new ReadableAudioFileHeader( spec, ByteOrder.LITTLE_ENDIAN )
+                  sampleFormat  = if( isPCM ) {
+                     (bitsPerSample: @switch) match {
+                        case  8 => if( unsignedPCM ) SampleFormat.UInt8 else SampleFormat.Int8
+                        case 16 => SampleFormat.Int16
+                        case 24 => SampleFormat.Int24
+                        case 32 => SampleFormat.Int32
+                        case _  => encodingError()
+                     }
+                  } else {
+                     (bitsPerSample: @switch) match {
+                        case 32 => SampleFormat.Float
+                        case 64 => SampleFormat.Double
+                        case _  => encodingError()
+                     }
                   }
+               }
 
-                  case _ => // ignore unknown chunks
-               } // magic match
-            } // essentials loop
-         } catch {
-            case e: EOFException =>
-         }
+               case DATA_MAGIC => {
+                  if( bpf == -1 ) throw new IOException( "WAVE header misses fmt chunk" )
+                  val numFrames  = chunkLen / bpf
+                  val spec       = new AudioFileSpec( AudioFileType.Wave, sampleFormat, numChannels, sampleRate,
+                     Some( ByteOrder.LITTLE_ENDIAN ), numFrames )
+                  afh            = new ReadableAudioFileHeader( spec, ByteOrder.LITTLE_ENDIAN )
+               }
 
-         if( afh == null ) throw new IOException( "WAVE header misses data chunk" )
-         afh
+               case _ => // ignore unknown chunks
+            } // magic match
+         } // essentials loop
+      } catch {
+         case e: EOFException =>
       }
+
+      if( afh == null ) throw new IOException( "WAVE header misses data chunk" )
+      afh
+   }
+}
 
 //protected void writeHeader( AudioFileInfo descr )
 //   throws IOException
@@ -502,8 +498,6 @@ private[io] object WaveHeader extends AudioFileHeaderFactory with AbstractRIFFHe
 //finally {
 //         raf.seek( oldPos );
 //      }
-   }
-} // class WAVEHeader
 
 /*
 // http://www.vcs.de/fileadmin/user_upload/MBS/PDF/Whitepaper/Informations_about_Sony_Wave64.pdf

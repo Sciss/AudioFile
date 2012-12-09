@@ -29,6 +29,8 @@ import java.nio.ByteOrder
 import java.io.{ DataInput, DataInputStream, DataOutput, DataOutputStream, IOException, RandomAccessFile }
 
 private[io] object AudioFileHeader {
+   def opNotSupported = throw new IOException( "Operation not supported" )
+
    @throws( classOf[ IOException ])
    @inline def readLittleUShort( din: DataInput ) : Int = {
       val i = din.readUnsignedShort()
@@ -160,31 +162,17 @@ private[io] object AudioFileHeader {
    }
 }
 
-private[io] trait AudioFileHeaderFactory {
-   def createHeaderReader : Option[ AudioFileHeaderReader ]
-   def createHeaderWriter : Option[ AudioFileHeaderWriter ]
-
-   @throws( classOf[ IOException ])
-   def identify( dis: DataInputStream ) : Boolean
-}
-
-private[io] trait AudioFileHeader {
-//   def sampleDataOffset : Long
-   def byteOrder : ByteOrder
-   def spec : AudioFileSpec
-//
-//   /**
-//    *    The number of frames in the file,
-//    *    _according_ to the current header
-//    *    information. This might not reflect
-//    *    the actually written frames in
-//    *    an output file, unless the header
-//    *    is updated.
-//    */
-//   def numFrames : Long
+//private[io] trait AudioFileHeaderFactory {
+//   def createHeaderReader : Option[ AudioFileHeaderReader ]
+//   def createHeaderWriter : Option[ AudioFileHeaderWriter ]
 //
 //   @throws( classOf[ IOException ])
-//   def seek( frame: Long ) : Unit
+//   def identify( dis: DataInputStream ) : Boolean
+//}
+
+private[io] trait AudioFileHeader {
+   def byteOrder : ByteOrder
+   def spec : AudioFileSpec
 }
 
 private[io] case class ReadableAudioFileHeader( spec: AudioFileSpec, byteOrder: ByteOrder )

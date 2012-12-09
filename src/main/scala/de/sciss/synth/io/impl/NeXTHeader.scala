@@ -33,53 +33,47 @@ import java.nio.ByteOrder
 /**
  * http://www-mmsp.ece.mcgill.ca/Documents/AudioFormats/AU/AU.html
  */
-private[io] object NeXTHeader extends AudioFileHeaderFactory {
+private[io] object NeXTHeader {
    private final val SND_MAGIC		= 0x2E736E64   // '.snd'
-
-   // ---- AudioFileHeaderFactory ----
-   def createHeaderReader : Option[ AudioFileHeaderReader ] = Some( new Reader )
-   def createHeaderWriter : Option[ AudioFileHeaderWriter ] = None   // XXX Some( new Writer )
 
    @throws( classOf[ IOException ])
    def identify( dis: DataInputStream ) = dis.readInt() == SND_MAGIC
 
-   private class Reader extends AudioFileHeaderReader {
-      import AudioFileHeader._
+   import AudioFileHeader._
 
-      @throws( classOf[ IOException ])
-      def read( raf: RandomAccessFile ) : AudioFileHeader = readDataInput( raf, raf.length() )
+   @throws( classOf[ IOException ])
+   def read( raf: RandomAccessFile ) : AudioFileHeader = readDataInput( raf, raf.length() )
 
-      @throws( classOf[ IOException ])
-      def read( dis: DataInputStream ) : AudioFileHeader = readDataInput( dis, dis.available() )
+   @throws( classOf[ IOException ])
+   def read( dis: DataInputStream ) : AudioFileHeader = readDataInput( dis, dis.available() )
 
-      @throws( classOf[ IOException ])
-      private def readDataInput( din: DataInput, fileLen: Long ) : AudioFileHeader = {
-         if( din.readInt() != SND_MAGIC ) formatError()
+   @throws( classOf[ IOException ])
+   private def readDataInput( din: DataInput, fileLen: Long ) : AudioFileHeader = {
+      if( din.readInt() != SND_MAGIC ) formatError()
 
-         val dataOffset       = din.readInt()   // offset in bytes
-         val dataSize_?       = din.readInt()
-         val sampleFormat     = (din.readInt(): @switch) match {
-            case 2         => SampleFormat.Int8    // 8 bit linear
-            case 3         => SampleFormat.Int16   // 16 bit linear
-            case 4         => SampleFormat.Int24   // 24 bit linear
-            case 5         => SampleFormat.Int32	// 32 bit linear
-            case 6         => SampleFormat.Float	// 32 bit float
-            case 7         => SampleFormat.Double  // 64 bit float
-            case m         => throw new IOException( "Unsupported NeXT encoding (" + m + ")" )
-         }
-         val sampleRate       = din.readInt().toDouble
-         val numChannels      = din.readInt()
-
-         val skp              = dataOffset - 24 // current pos is 24
-         if( skp > 0 ) din.skipBytes( skp )
-         val frameSize        = ((sampleFormat.bitsPerSample + 7) >> 3) * numChannels
-
-         val dataSize         = if( dataSize_? == 0xFFFFFFFF ) fileLen - dataOffset else dataSize_?
-         val numFrames        = math.max( 0L, dataSize ) / frameSize
-
-         val spec = new AudioFileSpec( AudioFileType.NeXT, sampleFormat, numChannels, sampleRate, Some( ByteOrder.BIG_ENDIAN ), numFrames )
-         ReadableAudioFileHeader( spec, ByteOrder.BIG_ENDIAN )
+      val dataOffset       = din.readInt()   // offset in bytes
+      val dataSize_?       = din.readInt()
+      val sampleFormat     = (din.readInt(): @switch) match {
+         case 2         => SampleFormat.Int8    // 8 bit linear
+         case 3         => SampleFormat.Int16   // 16 bit linear
+         case 4         => SampleFormat.Int24   // 24 bit linear
+         case 5         => SampleFormat.Int32	// 32 bit linear
+         case 6         => SampleFormat.Float	// 32 bit float
+         case 7         => SampleFormat.Double  // 64 bit float
+         case m         => throw new IOException( "Unsupported NeXT encoding (" + m + ")" )
       }
+      val sampleRate       = din.readInt().toDouble
+      val numChannels      = din.readInt()
+
+      val skp              = dataOffset - 24 // current pos is 24
+      if( skp > 0 ) din.skipBytes( skp )
+      val frameSize        = ((sampleFormat.bitsPerSample + 7) >> 3) * numChannels
+
+      val dataSize         = if( dataSize_? == 0xFFFFFFFF ) fileLen - dataOffset else dataSize_?
+      val numFrames        = math.max( 0L, dataSize ) / frameSize
+
+      val spec = new AudioFileSpec( AudioFileType.NeXT, sampleFormat, numChannels, sampleRate, Some( ByteOrder.BIG_ENDIAN ), numFrames )
+      ReadableAudioFileHeader( spec, ByteOrder.BIG_ENDIAN )
    }
 }
 
