@@ -26,7 +26,7 @@
 package de.sciss.synth.io
 package impl
 
-import java.io.{DataInput, DataInputStream, EOFException, IOException, RandomAccessFile}
+import java.io.{DataOutput, DataOutputStream, DataInput, DataInputStream, EOFException, IOException, RandomAccessFile}
 import java.nio.ByteOrder
 import annotation.switch
 
@@ -59,7 +59,7 @@ private[io] object WaveHeader extends AbstractRIFFHeader {
 
 // chunk identifiers
    private final val FMT_MAGIC		= 0x666D7420	// 'fmt '
-//   private final val FACT_MAGIC		= 0x66616374	// 'fact'
+   private final val FACT_MAGIC		= 0x66616374	// 'fact'
    private final val DATA_MAGIC		= 0x64617461	// 'data'
 //   private final val CUE_MAGIC		= 0x63756520	// 'cue '
 //   private final val SMPL_MAGIC		= 0x73616D6C	// 'smpl'
@@ -174,59 +174,75 @@ private[io] object WaveHeader extends AbstractRIFFHeader {
       if( afh == null ) throw new IOException( "WAVE header misses data chunk" )
       afh
    }
-}
 
-//protected void writeHeader( AudioFileInfo descr )
-//   throws IOException
-//   {
-//      int				i, i1, i2, i3;
-////			Stringstr;
-//      Region		region;
-//      List			markers, regions;
-//      Marker			marker;
-//      long			pos, pos2;
-//Object			o;
-//
-//      isFloat = descr.sampleFormat == AudioFileInfo.FORMAT_FLOAT;	// floating point requires FACT extension
-//raf.writeInt( RIFF_MAGIC );
-//      raf.writeInt( 0 );				// Laenge ohne RIFF-Header (Dateilaenge minus 8); unknown now
-//      raf.writeInt( WAVE_MAGIC );
-//
-//      // fmt Chunk
-//      raf.writeInt( FMT_MAGIC );
-//writeLittleInt( isFloat ? 18 : 16 );	// FORMAT_FLOAT has extension of size 0
-//      writeLittleShort( isFloat ? FORMAT_FLOAT : FORMAT_PCM );
-//writeLittleShort( descr.channels );
-//      i1 = (int) (descr.rate + 0.5);
-//      writeLittleInt( i1 );
-//      i2 = (descr.bitsPerSample>> 3) * descr.channels;
-//      writeLittleInt( i1 * i2 );
-//      writeLittleShort( i2 );
-//      writeLittleShort( descr.bitsPerSample );
-//
-//      if( isFloat ) raf.writeShort( 0 );
-//
-//      // fact Chunk
-//      if( isFloat ) {
-//         raf.writeInt( FACT_MAGIC );
-//         writeLittleInt( 4 );
-//         factSmpNumOffset = raf.getFilePointer();
-//         raf.writeInt( 0 );
-//   }
-//
+   @throws( classOf[ IOException ])
+   def write( raf: RandomAccessFile, spec: AudioFileSpec ) : WritableAudioFileHeader = {
+      val (_, _, spec1) = writeDataOutput( raf, spec )
+      new NonUpdatingWritableHeader( spec1 )
+   }
+
+   @throws( classOf[ IOException ])
+   def write( dos: DataOutputStream, spec: AudioFileSpec ) : WritableAudioFileHeader = {
+      val (factSmpNumOffset, dataLengthOffset, spec1) = writeDataOutput( dos, spec )
+      sys.error( "TODO" ) // XXX new NonUpdatingWritableHeader( spec1 )
+   }
+
+   @throws( classOf[ IOException ])
+   private def writeDataOutput( dout: DataOutput, spec: AudioFileSpec ) : (Long, Long, AudioFileSpec) = {
+      val res = spec.byteOrder match {
+         case Some( ByteOrder.LITTLE_ENDIAN )   => spec
+         case None                              => spec.copy( byteOrder = Some( ByteOrder.LITTLE_ENDIAN ))
+         case Some( other )                     => throw new IOException( "Unsupported byte order " + other )
+      }
+
+      val ??? = sys.error( "TODO" )
+
+      dout.writeInt( RIFF_MAGIC )
+      dout.writeInt( ??? ) // 0  // length except RIFF-Header (file length minus 8)
+      dout.writeInt( WAVE_MAGIC )
+
+      var pos = 12L
+
+      // floating point requires FACT extension
+      val isFloat = spec.sampleFormat == SampleFormat.Float || spec.sampleFormat == SampleFormat.Double
+
+      // fmt Chunk
+      val intRate       = (spec.sampleRate + 0.5).toInt
+      val bitsPerSample = spec.sampleFormat.bitsPerSample
+      val frameSize     = (bitsPerSample >> 3) * spec.numChannels
+
+      val fmtSize = if( isFloat ) 26 else 24   // FORMAT_FLOAT has extension of size 2
+      dout.writeInt( FMT_MAGIC )
+      writeLittleInt( dout, fmtSize - 8 )
+      writeLittleShort( dout, if( isFloat ) FORMAT_FLOAT else FORMAT_PCM )
+      writeLittleShort( dout, spec.numChannels )
+      writeLittleInt( dout, intRate )
+      writeLittleInt( dout, intRate * frameSize )
+      writeLittleShort( dout, frameSize )
+      writeLittleShort( dout, bitsPerSample )
+      if( isFloat ) dout.writeShort( 0 )
+
+      pos += fmtSize
+
+      // fact Chunk
+      val factSmpNumOffset = if( isFloat ) {
+         dout.writeInt( FACT_MAGIC )
+         writeLittleInt( dout, 4 )
+         dout.writeInt( ??? ) // 0
+         pos += 12
+         pos - 4
+      } else 0L
+
 //      // cue Chunk
-//      markers  = (List) descr.getProperty( AudioFileInfo.KEY_MARKERS );
-//      regions  = (List) descr.getProperty( AudioFileInfo.KEY_REGIONS );
-//      if( ((markers != null) && !markers.isEmpty()) || ((regions != null) && !regions.isEmpty())) {
-//         if( markers == null ) markers = Collections.EMPTY_LIST;
-//         if( regions == null ) regions = Collections.EMPTY_LIST;
-//
+//      val markers  = Vector.empty // (List) descr.getProperty( AudioFileInfo.KEY_MARKERS );
+//      val regions  = Vector.empty // (List) descr.getProperty( AudioFileInfo.KEY_REGIONS );
+//      if( markers.nonEmpty) || regions.nonEmpty ) {
 //         raf.writeInt( CUE_MAGIC );
 //         i2	= markers.size() + regions.size();
 //         writeLittleInt( 24 * i2 + 4 );
 //         writeLittleInt( i2 );
 //         for( i= 0, i1 = 1; i < markers.size(); i++, i1++ ) {
-//marker = (Marker) markers.get( i );
+//            val marker = (Marker) markers.get( i );
 //            writeLittleInt( i1 );
 //            writeLittleInt( i1 );
 //            raf.writeInt( DATA_MAGIC );
@@ -248,34 +264,34 @@ private[io] object WaveHeader extends AbstractRIFFHeader {
 //         raf.writeInt( ADTL_MAGIC );
 //
 //         for( i = 0, i1= 1; i < markers.size(); i++, i1++ ) {
-//   marker	= (Marker) markers.get( i );
+//            marker	= (Marker) markers.get( i );
 //            i3		= marker.name.len() + 5;
 //            raf.writeInt( LABL_MAGIC );
 //            writeLittleInt( i3 );
 //            writeLittleInt( i1 );
 //            raf.writeBytes( marker.name );
-//         if( (i3 & 1) == 0 ) raf.writeByte( 0 ); else raf.writeShort( 0 );
+//            if( (i3 & 1) == 0 ) raf.writeByte( 0 ); else raf.writeShort( 0 );
 //         }
 //
 //         for( i= 0; i < regions.size(); i++, i1++ ) {
 //            region	= (Region) regions.get( i );
 //            i3	= region.name.len() + 5;
 //            raf.writeInt( LABL_MAGIC );
-//         writeLittleInt( i3 );
+//            writeLittleInt( i3 );
 //            writeLittleInt( i1 );
-//         raf.writeBytes( region.name );
+//            raf.writeBytes( region.name );
 //            if((i3 & 1) == 0 ) raf.writeByte( 0); else raf.writeShort(0 );
 //         }
 //
 //         for( i = 0, i1 = markers.size() + 1; i < regions.size(); i++, i1++ ) {
-//region	= (Region) regions.get( i );
+//            val region	= (Region) regions.get( i );
 //            raf.writeInt( LTXT_MAGIC );
 //            writeLittleInt( 21 );
 //            writeLittleInt( i1 );
 //            writeLittleInt( (int) region.span.getLength() );
 //            raf.writeInt( RGN_MAGIC);
 //            raf.writeLong( 0 );		// wCountry, wLanguage, wDialect, wCodePage
-//raf.writeShort( 0 );	// no name (already specified in 'labl' chunk (zero + pad)
+//            raf.writeShort( 0 );	// no name (already specified in 'labl' chunk (zero + pad)
 //         }
 //
 //         // update 'list' chunk size
@@ -289,11 +305,11 @@ private[io] object WaveHeader extends AbstractRIFFHeader {
 //         writeLittleInt( i );
 //         raf.seek( pos2 );
 //
-//} // if marker or region list not empty
-//
+//      } // if marker or region list not empty
+
 //      // smpl Chunk
-//      region  = (Region) descr.getProperty( AudioFileInfo.KEY_LOOP );
-//      if( region != null ){
+//      val loopRegion = (Region) descr.getProperty( AudioFileInfo.KEY_LOOP );
+//      if( loopRegion != null ){
 //         raf.writeInt( SMPL_MAGIC );
 //         writeLittleInt( 36 + 24 );
 //         raf.writeLong( 0 );		// dwManufacturer,dwProduct
@@ -306,31 +322,35 @@ private[io] object WaveHeader extends AbstractRIFFHeader {
 //
 //         writeLittleInt( 0 );	// loop gets ID 0
 //         writeLittleInt( 0 );	// normal loop
-//writeLittleInt( (int) region.span.getStart() );
-//         writeLittleInt( (int) region.span.getStop() );
+//         writeLittleInt( (int) loopRegion.span.getStart() );
+//         writeLittleInt( (int) loopRegion.span.getStop() );
 //         raf.writeLong( 0 );		// dwFraction, dwPlayCount
 //      }
-//
-//   // inst Chunk
-//      o = descr.getProperty( AudioFileInfo.KEY_GAIN );
+
+//      // inst Chunk
+//      val o = descr.getProperty( AudioFileInfo.KEY_GAIN );
 //      if( o != null ) {
 //         i1	= Math.max( -64, Math.min( 63, (int) (20 * Math.log( ((Float) o).floatValue() ) / Math.log( 10 ) + 0.5) ));
 //         raf.writeInt( INST_MAGIC );
 //         writeLittleInt( 7 );
-//      raf.writeShort( (69 << 24) | (0 << 16) );	//char: MIDI Note, Detune
+//         raf.writeShort( (69 << 24) | (0 << 16) );	//char: MIDI Note, Detune
 //         raf.writer( i1 );							// char gain (dB)
 //         raf.writeInt( 0x007F007F );					// char LowNote, HighNote, velLo, char velHi
 //         raf.writer( 0 );								// pad byte
 //      }
-//
-//      // data Chunk (Header)
-//      raf.writeInt( DATA_MAGIC );
-//      dataLengthOffset = raf.getFilePointer();
-//raf.writeInt( 0 );
-//      sampleDataOffset = raf.getFilePointer();
-//
-//      updateHeader( descr );
-//   }
+
+      // data Chunk (Header)
+      dout.writeInt( DATA_MAGIC )
+//      dataLengthOffset = raf.getFilePointer()
+      dout.writeInt( ??? ) // 0
+      pos += 8
+
+      val dataLengthOffset = pos - 4
+
+      (factSmpNumOffset, dataLengthOffset, res)
+   }
+}
+
 //
 //   protected void updateHeader( AudioFileInfo descr )
 //   throws IOException
@@ -355,149 +375,6 @@ private[io] object WaveHeader extends AbstractRIFFHeader {
 //      lastUpdateLength= len;
 //   }
 //
-//   protected long getSampleDataOffset()
-//{
-//      return sampleDataOffset;
-//   }
-//
-//   protected ByteOrder getByteOrder()
-//   {
-//      return ByteOrder.LITTLE_ENDIAN;
-//   }
-//
-//   protected boolean isUnsignedPCM()
-//   {
-//      return unsignedPCM;
-//   }
-//
-//   protected void readMarkers()
-//   throws IOException
-//   {
-//      if( (smplMagicOff == 0L) && (listMagicOff == 0L) ) return;
-//
-//      final Map	mapCues= new HashMap();
-//      final Map	mapCueLengths	= new HashMap();
-//      final Map	mapCueNames		= new HashMap();
-//      final long	oldPos			= raf.getFilePointer();
-//      final List	markers, regions;
-//   int			i, i1, i2, i3, i4, i5;
-//      Object		o;
-//      String		str;
-//      byte[]		strBuf			= null;
-//
-//      try {
-//         if( smplMagicOff> 0L ) {
-//            raf.seek(smplMagicOff );
-//            i		  =readLittleInt();	// cSampleLoops
-//            raf.readInt();					// chunk extension len
-//   //			chunkLen -= 36;
-//            if( i > 0 ){
-//      i1	= readLittleInt(); 	// dwIdentifier
-//               o	= new Integer( i1 );
-//               mapCues.remove( o );
-//               mapCueLengths.remove( o );
-//               str	= (String) mapCueNames.remove( o );
-//               if( str == null ) str = NAME_LOOP;
-//               afd.setProperty( AudioFileInfo.KEY_LOOP, new Region( new Span(
-//                  readLittleInt(), readLittleInt() ), str ));
-//   //				chunkLen -= 16;
-//            }
-//         }
-//         if( listMagicOff > 0L ) {
-//   raf.seek( listMagicOff );
-//            for( long chunkLen = listMagicLen; chunkLen >= 8; ) {
-//               i	=raf.readInt();		// sub chunkID
-//               i1	= readLittleInt();
-//               i2	= (i1 + 1) & 0xFFFFFFFE;	// subchunk len
-//               chunkLen -= 8;
-//               switch( i ) {
-//               case LABL_MAGIC:
-//                  i3		  = readLittleInt();	// dwIdentifier
-//                  i1		 -= 4;
-//                  i2	     -= 4;
-//                  chunkLen -=4;
-//                  if( strBuf == null || strBuf.len < i1 ) {
-//               strBuf  = new byte[ Math.max( 64, i1 )];
-//                  }
-//                  raf.readFully( strBuf, 0, i1 );	// null-terminated
-//                  mapCueNames.put( new Integer( i3 ), new String( strBuf, 0, i1 - 1 ));
-//               chunkLen -= i1;
-//                  i2		 -= i1;
-//                  break;
-//
-//               case LTXT_MAGIC:
-//         i3			= readLittleInt();	// dwIdentifier
-//                  i4			= readLittleInt();	// dwSampleLength (= frames)
-//                  i5			= raf.readInt();	// dwPurpose
-//                  raf.readLong();					// skip wCountry, wLanguage, wDialect, wCodePage
-//                  i1			-= 20;
-//i2			-= 20;
-//                  chunkLen	-= 20;
-//                  o = new Integer( i3 );
-//      if( (i1 > 0) && !mapCueNames.containsKey( o )) {// don't overwritenames
-//                     if( strBuf == null || strBuf.len < i1 ) {
-//                        strBuf  = new byte[ Math.max( 64, i1 )];
-//                     }
-//                     raf.readFully( strBuf, 0, i1 );	// null-terminated
-//                     mapCueNames.put( o, new String( strBuf, 0, i1 - 1 ));
-//                     chunkLen -= i1;
-//                     i2		 -= i1;
-//   }
-//                  if( (i4 > 0) || (i5 == RGN_MAGIC) ){
-//                     mapCueLengths.put( o, new Integer( i4 ));
-//                  }
-//                  break;
-//
-//               default:
-//                  break;
-//               }
-//               if( i2 != 0 ) {
-//                  raf.seek( raf.getFilePointer() + i2 );
-//chunkLen -= i2;
-//               }
-//            } // while( chunkLen >= 8 )
-//         }
-//
-//         if( cueMagicOff > 0L ) {
-//raf.seek( cueMagicOff );
-//            i	= readLittleInt();	// num cues
-//            for( int j = 0; j < i; j++ ) {
-//               i1	= readLittleInt();	// dwIdentifier
-//               raf.readInt();			// dwPosition (ignore, we don't use playlist)
-//         i2	= raf.readInt();	// should be 'data'
-//               raf.readLong();			// ignore dwChunkStart and dwBlockStart
-//               i3	= readLittleInt();	// dwSampleOffset (fails for 64bit space)
-//if( i2 == DATA_MAGIC ) {
-//         mapCues.put( new Integer( i1 ), new Integer( i3 ));
-//               }
-//            }
-////	chunkLen -= i * 24 + 4;
-//         }
-//
-//         // resolve markers and regions
-//         if(!mapCues.isEmpty() ) {
-//         markers = new ArrayList();
-//            regions	= new ArrayList();
-//            for( Iterator iter = mapCues.keySet().iterator(); iter.hasNext(); ) {
-//               o	= iter.next();
-//   i	= ((Integer) mapCues.get( o )).intValue();	// start frame
-//         str	= (String) mapCueNames.get( o );
-//               o	= mapCueLengths.get( o );
-//            if( o == null ) {	// i.e. marker
-//if( str == null ) str = NAME_MARK;
-//                  markers.add( new Marker( i, str ));
-//               } else {			// i.e. region
-//                  if( str == null ) str = NAME_REGION;
-//                  regions.add( new Region(new Span( i, ((Integer) o).intValue() ), str ));
-//               }
-//            }
-//            if( !markers.isEmpty() ) afd.setProperty( AudioFileInfo.KEY_MARKERS, markers );
-//            if( !regions.isEmpty() ) afd.setProperty( AudioFileInfo.KEY_REGIONS, regions );
-//         }
-//      }
-//finally {
-//         raf.seek( oldPos );
-//      }
 
 /*
 // http://www.vcs.de/fileadmin/user_upload/MBS/PDF/Whitepaper/Informations_about_Sony_Wave64.pdf

@@ -10,17 +10,18 @@ ScalaAudioFile currently compiles against Scala 2.9.2 using sbt 0.12.
 
 To use the library in your project:
 
-    "de.sciss" %% "scalaaudiofile" % "1.0.+"
+    "de.sciss" %% "scalaaudiofile" % "1.1.+"
 
 ### supported formats
 
-|**name**        |**read/write**   |**notes**|
-|----------------|-----------------|---------|
-|AIFF            |R/W              |         |
-|WAVE            |R                |         |
-|IRCAM           |R/W              |aka BICSF|
-|NeXT            |-                |aka Snd  |
-|Wave64          |-                |         |
+|**name**        |**read/write**   |**notes**      |
+|----------------|-----------------|---------------|
+|AIFF            |R/W              |               |
+|WAVE            |R                |               |
+|IRCAM           |R/W              |aka BICSF      |
+|NeXT            |R/W              |aka Snd and AU |
+|Wave64          |-                |               |
+|Raw             |R/W              |headerless     |
 
 ### getting started
 
