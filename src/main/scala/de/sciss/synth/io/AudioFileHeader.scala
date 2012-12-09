@@ -99,9 +99,9 @@ private[io] object AudioFileHeader {
       buf.toString
    }
 
-   def formatError      = throw new IOException( "A header format error occurred" )
-   def encodingError    = throw new IOException( "File has unsupported encoding" )
-   def incompleteError  = throw new IOException( "Header data is incomplete" )
+   def formatError()       = throw new IOException( "A header format error occurred" )
+   def encodingError()     = throw new IOException( "File has unsupported encoding" )
+   def incompleteError()   = throw new IOException( "Header data is incomplete" )
 
    trait DataInputReader {
       @throws( classOf[ IOException ]) def readInt() : Int
@@ -135,25 +135,25 @@ private[io] object AudioFileHeader {
 
    def nativeDataOutputWriter( dout: DataOutput ) : DataOutputWriter = dataOutputWriter( dout, ByteOrder.nativeOrder )
 
-   class BigDataInputReader( din: DataInput ) extends DataInputReader {
+   final class BigDataInputReader( din: DataInput ) extends DataInputReader {
       @throws( classOf[ IOException ]) def readInt()    = din.readInt()
       @throws( classOf[ IOException ]) def readFloat()  = din.readFloat()
       def byteOrder  = ByteOrder.BIG_ENDIAN
    }
 
-   class LittleDataInputReader( din: DataInput ) extends DataInputReader {
+   final class LittleDataInputReader( din: DataInput ) extends DataInputReader {
       @throws( classOf[ IOException ]) def readInt()    = readLittleInt( din )
       @throws( classOf[ IOException ]) def readFloat()  = readLittleFloat( din )
       def byteOrder  = ByteOrder.LITTLE_ENDIAN
    }
 
-   class BigDataOutputWriter( dout: DataOutput ) extends DataOutputWriter {
+   final class BigDataOutputWriter( dout: DataOutput ) extends DataOutputWriter {
       @throws( classOf[ IOException ]) def writeInt( i: Int )     { dout.writeInt( i )}
       @throws( classOf[ IOException ]) def writeFloat( f: Float ) { dout.writeFloat( f )}
       def byteOrder  = ByteOrder.BIG_ENDIAN
    }
 
-   class LittleDataOutputWriter( dout: DataOutput ) extends DataOutputWriter {
+   final class LittleDataOutputWriter( dout: DataOutput ) extends DataOutputWriter {
       @throws( classOf[ IOException ]) def writeInt( i: Int )     { writeLittleInt( dout, i )}
       @throws( classOf[ IOException ]) def writeFloat( f: Float ) { writeLittleFloat( dout, f )}
       def byteOrder  = ByteOrder.LITTLE_ENDIAN

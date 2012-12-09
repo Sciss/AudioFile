@@ -58,7 +58,7 @@ object AudioFileType {
       private[io] def factory : Option[ AudioFileHeaderFactory ] = Some( AIFFHeader )
    }
    case object NeXT   extends AudioFileType( "next",  "snd" ) {
-      private[io] def factory : Option[ AudioFileHeaderFactory ] = None // XXX
+      private[io] def factory : Option[ AudioFileHeaderFactory ] = Some( NeXTHeader )
    }
    case object Wave   extends AudioFileType( "wav",   "wav" ) {
       private[io] def factory : Option[ AudioFileHeaderFactory ] = Some( WaveHeader )

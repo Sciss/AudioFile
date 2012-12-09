@@ -50,9 +50,6 @@ import java.nio.channels.{Channel => NIOChannel, Channels}
  *  construct an arbitrary user-buffer, one in class <code>AudioFile</code>
  *  which creates a buffer with the appropriate channel number.
  *
- *  @author    Hanns Holger Rutz
- *  @version   0.14, 07-Oct-10
- *
  *  @see    AudioFileType
  *
  *  @todo   openWrite is currently missing
@@ -244,16 +241,19 @@ object AudioFile {
 
    @throws( classOf[ IOException ])
    def identify( dis: DataInputStream ) : Option[ AudioFileType ] =
-      AudioFileType.known.find( _.factory.map( f => {
-         dis.mark( 1024 )
-         try {
-            f.identify( dis )
-         } catch {
-            case e: IOException => false
-         } finally {
-            dis.reset()
-         }
-      }).getOrElse( false ))
+      AudioFileType.known.find( _.factory match {
+         case Some( f ) =>
+            dis.mark( 1024 )
+            try {
+               f.identify( dis )
+            } catch {
+               case e: IOException => false
+            } finally {
+               dis.reset()
+            }
+
+         case _ => false
+      })
 
    private trait Basic extends AudioFile {
       protected final var framePositionVar: Long = 0L
