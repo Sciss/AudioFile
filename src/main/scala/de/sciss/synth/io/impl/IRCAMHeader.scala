@@ -120,13 +120,13 @@ private[io] object IRCAMHeader {
    @throws( classOf[ IOException ])
    def write( raf: RandomAccessFile, spec: AudioFileSpec ) : WritableAudioFileHeader = {
       val spec1 = writeDataOutput( raf, spec )
-      new WritableHeader( spec1 )
+      new NonUpdatingWritableHeader( spec1 )
    }
 
    @throws( classOf[ IOException ])
    def write( dos: DataOutputStream, spec: AudioFileSpec ) : WritableAudioFileHeader = {
       val spec1 = writeDataOutput( dos, spec )
-      new WritableHeader( spec1 )
+      new NonUpdatingWritableHeader( spec1 )
    }
 
    @throws( classOf[ IOException ])
@@ -151,19 +151,5 @@ private[io] object IRCAMHeader {
       if( skp > 0 ) dout.write( new Array[ Byte ]( skp ))  // pad until sample off
 
       spec.copy( byteOrder = Some( byteOrder ))
-   }
-
-   final private class WritableHeader( spec0: AudioFileSpec )
-   extends WritableAudioFileHeader {
-      private var numFrames0 = spec0.numFrames    // XXX do we need to sync this because its a long?
-
-      @throws( classOf[ IOException ])
-      def update( numFrames: Long ) {
-//         spec = spec.copy( numFrames = numFrames )
-         numFrames0 = numFrames
-      }
-
-      def spec = spec0.copy( numFrames = numFrames0 )
-      def byteOrder = spec0.byteOrder.get
    }
 }
