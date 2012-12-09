@@ -133,7 +133,7 @@ object AudioFileType {
    /**
     * The NeXT .snd or Sun .au format
     */
-   case object NeXT extends CanIdentify with CanRead /* with CanWrite */ {
+   case object NeXT extends CanIdentify with CanRead /* with CanWrite XXX */ {
       import impl.{NeXTHeader => Impl}
 
       final val id         = "next"
@@ -150,7 +150,7 @@ object AudioFileType {
    /**
     * Microsoft's Wave (RIFF) format
     */
-   case object Wave extends CanIdentify with CanRead {
+   case object Wave extends CanIdentify with CanRead /* with CanWrite XXX */ {
       import impl.{WaveHeader => Impl}
 
       final val id         = "wav"
@@ -191,8 +191,8 @@ object AudioFileType {
       final val extension  = "raw"
       final val extensions = IIdxSeq( "raw" )
 
-      private[io] def write(    dos: DataOutputStream, spec: AudioFileSpec) : WritableAudioFileHeader = Impl.write( dos, spec )
-      private[io] def write(    raf: RandomAccessFile, spec: AudioFileSpec) : WritableAudioFileHeader = Impl.write( raf, spec )
+      private[io] def write( dos: DataOutputStream, spec: AudioFileSpec) : WritableAudioFileHeader = Impl.write( dos, spec )
+      private[io] def write( raf: RandomAccessFile, spec: AudioFileSpec) : WritableAudioFileHeader = Impl.write( raf, spec )
 
       def reader( spec: AudioFileSpec ) : ReaderFactory = {
          val spec1 = if( spec.fileType == Raw ) spec else spec.copy( fileType = Raw )
@@ -200,15 +200,15 @@ object AudioFileType {
       }
 
       private final case class Readable( spec: AudioFileSpec ) extends ReaderFactory {
-         def openRead( f: File ) = sys.error("TODO"): AudioFile
-         def openRead( is: InputStream ) = sys.error("TODO"): AudioFile
+         def openRead( f: File ) = sys.error("TODO"): AudioFile // XXX
+         def openRead( is: InputStream ) = sys.error("TODO"): AudioFile // XXX
       }
    }
 
    /**
     * Sony Wave 64, the 64-bit extension of the Wave format.
     */
-   case object Wave64 extends AudioFileType {
+   case object Wave64 extends AudioFileType /* extends CanIdentify with CanRead with CanWrite XXX */ {
       final val id         = "w64"
       final val extension  = "w64"
       final val extensions = IIdxSeq( "w64", "wave64" )
