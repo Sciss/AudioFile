@@ -3,15 +3,10 @@ package impl
 
 import java.io.IOException
 
-private[io] final class NonUpdatingWritableHeader( spec0: AudioFileSpec )
+private[io] final class NonUpdatingWritableHeader( val spec: AudioFileSpec )
 extends WritableAudioFileHeader {
-   private var numFrames0 = spec0.numFrames
+   def byteOrder  = spec.byteOrder.get
 
-   @throws( classOf[ IOException ])
-   def update( numFrames: Long ) {
-      numFrames0 = numFrames
-   }
-
-   def spec       = spec0.copy( numFrames = numFrames0 )
-   def byteOrder  = spec0.byteOrder.get
+   @throws(classOf[ IOException ])
+   def update( numFrames: Long ) {}
 }

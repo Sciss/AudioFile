@@ -31,7 +31,6 @@ import ByteOrder.{ BIG_ENDIAN, LITTLE_ENDIAN }
 import math._
 import java.io.{DataOutput, DataOutputStream, DataInput, DataInputStream, EOFException, IOException, RandomAccessFile}
 import annotation.switch
-import AudioFileHeader.opNotSupported
 
 private[io] object AIFFHeader {
    private final val FORM_MAGIC		= 0x464F524D	// 'FORM'
@@ -195,22 +194,22 @@ private[io] object AIFFHeader {
 
    @throws( classOf[ IOException ])
    def write( raf: RandomAccessFile, spec: AudioFileSpec ) : WritableAudioFileHeader = {
-      val (otherLen, commLen, spec1) = writeDataOutput( raf, spec )
+      val (otherLen, commLen, spec1) = writeDataOutput( raf, spec, writeSize = false )
       new WritableFileHeader( raf, spec1, otherLen, commLen )
    }
 
    @throws( classOf[ IOException ])
    def write( dos: DataOutputStream, spec: AudioFileSpec ) : WritableAudioFileHeader = {
-      val (_, _, spec1) = writeDataOutput( dos, spec )
-      WritableStreamHeader( spec1 )
+      val (_, _, spec1) = writeDataOutput( dos, spec, writeSize = true )
+      new NonUpdatingWritableHeader( spec1 )
    }
 
    @throws( classOf[ IOException ])
-   private def writeDataOutput( dout: DataOutput, spec: AudioFileSpec ) : (Int, Int, AudioFileSpec) = {
+   private def writeDataOutput( dout: DataOutput, spec: AudioFileSpec, writeSize: Boolean ) : (Int, Int, AudioFileSpec) = {
       val smpForm       = spec.sampleFormat
       val bitsPerSample = smpForm.bitsPerSample
       val sr            = spec.sampleRate
-      val numFrames     = spec.numFrames  // initial value, only needed for stream files
+      val numFrames     = if( writeSize ) spec.numFrames  else 0L // initial value, only needed for stream files
       val numChannels   = spec.numChannels
       val byteOrder     = spec.byteOrder.getOrElse( ByteOrder.BIG_ENDIAN )
 
@@ -230,12 +229,12 @@ private[io] object AIFFHeader {
       val isAIFC = aifcExt != null  // floating point requires AIFC compression extension
 
       val otherLen      = if( isAIFC ) 24 else 12   // FORM, MAGIC and FVER
-      val commLen       = if( isAIFC ) 26 + aifcExt.size else 26   // 8 + 2 + 4 + 2 + 10 + (isAIFC ? 4 + fl32_HUMAN.size : 0)
+      val commLen       = if( isAIFC ) 26 + aifcExt.length else 26   // 8 + 2 + 4 + 2 + 10 + (isAIFC ? 4 + fl32_HUMAN.length : 0)
       val ssndLen       = (bitsPerSample >> 3) * numFrames * numChannels + 16
       val fileLen       = otherLen + commLen + ssndLen
 
       dout.writeInt( FORM_MAGIC )
-      dout.writeInt( (fileLen - 8).toInt )				// Laenge ohne FORM-Header (Dateilaenge minus 8); unknown now
+      dout.writeInt( (fileLen - 8).toInt )				// length except FORM-Header (file size minus 8)
 
       // MAGIC and FVER Chunk
       if( isAIFC ) {
@@ -280,18 +279,19 @@ private[io] object AIFFHeader {
 //         sampleDataOffset = dis.getFilePointer();
 
 //         updateHeader( descr );
-      (otherLen, commLen, spec.copy( byteOrder = Some( byteOrder )))
+      val spec1 = spec.copy( numFrames = 0L, byteOrder = Some( byteOrder ))
+      (otherLen, commLen, spec1)
    }
 
-   final private class WritableFileHeader( raf: RandomAccessFile, spec0: AudioFileSpec, otherLen: Int, commLen: Int )
+   final private class WritableFileHeader( raf: RandomAccessFile, val spec: AudioFileSpec, otherLen: Int, commLen: Int )
    extends WritableAudioFileHeader {
-      private var numFrames0 = spec0.numFrames
+      private var numFrames0 = 0L // spec0.numFrames
 
       @throws( classOf[ IOException ])
       def update( numFrames: Long ) {
-         if( numFrames == spec.numFrames ) return
+         if( numFrames == numFrames0 ) return
          
-         val ssndLen = (spec.sampleFormat.bitsPerSample >> 3) * numFrames * spec.numChannels + 16
+         val ssndLen = numFrames * ((spec.sampleFormat.bitsPerSample >> 3) * spec.numChannels) + 16
          val oldPos	= raf.getFilePointer
          
          // FORM Chunk len
@@ -312,19 +312,18 @@ private[io] object AIFFHeader {
          numFrames0 = numFrames
       }
 
-      def spec = spec0.copy( numFrames = numFrames0 )
-      def byteOrder : ByteOrder = spec0.byteOrder.getOrElse( ByteOrder.BIG_ENDIAN  )
+      def byteOrder : ByteOrder = spec.byteOrder.get
    }
 
-   final private case class WritableStreamHeader( spec: AudioFileSpec )
-   extends WritableAudioFileHeader {
-      @throws( classOf[ IOException ])
-      def update( numFrames: Long ) {
-         if( numFrames == spec.numFrames ) return
-
-         opNotSupported
-      }
-
-      def byteOrder : ByteOrder = spec.byteOrder.getOrElse( ByteOrder.BIG_ENDIAN  )
-   }
+//   final private case class WritableStreamHeader( spec: AudioFileSpec )
+//   extends WritableAudioFileHeader {
+//      @throws( classOf[ IOException ])
+//      def update( numFrames: Long ) {
+//         if( numFrames == spec.numFrames ) return
+//
+//         opNotSupported
+//      }
+//
+//      def byteOrder : ByteOrder = spec.byteOrder.get
+//   }
 }

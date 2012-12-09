@@ -133,7 +133,7 @@ object AudioFileType {
    /**
     * The NeXT .snd or Sun .au format
     */
-   case object NeXT extends CanIdentify with CanRead /* with CanWrite XXX */ {
+   case object NeXT extends CanIdentify with CanRead with CanWrite {
       import impl.{NeXTHeader => Impl}
 
       final val id         = "next"
@@ -143,8 +143,8 @@ object AudioFileType {
       private[io] def identify( dis: DataInputStream  ) : Boolean          = Impl.identify( dis )
       private[io] def read(     dis: DataInputStream  ) : AudioFileHeader  = Impl.read( dis )
       private[io] def read(     raf: RandomAccessFile ) : AudioFileHeader  = Impl.read( raf )
-//      private[io] def write(    dos: DataOutputStream, spec: AudioFileSpec) : WritableAudioFileHeader = Impl.write( dos, spec )
-//      private[io] def write(    raf: RandomAccessFile, spec: AudioFileSpec) : WritableAudioFileHeader = Impl.write( raf, spec )
+      private[io] def write(    dos: DataOutputStream, spec: AudioFileSpec) : WritableAudioFileHeader = Impl.write( dos, spec )
+      private[io] def write(    raf: RandomAccessFile, spec: AudioFileSpec) : WritableAudioFileHeader = Impl.write( raf, spec )
    }
 
    /**

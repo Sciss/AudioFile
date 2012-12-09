@@ -26,7 +26,7 @@
 package de.sciss.synth.io
 package impl
 
-import java.io.{DataInput, DataInputStream, RandomAccessFile, IOException}
+import java.io.{DataOutputStream, DataOutput, DataInput, DataInputStream, RandomAccessFile, IOException}
 import annotation.switch
 import java.nio.ByteOrder
 
@@ -54,13 +54,13 @@ private[io] object NeXTHeader {
       val dataOffset       = din.readInt()   // offset in bytes
       val dataSize_?       = din.readInt()
       val sampleFormat     = (din.readInt(): @switch) match {
-         case 2         => SampleFormat.Int8    // 8 bit linear
-         case 3         => SampleFormat.Int16   // 16 bit linear
-         case 4         => SampleFormat.Int24   // 24 bit linear
-         case 5         => SampleFormat.Int32	// 32 bit linear
-         case 6         => SampleFormat.Float	// 32 bit float
-         case 7         => SampleFormat.Double  // 64 bit float
-         case m         => throw new IOException( "Unsupported NeXT encoding (" + m + ")" )
+         case 2   => SampleFormat.Int8    // 8 bit linear
+         case 3   => SampleFormat.Int16   // 16 bit linear
+         case 4   => SampleFormat.Int24   // 24 bit linear
+         case 5   => SampleFormat.Int32	// 32 bit linear
+         case 6   => SampleFormat.Float	// 32 bit float
+         case 7   => SampleFormat.Double  // 64 bit float
+         case m   => throw new IOException( "Unsupported NeXT encoding (" + m + ")" )
       }
       val sampleRate       = din.readInt().toDouble
       val numChannels      = din.readInt()
@@ -75,137 +75,72 @@ private[io] object NeXTHeader {
       val spec = new AudioFileSpec( AudioFileType.NeXT, sampleFormat, numChannels, sampleRate, Some( ByteOrder.BIG_ENDIAN ), numFrames )
       ReadableAudioFileHeader( spec, ByteOrder.BIG_ENDIAN )
    }
+
+   @throws( classOf[ IOException ])
+   def write( raf: RandomAccessFile, spec: AudioFileSpec ) : WritableAudioFileHeader = {
+      val spec1 = writeDataOutput( raf, spec, writeSize = false )
+      new WritableFileHeader( raf, spec1 )
+   }
+
+   @throws( classOf[ IOException ])
+   def write( dos: DataOutputStream, spec: AudioFileSpec ) : WritableAudioFileHeader = {
+      val spec1 = writeDataOutput( dos, spec, writeSize = true )
+      new NonUpdatingWritableHeader( spec1 )
+   }
+
+   @throws( classOf[ IOException ])
+   private def writeDataOutput( dout: DataOutput, spec: AudioFileSpec, writeSize: Boolean ) : AudioFileSpec = {
+      val res = spec.byteOrder match {
+         case Some( ByteOrder.BIG_ENDIAN )   => spec
+         case None                           => spec.copy( byteOrder = Some( ByteOrder.BIG_ENDIAN ))
+         case Some( other )                  => throw new IOException( "Unsupported byte order " + other )
+      }
+
+//      val str = (String) descr.getProperty( AudioFileInfo.KEY_COMMENT );
+      val dataOffset	= 28L // if( str == null ) 28L else ((28 + str.length()) & ~3).toLong
+      dout.writeInt( SND_MAGIC )
+      dout.writeInt( dataOffset.toInt )
+      val dataSize = if( writeSize ) spec.numFrames * ((spec.sampleFormat.bitsPerSample >> 3) * spec.numChannels) else 0L
+      dout.writeInt( dataSize.toInt )
+
+      val formatCode = spec.sampleFormat match {
+         case SampleFormat.Int8     => 2
+         case SampleFormat.Int16    => 3
+         case SampleFormat.Int24    => 4
+         case SampleFormat.Int32    => 5
+         case SampleFormat.Float	   => 6
+         case SampleFormat.Double   => 7
+      }
+      dout.writeInt( formatCode )
+      dout.writeInt( (spec.sampleRate + 0.5).toInt )
+      dout.writeInt( spec.numChannels )
+
+      // comment
+//      if( str == null ) {
+         dout.writeInt( 0 )   // minimum 4 byte character data
+//      } else {
+//         ...
+//      }
+
+      res
+   }
+
+   final private class WritableFileHeader( raf: RandomAccessFile, val spec: AudioFileSpec )
+   extends WritableAudioFileHeader {
+      private var numFrames0 = 0L
+
+      @throws( classOf[ IOException ])
+      def update( numFrames: Long ) {
+         if( numFrames == numFrames0 ) return
+
+         val dataSize   = numFrames * ((spec.sampleFormat.bitsPerSample >> 3) * spec.numChannels)
+         val oldPos	   = raf.getFilePointer
+         raf.seek( 8L )
+         raf.writeInt( dataSize.toInt )
+         raf.seek( oldPos )
+         numFrames0 = numFrames
+      }
+
+      def byteOrder : ByteOrder = spec.byteOrder.get
+   }
 }
-
-/*
-	private class SNDHeader
-	extends AudioFileHeader
-	{
-		private static final int SND_MAGIC		= 0x2E736E64;	// '.snd'
-
-		private long sampleDataOffset;
-		private long headDataLenOffset= 8L;
-		private long lastUpdateLength = 0L;
-
-		protected SNDHeader() {  }
-
-		protected void readHeader( AudioFileInfo descr )
-		throws IOException
-		{
-			int		i1,i2;
-			String	str;
-
-			raf.readInt();  // SND magic
-			sampleDataOffset= raf.readInt();
-			i2				= raf.readInt();
-		i1				= raf.readInt();
-			descr.rate		= raf.readInt();
-			descr.channels	=raf.readInt();
-			str				= readNullTermString();
-
-			if( str.len() > 0 ) descr.setProperty( AudioFileInfo.KEY_COMMENT, str );
-
-			switch( i1 ) {
-	case 2:	// 8 bit linear
-				descr.bitsPerSample	= 8;
-				descr.sampleFormat	= AudioFileInfo.FORMAT_INT;
-				break;
-			case 3:	// 16 bit linear
-				descr.bitsPerSample	= 16;
-				descr.sampleFormat	= AudioFileInfo.FORMAT_INT;
-				break;
-			case 4:	// 24 bit linear
-				descr.bitsPerSample	= 24;
-				descr.sampleFormat	= AudioFileInfo.FORMAT_INT;
-				break;
-			case 5:	// 32 bit linear
-				descr.bitsPerSample	= 32;
-				descr.sampleFormat	=AudioFileInfo.FORMAT_INT;
-				break;
-		case 6:	// 32 bit float
-				descr.bitsPerSample	= 32;
-				descr.sampleFormat	= AudioFileInfo.FORMAT_FLOAT;
-				break;
-			case 7:	// 64 bit float
-				descr.bitsPerSample	= 64;
-				descr.sampleFormat	= AudioFileInfo.FORMAT_FLOAT;
-				break;
-			default:
-				throw new IOException( getResourceString( "errAudioFileEncoding" ));
-			}
-
-			descr.len	= i2 / (((descr.bitsPerSample + 7) >> 3) * descr.channels);
-		}
-
-		protected void writeHeader( AudioFileInfo descr )
-		throws IOException
-		{
-			String str;
-
-			str				= (String) descr.getProperty( AudioFileInfo.KEY_COMMENT );
-			sampleDataOffset	= str == null ? 28L : (long) ((28 +str.len()) & ~3);
-			raf.writeInt( SND_MAGIC );
-			raf.writeInt( (int) sampleDataOffset );
-//			raf.writeInt( stream.samples * frameLength );	// len
-			raf.writeInt( 0 );
-
-			if( descr.sampleFormat == AudioFileInfo.FORMAT_INT ){
-				raf.writeInt( (descr.bitsPerSample >> 3) + 1 );
-			} else {
-raf.writeInt( (descr.bitsPerSample >> 5) + 5 );
-			}
-raf.writeInt((int) (descr.rate + 0.5) );
-			raf.writeInt( descr.channels );
-
-			// comment
-			if( str == null ) {
-				raf.writeInt( 0 );  // minimum 4 byte character data
-			} else {
-				raf.writeBytes( str );
-				switch( str.len() & 3 ) {
-			case 0:
-				raf.writeInt( 0 );
-					break;
-				case 1:
-					raf.writeByte( 0 );
-					raf.writeShort( 0 );
-					break;
-				case 2:
-					raf.writeShort( 0 );
-					break;
-				case 3:
-			raf.writeByte( 0 );
-					break;
-				}
-			}
-
-//			updateHeader( afd );
-		}
-
-	protected voidupdateHeader( AudioFileInfo descr )
-		throws IOException
-		{
-			long oldPos;
-			long len	= raf.len();
-			if( len == lastUpdateLength ) return;
-
-		if( len >= headDataLenOffset+ 4 ) {
-				oldPos = raf.getFilePointer();
-			raf.seek( headDataLenOffset );
-				raf.writeInt( (int) (len - sampleDataOffset) );		// data size
-				raf.seek( oldPos );
-				lastUpdateLength = len;
-			}
-		}
-
-		protected long getSampleDataOffset()
-		{
-			return sampleDataOffset;
-		}
-
-		protected ByteOrder getByteOrder()
-		{
-			return ByteOrder.BIG_ENDIAN;
-		}
-	} // class SNDHeader
-*/
