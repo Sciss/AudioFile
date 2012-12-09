@@ -1,4 +1,5 @@
-package de.sciss.synth.io.impl
+package de.sciss.synth.io
+package impl
 
 /*
 	private class SNDHeader

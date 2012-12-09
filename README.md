@@ -12,15 +12,15 @@ To use the library in your project:
 
     "de.sciss" %% "scalaaudiofile" % "1.0.+"
 
-### creating an IntelliJ IDEA project
+### supported formats
 
-If you want to develop the library, you can set up an IntelliJ IDEA project, using the sbt-idea plugin yet. Have the following contents in `~/.sbt/plugins/build.sbt`:
-
-    resolvers += "sbt-idea-repo" at "http://mpeltonen.github.com/maven/"
-    
-    addSbtPlugin("com.github.mpeltonen" % "sbt-idea" % "1.0.0")
-
-Then to create the IDEA project, run `sbt gen-idea`.
+|**name**        |**read/write**   |**notes**|
+|----------------|-----------------|---------|
+|AIFF            |R/W              |         |
+|WAVE            |R                |         |
+|IRCAM           |R/W              |aka BICSF|
+|NeXT            |-                |aka Snd  |
+|Wave64          |-                |         |
 
 ### getting started
 
@@ -88,6 +88,14 @@ Here is an example of opening an existing file, reading through it to determine 
 ```
 
 For all further information, please refer to the API docs. They can be created with `sbt doc`.
+
+### creating an IntelliJ IDEA project
+
+If you want to develop the library, you can set up an IntelliJ IDEA project, using the sbt-idea plugin yet. Have the following contents in `~/.sbt/plugins/build.sbt`:
+
+    addSbtPlugin("com.github.mpeltonen" % "sbt-idea" % "1.1.0")
+
+Then to create the IDEA project, run `sbt gen-idea`.
 
 ### download
 

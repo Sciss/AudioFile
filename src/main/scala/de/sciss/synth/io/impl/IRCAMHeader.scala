@@ -2,7 +2,7 @@
  *  AIFFHeader.scala
  *  (ScalaAudioFile)
  *
- *  Copyright (c) 2004-2011 Hanns Holger Rutz. All rights reserved.
+ *  Copyright (c) 2004-2012 Hanns Holger Rutz. All rights reserved.
  *
  *  This software is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -21,9 +21,6 @@
  *
  *	 For further information, please contact Hanns Holger Rutz at
  *	 contact@sciss.de
- *
- *
- *  Changelog:
  */
 
 package de.sciss.synth.io
@@ -32,6 +29,9 @@ package impl
 import java.nio.ByteOrder
 import java.io._
 
+/**
+ * http://www-mmsp.ece.mcgill.ca/documents/audioformats/IRCAM/IRCAM.html
+ */
 private[io] object IRCAMHeader extends AudioFileHeaderFactory {
 
    private val IRCAM_VAXLE_MAGIC	   = 0x64A30100
@@ -165,9 +165,12 @@ private[io] object IRCAMHeader extends AudioFileHeaderFactory {
          dout.writeInt( if( byteOrder == ByteOrder.LITTLE_ENDIAN ) IRCAM_VAXLE_MAGIC else IRCAM_SUNBE_MAGIC )
          writer.writeFloat( spec.sampleRate.toFloat )
          writer.writeInt( spec.numChannels )
-         writer.writeInt( if( spec.sampleFormat == SampleFormat.Float ) 0x40004 else
-            spec.sampleFormat.bitsPerSample >> 3   // 1 = 8bit int, 2 = 16bit lin; 3 = 24 bit, 4 = 32bit float, 8 = 64bit float
-         )
+         writer.writeInt( if( spec.sampleFormat == SampleFormat.Int32 ) {
+            0x40004
+         } else {
+            // 1 = 8bit int, 2 = 16bit lin; 3 = 24 bit, 4 = 32bit float, 8 = 64bit float
+            spec.sampleFormat.bitsPerSample >> 3
+         })
          var pos = 16L
 
 //         // markers + regions, loop

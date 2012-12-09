@@ -2,7 +2,7 @@
  *  AudioFileHeader.java
  *  (ScalaAudioFile)
  *
- *  Copyright (c) 2004-2011 Hanns Holger Rutz. All rights reserved.
+ *  Copyright (c) 2004-2012 Hanns Holger Rutz. All rights reserved.
  *
  *  This software is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -21,9 +21,6 @@
  *
  *	 For further information, please contact Hanns Holger Rutz at
  *	 contact@sciss.de
- *
- *
- *  Changelog:
  */
 
 package de.sciss.synth.io
@@ -31,9 +28,6 @@ package de.sciss.synth.io
 import java.nio.ByteOrder
 import java.io.{ DataInput, DataInputStream, DataOutput, DataOutputStream, IOException, RandomAccessFile }
 
-/**
- *    @version 0.11, 17-Jul-10
- */
 private[io] object AudioFileHeader {
    @throws( classOf[ IOException ])
    @inline def readLittleUShort( din: DataInput ) : Int = {

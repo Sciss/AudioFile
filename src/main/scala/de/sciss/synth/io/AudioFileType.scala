@@ -2,7 +2,7 @@
  *  AudioFileType.scala
  *  (ScalaAudioFile)
  *
- *  Copyright (c) 2004-2011 Hanns Holger Rutz. All rights reserved.
+ *  Copyright (c) 2004-2012 Hanns Holger Rutz. All rights reserved.
  *
  *  This software is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -21,9 +21,6 @@
  *
  *	 For further information, please contact Hanns Holger Rutz at
  *	 contact@sciss.de
- *
- *
- *  Changelog:
  */
 
 package de.sciss.synth.io
@@ -31,13 +28,16 @@ package de.sciss.synth.io
 import impl._
 import collection.immutable.{ Set => ISet }
 
+/**
+ * A recognized audio file type.
+ *
+ * @param id   the unique identifier of the file type
+ * @param ext  the common extension of the file type (period not included)
+ */
 abstract /* sealed */ class AudioFileType( val id: String, val ext: String ) {
    private[io] def factory: Option[ AudioFileHeaderFactory ]
 }
 
-/**
- *    @version 0.11, 17-Jul-10
- */
 object AudioFileType {
 //   private val sync  = new AnyRef
    private var set   = Set[ AudioFileType ]( AIFF, NeXT, Wave, IRCAM, Wave64 )
@@ -55,25 +55,25 @@ object AudioFileType {
    def known : ISet[ AudioFileType ] = set // sync.synchronized { set }
 
    case object AIFF   extends AudioFileType( "aiff",  "aif" ) {
-      private[io] def factory = Some( AIFFHeader )
+      private[io] def factory : Option[ AudioFileHeaderFactory ] = Some( AIFFHeader )
    }
    case object NeXT   extends AudioFileType( "next",  "snd" ) {
-      private[io] def factory = None // XXX
+      private[io] def factory : Option[ AudioFileHeaderFactory ] = None // XXX
    }
    case object Wave   extends AudioFileType( "wav",   "wav" ) {
-      private[io] def factory = Some( WaveHeader )
+      private[io] def factory : Option[ AudioFileHeaderFactory ] = Some( WaveHeader )
    }
 
    /**
     * See http://www-mmsp.ece.mcgill.ca/Documents/AudioFormats/IRCAM/IRCAM.html
     */
    case object IRCAM  extends AudioFileType( "ircam", "irc ") {
-      private[io] def factory = Some( IRCAMHeader )
+      private[io] def factory : Option[ AudioFileHeaderFactory ] = Some( IRCAMHeader )
    }
    case object Raw    extends AudioFileType( "raw",   "raw" ) {
-      private[io] def factory = None // XXX
+      private[io] def factory : Option[ AudioFileHeaderFactory ] = None // XXX
    }
    case object Wave64 extends AudioFileType( "w64",   "w64" ) {
-      private[io] def factory = None // XXX
+      private[io] def factory : Option[ AudioFileHeaderFactory ] = None // XXX
    }
 }

@@ -2,7 +2,7 @@
  *  AudioFile.scala
  *  (ScalaAudioFile)
  *
- *  Copyright (c) 2004-2011 Hanns Holger Rutz. All rights reserved.
+ *  Copyright (c) 2004-2012 Hanns Holger Rutz. All rights reserved.
  *
  *  This software is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -21,32 +21,11 @@
  *
  *	 For further information, please contact Hanns Holger Rutz at
  *	 contact@sciss.de
- *
- *
- *  Changelog:
- *		21-May-05	created from de.sciss.eisenkraut.io.AudioFile
- *		15-Jul-05	KEY_APPCODE
- *		28-Aug-05	removed rounding (was buggy) in float<->int conversion
- *					; read/write 16...24 bit int completely noise free now
- *					; optimized buffer handler classes, up to two times faster now
- *		07-Sep-05	marker + region support for WAV, bugfix in WAV readHeader
- *		22-Dec-05	conforms to new contract that allows null-arrays in readFrames
- *		08-Jan-06	added setFrameNum()
- *		21-Feb-06	supports comments (AIFF, IRCAM, SND); don't know how to do it in WAVE (when not linked to a cuepoint)
- *		25-Feb-06	moved to double precision rate
- *		27-May-06	fixed bug in AIFF COMT chunk creation
- *		02-Jul-06	changed AIFF and WAVE read header to allow files > 2 GB
- *		31-Jan-07	added supported for AIFC little endian ; fixed sucky 8-bit WAV
- *		27-Mar-07	separate APPCODE reader, not requiring Application class; separate markers reading;
- *					fixed AIFF output file endian bug
- *		06-Jan-07	added static retrieveType method
- *		10-Sep-08	added Wave64 support
- *    14-May-10   translated to Scala
  */
 
 package de.sciss.synth.io
 
-import java.nio.{ ByteBuffer }
+import java.nio.ByteBuffer
 import math._
 import ScalaAudioFile._
 import java.io.{DataOutputStream, BufferedOutputStream, OutputStream, BufferedInputStream, DataInputStream, File, FileInputStream, IOException, InputStream, RandomAccessFile}
@@ -270,7 +249,7 @@ object AudioFile {
          try {
             f.identify( dis )
          } catch {
-            case e => false
+            case e: IOException => false
          } finally {
             dis.reset()
          }
@@ -751,7 +730,7 @@ trait AudioFile extends NIOChannel {
 	 *	Both files must have the same number of channels.
 	 *
 	 *	@param	target	to file to copy to from this audio file
-	 *	@param	len	the number of frames to copy. Reading
+	 *	@param	numFrames	the number of frames to copy. Reading
 	 *					and writing begins at the current positions
 	 *				of both files.
 	 *
@@ -786,7 +765,7 @@ trait AudioFile extends NIOChannel {
 	 *
 	 *	@see	#getDescr()
 	 *	@see	AudioFileInfo#KEY_MARKERS
-	 *	@seeAudioFileInfo#KEY_LOOP
+	 *	@see  AudioFileInfo#KEY_LOOP
 	 *
 	 *	@throws	IOException	if a reader or parsing error occurs
 	 */
