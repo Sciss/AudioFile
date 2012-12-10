@@ -25,6 +25,8 @@
 
 package de.sciss.synth.io
 
+import collection.immutable.{IndexedSeq => IIdxSeq}
+
 abstract class SampleFormat( val id: String, val bitsPerSample: Int ) {
    private[io] def readerFactory  : Option[ BufferReaderFactory ]
    private[io] def writerFactory  : Option[ BufferWriterFactory ]
@@ -32,6 +34,9 @@ abstract class SampleFormat( val id: String, val bitsPerSample: Int ) {
 }
 
 object SampleFormat {
+   val allSigned  = IIdxSeq( Int8, Int16, Int24, Int32, Float, Double )
+   val all        = UInt8 +: allSigned
+
    case object UInt8 extends SampleFormat( "uint8", 8 ) {
       private[io] def readerFactory = Some( BufferReader.Byte )
       private[io] def writerFactory = Some( BufferWriter.Byte )

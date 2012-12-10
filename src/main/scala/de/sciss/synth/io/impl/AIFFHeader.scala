@@ -195,7 +195,7 @@ private[io] object AIFFHeader {
    @throws( classOf[ IOException ])
    def write( raf: RandomAccessFile, spec: AudioFileSpec ) : WritableAudioFileHeader = {
       val (otherLen, commLen, spec1) = writeDataOutput( raf, spec, writeSize = false )
-      new WritableFileHeader( raf, spec1, otherLen, commLen )
+      new WritableFileHeader( raf, spec1, otherLen = otherLen, commLen = commLen )
    }
 
    @throws( classOf[ IOException ])
@@ -214,7 +214,7 @@ private[io] object AIFFHeader {
       val byteOrder     = spec.byteOrder.getOrElse( ByteOrder.BIG_ENDIAN )
 
       val le16 = if( byteOrder == ByteOrder.LITTLE_ENDIAN ) {
-         if( spec.sampleFormat != SampleFormat.Int16 ) throw new IOException( "AIFF little endian only supported for Int16" )
+         if( smpForm != SampleFormat.Int16 ) throw new IOException( "AIFF little endian only supported for Int16" )
          true
       } else false
 

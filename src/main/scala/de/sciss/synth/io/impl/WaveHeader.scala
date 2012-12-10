@@ -69,6 +69,8 @@ private[io] object WaveHeader extends AbstractRIFFHeader {
 //   private final val LIST_MAGIC		= 0x6C697374	// 'list'
 //   private final val LIST_MAGIC2	   = 0x4C495354	// 'LIST'
 
+   private final val riffLengthOffset  = 4L
+
    @throws( classOf[ IOException ])
    def identify( dis: DataInputStream ) = dis.readInt() == RIFF_MAGIC && {
       dis.readInt()
@@ -177,60 +179,62 @@ private[io] object WaveHeader extends AbstractRIFFHeader {
 
    @throws( classOf[ IOException ])
    def write( raf: RandomAccessFile, spec: AudioFileSpec ) : WritableAudioFileHeader = {
-      val (_, _, spec1) = writeDataOutput( raf, spec )
-      new NonUpdatingWritableHeader( spec1 )
+      val (factSmpNumOffset, dataChunkLenOff, spec1) = writeDataOutput( raf, spec, writeSize = false )
+      new WritableFileHeader( raf, spec1, factSmpNumOffset = factSmpNumOffset, dataChunkLenOff = dataChunkLenOff )
    }
 
    @throws( classOf[ IOException ])
    def write( dos: DataOutputStream, spec: AudioFileSpec ) : WritableAudioFileHeader = {
-      val (factSmpNumOffset, dataLengthOffset, spec1) = writeDataOutput( dos, spec )
-      sys.error( "TODO" ) // XXX new NonUpdatingWritableHeader( spec1 )
+      val (_, _, spec1) = writeDataOutput( dos, spec, writeSize = true )
+      new NonUpdatingWritableHeader( spec1 )
    }
 
    @throws( classOf[ IOException ])
-   private def writeDataOutput( dout: DataOutput, spec: AudioFileSpec ) : (Long, Long, AudioFileSpec) = {
+   private def writeDataOutput( dout: DataOutput, spec: AudioFileSpec, writeSize: Boolean ) : (Long, Long, AudioFileSpec) = {
       val res = spec.byteOrder match {
          case Some( ByteOrder.LITTLE_ENDIAN )   => spec
          case None                              => spec.copy( byteOrder = Some( ByteOrder.LITTLE_ENDIAN ))
          case Some( other )                     => throw new IOException( "Unsupported byte order " + other )
       }
 
-      val ??? = sys.error( "TODO" )
-
-      dout.writeInt( RIFF_MAGIC )
-      dout.writeInt( ??? ) // 0  // length except RIFF-Header (file length minus 8)
-      dout.writeInt( WAVE_MAGIC )
-
-      var pos = 12L
-
       // floating point requires FACT extension
-      val isFloat = spec.sampleFormat == SampleFormat.Float || spec.sampleFormat == SampleFormat.Double
+      val isFloat       = spec.sampleFormat == SampleFormat.Float || spec.sampleFormat == SampleFormat.Double
+      val preSize       = 12
+      val fmtChunkSize  = if( isFloat ) 26 else 24   // FORMAT_FLOAT has extension of size 2
+      val factChunkSize = if( isFloat ) 12 else 0
+      val factChunkOff  = preSize + fmtChunkSize
+      val dataChunkOff  = factChunkOff + factChunkSize
+      val dataChunkLenOff = dataChunkOff + 4L
 
-      // fmt Chunk
-      val intRate       = (spec.sampleRate + 0.5).toInt
       val bitsPerSample = spec.sampleFormat.bitsPerSample
       val frameSize     = (bitsPerSample >> 3) * spec.numChannels
+      val numFrames     = if( writeSize ) spec.numFrames else 0L
+      val fileSize      = dataChunkOff + 8 + (numFrames * frameSize)
 
-      val fmtSize = if( isFloat ) 26 else 24   // FORMAT_FLOAT has extension of size 2
+      dout.writeInt( RIFF_MAGIC )
+      writeLittleInt( dout, (fileSize - 8).toInt ) // length except RIFF-Header (file length minus 8)
+      dout.writeInt( WAVE_MAGIC )
+
+      // fmt Chunk
       dout.writeInt( FMT_MAGIC )
-      writeLittleInt( dout, fmtSize - 8 )
+      writeLittleInt( dout, fmtChunkSize - 8 )
       writeLittleShort( dout, if( isFloat ) FORMAT_FLOAT else FORMAT_PCM )
       writeLittleShort( dout, spec.numChannels )
+      val intRate = (spec.sampleRate + 0.5).toInt
       writeLittleInt( dout, intRate )
       writeLittleInt( dout, intRate * frameSize )
       writeLittleShort( dout, frameSize )
       writeLittleShort( dout, bitsPerSample )
       if( isFloat ) dout.writeShort( 0 )
 
-      pos += fmtSize
-
       // fact Chunk
       val factSmpNumOffset = if( isFloat ) {
          dout.writeInt( FACT_MAGIC )
          writeLittleInt( dout, 4 )
-         dout.writeInt( ??? ) // 0
-         pos += 12
-         pos - 4
+         // "With no mention of the number of channels in this computation,
+         // this implies that dwSampleLength is the number of samples per channel."
+         writeLittleInt( dout, numFrames.toInt )
+         factChunkOff + 8L
       } else 0L
 
 //      // cue Chunk
@@ -341,40 +345,45 @@ private[io] object WaveHeader extends AbstractRIFFHeader {
 
       // data Chunk (Header)
       dout.writeInt( DATA_MAGIC )
-//      dataLengthOffset = raf.getFilePointer()
-      dout.writeInt( ??? ) // 0
-      pos += 8
+      val dataChunkSize = (fileSize - (dataChunkLenOff + 4))
+      writeLittleInt( dout, dataChunkSize.toInt )  // data Chunk len
 
-      val dataLengthOffset = pos - 4
+      (factSmpNumOffset, dataChunkLenOff, res)
+   }
 
-      (factSmpNumOffset, dataLengthOffset, res)
+   final private class WritableFileHeader( raf: RandomAccessFile, val spec: AudioFileSpec,
+                                           factSmpNumOffset: Long, dataChunkLenOff: Long )
+   extends WritableAudioFileHeader {
+      private var numFrames0 = 0L
+
+      @throws( classOf[ IOException ])
+      def update( numFrames: Long ) {
+         if( numFrames == numFrames0 ) return
+
+//         val dataSize   = numFrames * ((spec.sampleFormat.bitsPerSample >> 3) * spec.numChannels)
+         val oldPos	   = raf.getFilePointer
+         val fileSize   = raf.length()
+         raf.seek( riffLengthOffset )
+         writeLittleInt( raf, (fileSize - 8).toInt )
+
+         if( factSmpNumOffset != 0L ) {
+            raf.seek( factSmpNumOffset )
+            // "With no mention of the number of channels in this computation,
+            // this implies that dwSampleLength is the number of samples per channel."
+            writeLittleInt( raf, numFrames.toInt )
+         }
+
+         raf.seek( dataChunkLenOff )
+         val dataChunkSize = (fileSize - (dataChunkLenOff + 4))
+         writeLittleInt( raf, dataChunkSize.toInt )  // data Chunk len
+
+         raf.seek( oldPos )
+         numFrames0 = numFrames
+      }
+
+      def byteOrder : ByteOrder = spec.byteOrder.get
    }
 }
-
-//
-//   protected void updateHeader( AudioFileInfo descr )
-//   throws IOException
-//   {
-//long oldPos	= raf.getFilePointer();
-//      long len	= raf.len();
-//      if( len == lastUpdateLength ) return;
-//
-//      if( len >= riffLengthOffset + 4 ) {
-//         raf.seek( riffLengthOffset );
-//         writeLittleInt( (int) (len - 8) );								// RIFF Chunk len
-//      }
-//      if( isFloat &&(len >= factSmpNumOffset + 4) ) {
-//         raf.seek( factSmpNumOffset );
-//         writeLittleInt( (int) (descr.len * descr.channels) );			// fact: Sample-Num XXX check multich.!
-//      }
-//      if( len >= dataLengthOffset + 4 ) {
-//         raf.seek(dataLengthOffset );
-//         writeLittleInt( (int) (len - (dataLengthOffset + 4)) );			// data Chunk len
-//      }
-//      raf.seek( oldPos );
-//      lastUpdateLength= len;
-//   }
-//
 
 /*
 // http://www.vcs.de/fileadmin/user_upload/MBS/PDF/Whitepaper/Informations_about_Sony_Wave64.pdf
@@ -386,18 +395,18 @@ extends AbstractRIFFHeader
    private static final long RIFF_MAGIC1	= 0x726966662E91CF11L;
    private static final long RIFF_MAGIC2	= 0xA5D628DB04C10000L;
 
-   private static final long WAVE_MAGIC1	= 0x77617665F3ACD311L;	// 'wave'-XXXX
+   private static final long WAVE_MAGIC1	= 0x77617665F3ACD311L;	// 'wave'
    private static final long WAVE_MAGIC2	= 0x8CD100C04F8EDB8AL;
 
    // chunk identifiers
-private static final long FMT_MAGIC1	= 0x666D7420F3ACD311L;	// 'fmt '-XXXX
+private static final long FMT_MAGIC1	= 0x666D7420F3ACD311L;	// 'fmt '
    private static final long FMT_MAGIC2	= 0x8CD100C04F8EDB8AL;
-   private static final long FACT_MAGIC1	= 0x66616374F3ACD311L;	// 'fact'-XXXX
+   private static final long FACT_MAGIC1	= 0x66616374F3ACD311L;	// 'fact'
    private static final long FACT_MAGIC2	= 0x8CD100C04F8EDB8AL;
-   private static final long DATA_MAGIC1	= 0x64617461F3ACD311L;	// 'data'-XXXX
+   private static final long DATA_MAGIC1	= 0x64617461F3ACD311L;	// 'data'
    private static final long DATA_MAGIC2	= 0x8CD100C04F8EDB8AL;
 
-//		private static final long LIST_MAGIC1	= 0x6C6973742F91CF11L; // 'list'-XXXX
+//		private static final long LIST_MAGIC1	= 0x6C6973742F91CF11L; // 'list'
 //		private static final longLIST_MAGIC2	= 0xA5D628DB04C10000L;
    private static final long MARKER_MAGIC1	= 0x5662F7AB2D39D211L;
    private static final long MARKER_MAGIC2	= 0x86C700C04F8EDB8AL;

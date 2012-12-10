@@ -14,6 +14,15 @@ licenses := Seq( "GPL v2+" -> url( "http://www.gnu.org/licenses/gpl-2.0.txt" ))
 
 initialCommands in console := """import de.sciss.synth.io._"""
 
+libraryDependencies in ThisBuild <+= scalaVersion { sv =>
+   val v = sv match {
+      case "2.10.0-RC3" => "1.8-B1"
+      case "2.10.0-RC5" => "1.8-B1"
+      case _            => "1.8"
+   }
+   "org.scalatest" %% "scalatest" % v % "test"
+}
+
 // ---- build info ----
 
 buildInfoSettings
