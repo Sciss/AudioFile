@@ -25,20 +25,24 @@ class ReadWriteSpec extends fixture.FlatSpec with ShouldMatchers {
 
    // XXX TODO : generate actual buffer content, and verify it
 
+   val bufSize    = 8192
+   val totalSize  = 10000
+   val sr         = 44100.0
+
    rwTypes.foreach { typ =>
       typ.supportedFormats.foreach { smpFmt =>
          chanNums.foreach { numCh =>
-            val fileSpec = AudioFileSpec( typ, smpFmt, numCh, 44100.0 )
+            val fileSpec = AudioFileSpec( typ, smpFmt, numCh, sr )
             "AudioFile" should ("write and read " + fileSpec) in { f =>
                val afOut = AudioFile.openWrite( f, fileSpec )
                assert( afOut.isOpen     )
                assert( afOut.isReadable )
                assert( afOut.isWritable )
                assert( afOut.position        === 0L )
-               val buf = afOut.buffer( 8192 )
+               val buf = afOut.buffer( bufSize )
                afOut.write( buf )
-               afOut.write( buf, 0, 10000 - 8192 )
-               assert( afOut.position        === 10000L )
+               afOut.write( buf, 0, totalSize - bufSize )
+               assert( afOut.position        === totalSize.toLong )
                val framesWritten = afOut.numFrames
                assert( framesWritten         === afOut.spec.numFrames )
                afOut.close()
@@ -53,12 +57,12 @@ class ReadWriteSpec extends fixture.FlatSpec with ShouldMatchers {
                assert( afIn.spec.numFrames   === framesWritten )
                assert( afIn.numChannels      === numCh )
                assert( afIn.sampleFormat     === smpFmt )
-               assert( afIn.sampleRate       === 44100.0 )
+               assert( afIn.sampleRate       === sr )
                assert( afIn.file             === Some( f ))
                assert( afIn.fileType         === typ )
                afIn.read( buf )
-               afIn.read( buf, 0, 10000 - 8192 )
-               assert( afIn.position         === 10000L )
+               afIn.read( buf, 0, totalSize - bufSize )
+               assert( afIn.position         === totalSize.toLong )
                afIn.close()
                assert( !afIn.isOpen )
             }

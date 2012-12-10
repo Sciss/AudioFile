@@ -34,7 +34,8 @@ abstract class SampleFormat( val id: String, val bitsPerSample: Int ) {
 }
 
 object SampleFormat {
-   val allSigned  = IIdxSeq( Int8, Int16, Int24, Int32, Float, Double )
+   val fromInt16  = IIdxSeq( Int16, Int24, Int32, Float, Double )
+   val allSigned  = Int8 +: fromInt16
    val all        = UInt8 +: allSigned
 
    case object UInt8 extends SampleFormat( "uint8", 8 ) {

@@ -119,7 +119,7 @@ private[io] object WaveHeader extends AbstractRIFFHeader {
                       ((bitsPerSample >> 3) * numChannels != bpf) ||
                       ((bitsPerSample >>3) * numChannels * sampleRate != bps) ) encodingError()
 
-                  val unsignedPCM	 = bpf == 1 // XXX ??? bpf == numChannels ???
+                  val unsignedPCM	 = bpf == numChannels
                   chunkLen -= 16
 
                   val isPCM   = (form: @switch) match {
@@ -143,7 +143,7 @@ private[io] object WaveHeader extends AbstractRIFFHeader {
 
                   sampleFormat  = if( isPCM ) {
                      (bitsPerSample: @switch) match {
-                        case  8 => if( unsignedPCM ) SampleFormat.UInt8 else SampleFormat.Int8
+                        case  8 => assert( unsignedPCM ); SampleFormat.UInt8 // else SampleFormat.Int8
                         case 16 => SampleFormat.Int16
                         case 24 => SampleFormat.Int24
                         case 32 => SampleFormat.Int32
@@ -196,6 +196,7 @@ private[io] object WaveHeader extends AbstractRIFFHeader {
          case None                              => spec.copy( byteOrder = Some( ByteOrder.LITTLE_ENDIAN ))
          case Some( other )                     => throw new IOException( "Unsupported byte order " + other )
       }
+      if( spec.sampleFormat == SampleFormat.Int8 ) encodingError()
 
       // floating point requires FACT extension
       val isFloat       = spec.sampleFormat == SampleFormat.Float || spec.sampleFormat == SampleFormat.Double
