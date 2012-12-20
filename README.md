@@ -17,7 +17,7 @@ To use the library in your project:
 |**name**        |**read/write**   |**notes**      |
 |----------------|-----------------|---------------|
 |AIFF            |R/W              |               |
-|WAVE            |R                |               |
+|WAVE            |R/W              |               |
 |IRCAM           |R/W              |aka BICSF      |
 |NeXT            |R/W              |aka Snd and AU |
 |Wave64          |-                |               |
@@ -25,9 +25,8 @@ To use the library in your project:
 
 ### getting started
 
-ScalaAudioFile is a refactored version of the Java class `de.sciss.io.AudioFile` from [ScissLib](http://sourceforge.net/projects/scisslib). The number of supported formats is currently still smaller, and some functionality is still missing (e.g. reading and writing markers and app-chunks).
-
-Currently supported are AIFF (read, write), WAVE (read), and IRCAM (read, write)! I hope to add WAVE write and Wave64 read/write soon.
+ScalaAudioFile currently supports reading and writing files, while still lacking a few features of the Java predecessor `de.sciss.io.AudioFile`
+from [ScissLib](http://sourceforge.net/projects/scisslib), such as reading and writing markers and application specific chunks.
 
 * To open an audio file for __reading__: `AudioFile.openRead( aFile )` or `AudioFile.openRead( anInputStream )`. The `InputStream` variant has limited functionality, e.g. you cannot seek into the file, but only read sequentially. The stream variant can be used to decode files from an HTTP connection or in-memory (`ByteArrayInputStream`).
 * To just retrieve the __specification__ of an existing file, to see if it can be decoded, what is length, number of channels and format are: `AudioFile.readSpec( fileOrPathName )`.

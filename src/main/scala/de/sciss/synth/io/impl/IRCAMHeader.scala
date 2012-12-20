@@ -33,23 +33,23 @@ import annotation.switch
 /**
  * http://www-mmsp.ece.mcgill.ca/documents/audioformats/IRCAM/IRCAM.html
  */
-private[io] object IRCAMHeader {
+private[io] object IRCAMHeader /* extends BasicHeader */ {
 
-   private final val IRCAM_VAXLE_MAGIC	   = 0x64A30100
-   private final val IRCAM_VAXBE_MAGIC	   = 0x0001A364
-   private final val IRCAM_SUNBE_MAGIC	   = 0x64A30200
-   private final val IRCAM_SUNLE_MAGIC	   = 0x0002A364
+   private final val IRCAM_VAXLE_MAGIC    = 0x64A30100
+   private final val IRCAM_VAXBE_MAGIC    = 0x0001A364
+   private final val IRCAM_SUNBE_MAGIC    = 0x64A30200
+   private final val IRCAM_SUNLE_MAGIC    = 0x0002A364
    private final val IRCAM_MIPSLE_MAGIC   = 0x64A30300
    private final val IRCAM_MIPSBE_MAGIC   = 0x0003A364
    private final val IRCAM_NEXTBE_MAGIC   = 0x64A30400
 
    private final val BICSF_END            = 0
-//		private final val BICSF_MAXAMP			= 1
-//   private final val BICSF_COMMENT		= 2
+// private final val BICSF_MAXAMP         = 1
+// private final val BICSF_COMMENT        = 2
    private final val BICSF_LINKCODE		   = 3
    private final val BICSF_VIRTUALCODE    = 4
-//   private final val BICSF_CUECODE		= 8
-//		private final val BICSF_PARENTCODE		= 11
+// private final val BICSF_CUECODE        = 8
+// private final val BICSF_PARENTCODE     = 11
 
    @throws( classOf[ IOException ])
    def identify( dis: DataInputStream ) = {

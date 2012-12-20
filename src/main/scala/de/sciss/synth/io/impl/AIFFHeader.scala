@@ -32,7 +32,7 @@ import math._
 import java.io.{DataOutput, DataOutputStream, DataInput, DataInputStream, EOFException, IOException, RandomAccessFile}
 import annotation.switch
 
-private[io] object AIFFHeader {
+private[io] object AIFFHeader extends BasicHeader {
    private final val FORM_MAGIC		= 0x464F524D	// 'FORM'
    private final val AIFF_MAGIC		= 0x41494646	// 'AIFF'   (off 8)
    private final val AIFC_MAGIC		= 0x41494643	// 'AIFC'   (off 8)
@@ -82,13 +82,7 @@ private[io] object AIFFHeader {
    import AudioFileHeader._
 
    @throws( classOf[ IOException ])
-   def read( raf: RandomAccessFile ) : AudioFileHeader = readDataInput( raf )
-
-   @throws( classOf[ IOException ])
-   def read( dis: DataInputStream ) : AudioFileHeader = readDataInput( dis )
-
-   @throws( classOf[ IOException ])
-   private def readDataInput( din: DataInput ) : AudioFileHeader = {
+   protected def readDataInput( din: DataInput ) : AudioFileHeader = {
       if( din.readInt() != FORM_MAGIC ) formatError()  // FORM
       // trust the file len more than 32 bit form field which
       // breaks for > 2 GB (> 1 GB if using signed ints)

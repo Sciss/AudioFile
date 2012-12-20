@@ -38,6 +38,11 @@ sealed trait AudioFileType {
    def id: String
 
    /**
+    * Human readable name of the format
+    */
+   def name: String
+
+   /**
     * @return  the default extension (period not included)
     */
    def extension: String
@@ -102,7 +107,7 @@ object AudioFileType {
 
    register( AIFF   )
    register( Wave   )
-//   register( Wave64 )
+   register( Wave64 )
    register( NeXT   )
    register( IRCAM  )
    register( Raw    )
@@ -121,6 +126,7 @@ object AudioFileType {
    case object AIFF extends CanIdentify with CanRead with CanWrite {
       import impl.{AIFFHeader => Impl}
 
+      final val name          = "AIFF"
       final val id            = "aiff"
       final val extension     = "aif"
       final val extensions    = IIdxSeq( "aif", "aiff", "aifc" )
@@ -139,6 +145,7 @@ object AudioFileType {
    case object NeXT extends CanIdentify with CanRead with CanWrite {
       import impl.{NeXTHeader => Impl}
 
+      final val name          = "NeXT/Sun"
       final val id            = "next"
       final val extension     = "au"
       final val extensions    = IIdxSeq( "au", "snd" )
@@ -157,6 +164,7 @@ object AudioFileType {
    case object Wave extends CanIdentify with CanRead with CanWrite {
       import impl.{WaveHeader => Impl}
 
+      final val name             = "WAVE"
       final val id               = "wav"
       final val extension        = "wav"
       final val extensions       = IIdxSeq( "wav", "wave" )
@@ -175,6 +183,7 @@ object AudioFileType {
    case object IRCAM extends CanIdentify with CanRead with CanWrite {
       import impl.{IRCAMHeader => Impl}
 
+      final val name          = "IRCAM"
       final val id            = "ircam"
       final val extension     = "sf"
       final val extensions    = IIdxSeq( "sf", "irc" )
@@ -193,6 +202,7 @@ object AudioFileType {
    case object Raw extends CanWrite {
       import impl.{RawHeader => Impl}
 
+      final val name          = "Raw"
       final val id            = "raw"
       final val extension     = "raw"
       final val extensions    = IIdxSeq( "raw" )
@@ -216,12 +226,22 @@ object AudioFileType {
       }
    }
 
-//   /**
-//    * Sony Wave 64, the 64-bit extension of the Wave format.
-//    */
-//   case object Wave64 extends CanIdentify with CanRead with CanWrite {
-//      final val id         = "w64"
-//      final val extension  = "w64"
-//      final val extensions = IIdxSeq( "w64", "wave64" )
-//   }
+   /**
+    * Sony Wave 64, the 64-bit extension of the Wave format.
+    */
+   case object Wave64 extends CanIdentify with CanRead with CanWrite {
+      import impl.{Wave64Header => Impl}
+
+      final val name             = "Wave64"
+      final val id               = "w64"
+      final val extension        = "w64"
+      final val extensions       = IIdxSeq( "w64", "wave64" )
+      final val supportedFormats = SampleFormat.UInt8 +: SampleFormat.fromInt16
+
+      private[io] def identify( dis: DataInputStream  ) : Boolean          = Impl.identify( dis )
+      private[io] def read(     dis: DataInputStream  ) : AudioFileHeader  = Impl.read( dis )
+      private[io] def read(     raf: RandomAccessFile ) : AudioFileHeader  = Impl.read( raf )
+      private[io] def write(    dos: DataOutputStream, spec: AudioFileSpec) : WritableAudioFileHeader = Impl.write( dos, spec )
+      private[io] def write(    raf: RandomAccessFile, spec: AudioFileSpec) : WritableAudioFileHeader = Impl.write( raf, spec )
+   }
 }
