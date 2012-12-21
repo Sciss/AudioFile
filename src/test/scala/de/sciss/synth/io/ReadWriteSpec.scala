@@ -4,6 +4,10 @@ import org.scalatest.matchers.ShouldMatchers
 import org.scalatest.fixture
 import java.io.File
 
+/**
+ * To run only this test:
+ * test-only de.sciss.synth.io.ReadWriteSpec
+ */
 class ReadWriteSpec extends fixture.FlatSpec with ShouldMatchers {
    final type FixtureParam = File
 
@@ -22,8 +26,6 @@ class ReadWriteSpec extends fixture.FlatSpec with ShouldMatchers {
    }
 
    val chanNums = List( 1, 2, 3 )
-
-   // XXX TODO : generate actual buffer content, and verify it
 
    val bufSize    = 8192
    val totalSize  = 10000
