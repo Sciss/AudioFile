@@ -1,10 +1,12 @@
 name := "ScalaAudioFile"
 
-version := "1.1.1-SNAPSHOT"
+version := "1.2.0"
 
 organization := "de.sciss"
 
 scalaVersion := "2.9.2"
+
+crossScalaVersions in ThisBuild := Seq( "2.10.0", "2.9.2" )
 
 description := "A library to read and write uncompressed audio files (AIFF, WAVE, etc.)"
 

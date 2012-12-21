@@ -26,7 +26,9 @@
 package de.sciss.synth.io
 
 import collection.immutable.{IndexedSeq => IIdxSeq}
+import impl.RawHeader
 import java.io.{File, InputStream, DataOutputStream, RandomAccessFile, DataInputStream, IOException}
+import java.nio.ByteOrder
 
 /**
  * A recognized audio file type.
@@ -216,12 +218,26 @@ object AudioFileType {
          Readable( spec1 )
       }
 
-      private final case class Readable( spec: AudioFileSpec ) extends ReaderFactory {
-         def openRead( f: File ) : AudioFile = {
-            sys.error("TODO")  // XXX
-         }
-         def openRead( is: InputStream ) : AudioFile = {
-            sys.error("TODO")  // XXX
+      private final case class Readable( spec: AudioFileSpec ) extends ReaderFactory with CanRead {
+         def id = Raw.id
+         def name = Raw.name
+         def extension = Raw.extension
+         def extensions = Raw.extensions
+         def supportedFormats = Raw.supportedFormats
+
+         def openRead( f: File         ) : AudioFile = AudioFile.openFileWithReader(   f,  this )
+         def openRead( is: InputStream ) : AudioFile = AudioFile.openStreamWithReader( is, this )
+
+         def read( dis: DataInputStream  ) = reader( dis.available() )
+         def read( raf: RandomAccessFile ) = reader( raf.length() )
+
+         private def reader( fileSize: Long ) : AudioFileHeader = {
+            val bpf        = spec.numChannels * (spec.sampleFormat.bitsPerSample >> 3)
+            val numFrames  = fileSize / bpf
+            val byteOrder  = spec.byteOrder.getOrElse( ByteOrder.nativeOrder() )
+            val spec1      = spec.copy( byteOrder = Some( byteOrder ),
+               numFrames = numFrames )
+            ReadableAudioFileHeader( spec1, byteOrder )
          }
       }
    }

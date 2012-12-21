@@ -81,6 +81,15 @@ object AudioFile extends ReaderFactory {
       val raf        = new RandomAccessFile( f, "r" )
       val dis        = dataInput( Channels.newInputStream( raf.getChannel ))
       val afhr       = createHeaderReader( dis )
+      finishOpenFileRead( f, raf, afhr )
+   }
+
+   private[io] def openFileWithReader( f: File, reader: AudioFileType.CanRead ) : AudioFile = {
+      val raf = new RandomAccessFile( f, "r" )
+      finishOpenFileRead( f, raf, reader )
+   }
+
+   private def finishOpenFileRead( f: File, raf: RandomAccessFile, afhr: AudioFileType.CanRead ) : AudioFile = {
       raf.seek( 0L ) // BufferedInputStream did advance the position!
       val afh        = afhr.read( raf )
       val buf        = createBuffer( afh )
@@ -95,6 +104,15 @@ object AudioFile extends ReaderFactory {
    def openRead( is: InputStream ) : AudioFile = {
       val dis        = dataInput( is )
       val afhr       = createHeaderReader( dis )
+      finishOpenStreamRead( dis, afhr )
+   }
+
+   private[io] def openStreamWithReader( is: InputStream, reader: AudioFileType.CanRead ) : AudioFile = {
+      val dis = dataInput( is )
+      finishOpenStreamRead( dis, reader )
+   }
+
+   private def finishOpenStreamRead( dis: DataInputStream, afhr: AudioFileType.CanRead ) : AudioFile = {
       val afh        = afhr.read( dis )
       val buf        = createBuffer( afh )
       val spec       = afh.spec

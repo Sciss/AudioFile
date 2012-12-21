@@ -10,7 +10,7 @@ ScalaAudioFile currently compiles against Scala 2.9.2 using sbt 0.12.
 
 To use the library in your project:
 
-    "de.sciss" %% "scalaaudiofile" % "1.1.+"
+    "de.sciss" %% "scalaaudiofile" % "1.2.+"
 
 ### supported formats
 
