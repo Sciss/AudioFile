@@ -4,7 +4,7 @@ version := "1.2.0"
 
 organization := "de.sciss"
 
-scalaVersion := "2.9.2"
+scalaVersion := "2.10.0"
 
 crossScalaVersions in ThisBuild := Seq( "2.10.0", "2.9.2" )
 
@@ -16,14 +16,9 @@ licenses := Seq( "GPL v2+" -> url( "http://www.gnu.org/licenses/gpl-2.0.txt" ))
 
 initialCommands in console := """import de.sciss.synth.io._"""
 
-libraryDependencies in ThisBuild <+= scalaVersion { sv =>
-   val v = sv match {
-      case "2.10.0-RC3" => "1.8-B1"
-      case "2.10.0-RC5" => "1.8-B1"
-      case _            => "1.8"
-   }
-   "org.scalatest" %% "scalatest" % v % "test"
-}
+libraryDependencies in ThisBuild ++= Seq(
+   ("org.scalatest" % "scalatest" % "1.8" cross CrossVersion.full) % "test"
+)
 
 // ---- build info ----
 
