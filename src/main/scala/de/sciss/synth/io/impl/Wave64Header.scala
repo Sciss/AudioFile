@@ -61,8 +61,8 @@ private[io] object Wave64Header extends AbstractRIFFHeader {
             chunkLen   -= 24
 
             if( magic1 == FMT_MAGIC1 && magic2 == FMT_MAGIC2 ) {
-               fc = readFormatChunk( din, chunkLen.toInt )
-               chunkLen -= fc.chunkSkip
+               fc       = readFormatChunk( din, chunkLen.toInt )
+               chunkLen = fc.chunkSkip
 
             } else if( magic1 == DATA_MAGIC1 && magic2 == DATA_MAGIC2 ) {
                return createReader( fc, AudioFileType.Wave64, chunkLen )

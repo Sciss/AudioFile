@@ -162,11 +162,13 @@ private[io] trait AbstractRIFFHeader extends BasicHeader {
       val factChunkSize = if( isFloat ) cookieSize + (chunkLenSize << 1) else 0
       val preSize       = (cookieSize << 1) + chunkLenSize
       val fmtChunkStop  = preSize + fmtChunkSize
-      val factChunkOff  = (fmtChunkStop + chunkPad - 1) & ~chunkPad
+      val factChunkOff  = (fmtChunkStop + chunkPad - 1) & -chunkPad
+
 //      val factChunkStop = factChunkOff + factChunkSize
       // (fact chunk is always automatically padded)
-      val dataChunkOff  = factChunkOff + factChunkSize   // (factChunkStop + chunkPad - 1) & ~chunkPad
+      val dataChunkOff  = factChunkOff + factChunkSize   // (factChunkStop + chunkPad - 1) & -chunkPad
       val dataChunkLenOff = dataChunkOff + cookieSize
+//println( "preSize = " + preSize + "; fmtChunkStop " + fmtChunkStop + "; factChunkOff " + factChunkOff + "; dataChunkOff " + dataChunkOff + "; dataChunkLenOff " + dataChunkLenOff )
 
       val bitsPerSample = spec.sampleFormat.bitsPerSample
       val frameSize     = (bitsPerSample >> 3) * spec.numChannels
@@ -194,7 +196,7 @@ private[io] trait AbstractRIFFHeader extends BasicHeader {
          var i = factChunkOff - fmtChunkStop
          while( i > 0 ) {
             dout.writeShort( 0 )
-            i -= 1
+            i -= 2
          }
       }
 
@@ -259,8 +261,8 @@ private[io] object WaveHeader extends AbstractRIFFHeader {
 
             (magic: @switch) match {
                case FMT_MAGIC => {
-                  fc        = readFormatChunk( din, chunkLen )
-                  chunkLen -= fc.chunkSkip
+                  fc       = readFormatChunk( din, chunkLen )
+                  chunkLen = fc.chunkSkip
                }
 
                case DATA_MAGIC => {
@@ -325,12 +327,14 @@ private[io] object WaveHeader extends AbstractRIFFHeader {
 
          if( factSmpNumOffset != 0L ) {
             raf.seek( factSmpNumOffset )
+//println( "factSmpNumOffset " + factSmpNumOffset )
             // "With no mention of the number of channels in this computation,
             // this implies that dwSampleLength is the number of samples per channel."
             writeLittleInt( raf, numFrames.toInt )
          }
 
          raf.seek( dataChunkLenOff )
+//println( "dataChunkLenOff " + dataChunkLenOff )
          val dataChunkSize = (fileSize - (dataChunkLenOff + chunkLenSize))
          writeLittleInt( raf, dataChunkSize.toInt )  // data Chunk len
 
