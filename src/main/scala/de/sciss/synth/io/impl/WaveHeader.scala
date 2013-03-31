@@ -2,7 +2,7 @@
  *  WaveHeader.java
  *  (ScalaAudioFile)
  *
- *  Copyright (c) 2004-2012 Hanns Holger Rutz. All rights reserved.
+ *  Copyright (c) 2004-2013 Hanns Holger Rutz. All rights reserved.
  *
  *  This software is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -30,10 +30,19 @@ import java.io.{DataOutput, DataOutputStream, DataInput, DataInputStream, EOFExc
 import java.nio.ByteOrder
 import annotation.switch
 
-private[io] trait AbstractRIFFHeader extends BasicHeader {
-   import AudioFileHeader._
+private[impl] object AbstractRIFFHeader {
+  private[impl] final case class FormatChunk(sampleFormat: SampleFormat, numChannels: Int, sampleRate: Int,
+                                         bytesPerFrame: Int, chunkSkip: Int) {
+    def toSpec(tpe: AudioFileType, numFrames: Long): AudioFileSpec =
+      AudioFileSpec(tpe, sampleFormat, numChannels = numChannels, sampleRate = sampleRate.toDouble,
+        byteOrder = Some(ByteOrder.LITTLE_ENDIAN), numFrames = numFrames)
+  }
+}
+private[impl] trait AbstractRIFFHeader extends BasicHeader {
+  import AudioFileHeader._
+  import AbstractRIFFHeader._
 
-   protected final val ADTL_MAGIC		= 0x6164746C	// 'adtl'
+  protected final val ADTL_MAGIC		= 0x6164746C	// 'adtl'
    protected final val LABL_MAGIC		= 0x6C61626C	// 'labl'
    protected final val LTXT_MAGIC		= 0x6C747874	// 'ltxt'
 
@@ -44,13 +53,6 @@ private[io] trait AbstractRIFFHeader extends BasicHeader {
    protected final val FORMAT_PCM		= 0x0001
    protected final val FORMAT_FLOAT		= 0x0003
    protected final val FORMAT_EXT		= 0xFFFE
-
-   protected final case class FormatChunk( sampleFormat: SampleFormat, numChannels: Int, sampleRate: Int,
-                                           bytesPerFrame: Int, chunkSkip: Int ) {
-      def toSpec( tpe: AudioFileType, numFrames: Long ) : AudioFileSpec =
-         AudioFileSpec( tpe, sampleFormat, numChannels = numChannels, sampleRate = sampleRate.toDouble,
-                        byteOrder = Some( ByteOrder.LITTLE_ENDIAN ), numFrames = numFrames )
-   }
 
    final protected def createReader( fc: FormatChunk, tpe: AudioFileType, chunkLen: Long ) : ReadableAudioFileHeader = {
       if( fc == null ) throw new IOException( tpe.name + " header misses fmt chunk" )
@@ -215,7 +217,8 @@ private[io] trait AbstractRIFFHeader extends BasicHeader {
 }
 
 private[io] object WaveHeader extends AbstractRIFFHeader {
-   import AudioFileHeader._ 
+  import AudioFileHeader._
+  import AbstractRIFFHeader._
 
    private final val RIFF_MAGIC		= 0x52494646	// 'RIFF'
    private final val WAVE_MAGIC		= 0x57415645	// 'WAVE' (off 8)

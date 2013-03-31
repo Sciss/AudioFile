@@ -2,15 +2,17 @@
 
 ### statement
 
-ScalaAudioFile is a Scala library to read and write audio files. It is (C)opyright 2004-2012 by Hanns Holger Rutz. All rights reserved. ScalaAudioFile is released under the [GNU General Public License](https://raw.github.com/Sciss/ScalaAudioFile/master/licenses/ScalaAudioFile-License.txt) and comes with absolutely no warranties. To contact the author, send an email to `contact at sciss.de`
+ScalaAudioFile is a Scala library to read and write audio files. It is (C)opyright 2004-2013 by Hanns Holger Rutz. All rights reserved. ScalaAudioFile is released under the [GNU General Public License](https://raw.github.com/Sciss/ScalaAudioFile/master/LICENSE) and comes with absolutely no warranties. To contact the author, send an email to `contact at sciss.de`
 
 ### requirements / installation
 
-ScalaAudioFile currently compiles against Scala 2.10 (default) and 2.9.2 using sbt 0.12.
+ScalaAudioFile currently compiles against Scala 2.10 using sbt 0.12.
 
 To use the library in your project:
 
-    "de.sciss" %% "scalaaudiofile" % "1.2.+"
+    "de.sciss" %% "scalaaudiofile" % v
+
+The current version `v` is `"1.3.+"`
 
 ### supported formats
 
@@ -88,15 +90,3 @@ Here is an example of opening an existing file, reading through it to determine 
 ```
 
 For all further information, please refer to the API docs. They can be created with `sbt doc`.
-
-### creating an IntelliJ IDEA project
-
-If you want to develop the library, you can set up an IntelliJ IDEA project, using the sbt-idea plugin yet. Have the following contents in `~/.sbt/plugins/build.sbt`:
-
-    addSbtPlugin("com.github.mpeltonen" % "sbt-idea" % "1.1.0")
-
-Then to create the IDEA project, run `sbt gen-idea`.
-
-### download
-
-The current version can be downloaded from [github.com/Sciss/ScalaAudioFile](http://github.com/Sciss/ScalaAudioFile)
