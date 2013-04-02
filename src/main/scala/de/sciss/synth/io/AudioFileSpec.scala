@@ -26,9 +26,7 @@
 package de.sciss.synth.io
 
 import java.nio.ByteOrder
-import de.sciss.lucre.io.ImmutableSerializer
-import de.sciss.lucre.io.DataOutput
-import de.sciss.lucre.io.DataInput
+import de.sciss.serial.{DataInput, DataOutput, ImmutableSerializer}
 import annotation.switch
 
 object AudioFileSpec {

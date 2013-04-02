@@ -1,6 +1,6 @@
 name := "ScalaAudioFile"
 
-version := "1.3.0"
+version := "1.4.0"
 
 organization := "de.sciss"
 
@@ -8,14 +8,14 @@ scalaVersion := "2.10.1"
 
 description := "A library to read and write uncompressed audio files (AIFF, WAVE, etc.)"
 
-homepage <<= name { n => Some(url( "https://github.com/Sciss/" + n)) }
+homepage <<= name { n => Some(url("https://github.com/Sciss/" + n)) }
 
 licenses := Seq("GPL v2+" -> url("http://www.gnu.org/licenses/gpl-2.0.txt"))
 
 initialCommands in console := """import de.sciss.synth.io._"""
 
 libraryDependencies in ThisBuild ++= Seq(
-  "de.sciss" %% "lucrestm-serial" % "1.8.+",
+  "de.sciss" %% "serial" % "1.0.+",
   "org.scalatest" %% "scalatest" % "1.9.1" % "test"
 )
 
