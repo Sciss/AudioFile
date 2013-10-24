@@ -1,6 +1,6 @@
 name := "ScalaAudioFile"
 
-version := "1.4.1-SNAPSHOT"
+version := "1.4.1"
 
 organization := "de.sciss"
 
