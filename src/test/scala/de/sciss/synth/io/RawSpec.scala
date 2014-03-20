@@ -1,21 +1,21 @@
 package de.sciss.synth.io
 
-/**
- * test-only de.sciss.synth.io.RawSpec
+/*
+  test-only de.sciss.synth.io.RawSpec
  */
 class RawSpec extends TempFileSpec {
-   "AudioFile" should ("write and read raw files") in { f =>
-      val spec    = AudioFileSpec( AudioFileType.Raw, SampleFormat.Float, numChannels = 1, sampleRate = 44100 )
-      val afOut   = AudioFile.openWrite( f, spec )
-      val bufOut  = afOut.buffer( 3 )
-      bufOut( 0 )( 0 )  = 0.1f
-      bufOut( 0 )( 1 )  = 0.2f
-      bufOut( 0 )( 2 )  = -0.3f
-      try {
-         afOut.write( bufOut )
-      } finally {
-         afOut.close()
-      }
+  "AudioFile" should "write and read raw files" in { f =>
+    val spec = AudioFileSpec(AudioFileType.Raw, SampleFormat.Float, numChannels = 1, sampleRate = 44100)
+    val afOut   = AudioFile.openWrite( f, spec )
+    val bufOut  = afOut.buffer( 3 )
+    bufOut( 0 )( 0 )  = 0.1f
+    bufOut( 0 )( 1 )  = 0.2f
+    bufOut( 0 )( 2 )  = -0.3f
+    try {
+       afOut.write( bufOut )
+    } finally {
+       afOut.close()
+    }
 //println( "RAW FILE : " + f )
 
       val raw     = AudioFileType.Raw.reader( spec )

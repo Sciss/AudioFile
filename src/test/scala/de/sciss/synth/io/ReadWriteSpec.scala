@@ -1,13 +1,15 @@
 package de.sciss.synth.io
 
-/**
- * To run only this test:
- * test-only de.sciss.synth.io.ReadWriteSpec
+/*
+  To run only this test:
+
+  test-only de.sciss.synth.io.ReadWriteSpec
+
  */
 class ReadWriteSpec extends TempFileSpec {
-   val rwTypes = AudioFileType.readable.collect {
-      case cw: AudioFileType.CanWrite => cw
-   }
+  val rwTypes = AudioFileType.readable.collect {
+    case cw: AudioFileType.CanWrite => cw
+  }
 
    val chanNums = List( 1, 2, 3 )
 

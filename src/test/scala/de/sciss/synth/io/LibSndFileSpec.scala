@@ -2,25 +2,24 @@ package de.sciss.synth.io
 
 import java.io.File
 
-/**
- * Assumes that `sndfile` (part of libsndfile) is available on the system and found in a standard
- * `$PATH`. Generates sound files which are then fed through libsndfile (tested with v1.0.25),
- * checking the printed output for detected format.
- *
- * To run only this test:
- * test-only de.sciss.synth.io.LibSndFileSpec
- */
+/** Assumes that `sndfile` (part of libsndfile) is available on the system and found in a standard
+  * `$PATH`. Generates sound files which are then fed through libsndfile (tested with v1.0.25),
+  * checking the printed output for detected format.
+  *
+  * To run only this test:
+  * test-only de.sciss.synth.io.LibSndFileSpec
+  */
 class LibSndFileSpec extends TempFileSpec {
-   val rwTypes = AudioFileType.readable.collect {
-      case cw: AudioFileType.CanWrite => cw
-   }
+  val rwTypes = AudioFileType.readable.collect {
+    case cw: AudioFileType.CanWrite => cw
+  }
 
-   val chanNums = List( 1, 2, 3 )
+  val chanNums = List(1, 2, 3)
 
-   val bufSize    = 8192
-   val totalSize  = 10000
-   val size2      = totalSize - bufSize
-   val sr         = 44100.0
+  val bufSize   = 8192
+  val totalSize = 10000
+  val size2     = totalSize - bufSize
+  val sr        = 44100.0
 
    def isSupportedByLibSndFile( spec: AudioFileSpec ) : Boolean = spec match {
       case AudioFileSpec( AudioFileType.IRCAM, SampleFormat.Int24,   _, _, _, _ ) => false

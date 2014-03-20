@@ -1,25 +1,27 @@
-name := "ScalaAudioFile"
+name               := "ScalaAudioFile"
 
-version := "1.4.1"
+version            := "1.4.2-SNAPSHOT"
 
-organization := "de.sciss"
+organization       := "de.sciss"
 
-scalaVersion := "2.10.1"
+scalaVersion       := "2.11.0-RC3"
 
-description := "A library to read and write uncompressed audio files (AIFF, WAVE, etc.)"
+crossScalaVersions := Seq("2.11.0-RC3", "2.10.3")
 
-homepage <<= name { n => Some(url("https://github.com/Sciss/" + n)) }
+description        := "A library to read and write uncompressed audio files (AIFF, WAVE, etc.)"
 
-licenses := Seq("GPL v2+" -> url("http://www.gnu.org/licenses/gpl-2.0.txt"))
+homepage           := Some(url("https://github.com/Sciss/" + name.value))
+
+licenses          := Seq("GPL v2+" -> url("http://www.gnu.org/licenses/gpl-2.0.txt"))
 
 initialCommands in console := """import de.sciss.synth.io._"""
 
-libraryDependencies in ThisBuild ++= Seq(
-  "de.sciss" %% "serial" % "1.0.+",
-  "org.scalatest" %% "scalatest" % "1.9.1" % "test"
+libraryDependencies ++= Seq(
+  "de.sciss"      %% "serial"    % "1.0.+",
+  "org.scalatest" %% "scalatest" % "2.1.2" % "test"
 )
 
-retrieveManaged := true
+// retrieveManaged := true
 
 scalacOptions ++= Seq("-deprecation", "-unchecked", "-feature")
 
@@ -40,19 +42,18 @@ buildInfoPackage := "de.sciss.synth.io"
 
 publishMavenStyle := true
 
-publishTo <<= version { v =>
-  Some(if (v endsWith "-SNAPSHOT")
+publishTo :=
+  Some(if (version.value endsWith "-SNAPSHOT")
     "Sonatype Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots"
   else
     "Sonatype Releases"  at "https://oss.sonatype.org/service/local/staging/deploy/maven2"
   )
-}
 
 publishArtifact in Test := false
 
 pomIncludeRepository := { _ => false }
 
-pomExtra <<= name { n =>
+pomExtra := { val n = name.value
 <scm>
   <url>git@github.com:Sciss/{n}.git</url>
   <connection>scm:git:git@github.com:Sciss/{n}.git</connection>
@@ -70,8 +71,8 @@ pomExtra <<= name { n =>
 
 seq(lsSettings :_*)
 
-(LsKeys.tags in LsKeys.lsync) := Seq("audio-file", "audio", "sound-file", "sound", "dsp")
+(LsKeys.tags   in LsKeys.lsync) := Seq("audio-file", "audio", "sound-file", "sound", "dsp")
 
 (LsKeys.ghUser in LsKeys.lsync) := Some("Sciss")
 
-(LsKeys.ghRepo in LsKeys.lsync) <<= name(Some(_))
+(LsKeys.ghRepo in LsKeys.lsync) := Some(name.value)
