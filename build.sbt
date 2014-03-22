@@ -12,7 +12,7 @@ description        := "A library to read and write uncompressed audio files (AIF
 
 homepage           := Some(url("https://github.com/Sciss/" + name.value))
 
-licenses          := Seq("GPL v2+" -> url("http://www.gnu.org/licenses/gpl-2.0.txt"))
+licenses           := Seq("LGPL v3+" -> url("http://www.gnu.org/licenses/lgpl-3.0.txt"))
 
 initialCommands in console := """import de.sciss.synth.io._"""
 
