@@ -18,7 +18,7 @@ class ReadWriteSpec extends TempFileSpec {
    val size2      = totalSize - bufSize
    val sr         = 44100.0
 
-   def generate( buf: Frames, num: Int, seed: Long = 0L ) {
+   def generate( buf: Frames, num: Int, seed: Long = 0L ): Unit = {
       val rnd = new util.Random( seed )
       var ch = 0; while( ch < buf.length ) {
          val cb = buf( ch )
@@ -28,7 +28,7 @@ class ReadWriteSpec extends TempFileSpec {
       ch += 1 }
    }
 
-   def compare( a: Frames, b: Frames, num: Int, fmt: SampleFormat ) {
+   def compare( a: Frames, b: Frames, num: Int, fmt: SampleFormat ): Unit = {
       val tol = fmt match {
          case SampleFormat.Float    => 0.0
          case SampleFormat.Double   => 0.0

@@ -397,9 +397,7 @@ object AudioFile extends ReaderFactory {
 
   private trait ReadOnlyFileLike extends FileLike with ReadOnly {
     @throws(classOf[IOException])
-    final def close() {
-      raf.close()
-    }
+    final def close(): Unit = raf.close()
   }
 
   private trait WritableFileLike extends FileLike with Writable {

@@ -1,12 +1,12 @@
 name               := "ScalaAudioFile"
 
-version            := "1.4.2-SNAPSHOT"
+version            := "1.4.2"
 
 organization       := "de.sciss"
 
-scalaVersion       := "2.11.0-RC3"
+scalaVersion       := "2.11.0-RC4"
 
-crossScalaVersions := Seq("2.11.0-RC3", "2.10.3")
+crossScalaVersions := Seq("2.11.0-RC4", "2.10.4")
 
 description        := "A library to read and write uncompressed audio files (AIFF, WAVE, etc.)"
 
@@ -17,13 +17,13 @@ licenses           := Seq("LGPL v3+" -> url("http://www.gnu.org/licenses/lgpl-3.
 initialCommands in console := """import de.sciss.synth.io._"""
 
 libraryDependencies ++= Seq(
-  "de.sciss"      %% "serial"    % "1.0.+",
-  "org.scalatest" %% "scalatest" % "2.1.2" % "test"
+  "de.sciss"      %% "serial"    % "1.0.2+",
+  "org.scalatest" %% "scalatest" % "2.1.3" % "test"
 )
 
-// retrieveManaged := true
+retrieveManaged := true
 
-scalacOptions ++= Seq("-deprecation", "-unchecked", "-feature")
+scalacOptions ++= Seq("-deprecation", "-unchecked", "-feature", "-Xfuture")
 
 // ---- build info ----
 
@@ -59,11 +59,11 @@ pomExtra := { val n = name.value
   <connection>scm:git:git@github.com:Sciss/{n}.git</connection>
 </scm>
 <developers>
-   <developer>
-      <id>sciss</id>
-      <name>Hanns Holger Rutz</name>
-      <url>http://www.sciss.de</url>
-   </developer>
+  <developer>
+    <id>sciss</id>
+    <name>Hanns Holger Rutz</name>
+    <url>http://www.sciss.de</url>
+  </developer>
 </developers>
 }
 

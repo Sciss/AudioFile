@@ -645,7 +645,7 @@ private[io] object BufferWriter {
   trait FloatLike extends BufferWriter {
     me: BufferHandler.Float =>
 
-    final def write(frames: Frames, off: SInt, len: SInt) {
+    final def write(frames: Frames, off: SInt, len: SInt): Unit = {
       var remaining = len
       var position  = off
       while (remaining > 0) {
