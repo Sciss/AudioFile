@@ -17,7 +17,7 @@ licenses           := Seq("LGPL v3+" -> url("http://www.gnu.org/licenses/lgpl-3.
 initialCommands in console := """import de.sciss.synth.io._"""
 
 libraryDependencies ++= Seq(
-  "de.sciss"      %% "serial"    % "1.0.2+",
+  "de.sciss"      %% "serial"    % "1.0.2",
   "org.scalatest" %% "scalatest" % "2.1.3" % "test"
 )
 
