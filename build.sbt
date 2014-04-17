@@ -4,9 +4,9 @@ version            := "1.4.2"
 
 organization       := "de.sciss"
 
-scalaVersion       := "2.10.4"
+scalaVersion       := "2.11.0"
 
-crossScalaVersions := Seq("2.11.0-RC4", "2.10.4")
+crossScalaVersions := Seq("2.11.0", "2.10.4")
 
 description        := "A library to read and write uncompressed audio files (AIFF, WAVE, etc.)"
 
