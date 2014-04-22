@@ -2,17 +2,17 @@
 
 ## statement
 
-ScalaAudioFile is a Scala library to read and write audio files. It is (C)opyright 2004-2014 by Hanns Holger Rutz. All rights reserved. ScalaAudioFile is released under the [GNU Lesser General Public License](https://raw.github.com/Sciss/ScalaAudioFile/master/LICENSE) v3+ and comes with absolutely no warranties. To contact the author, send an email to `contact at sciss.de`
+ScalaAudioFile is a Scala library to read and write audio files. It is (C)opyright 2004-2014 by Hanns Holger Rutz. All rights reserved. ScalaAudioFile is released under the [GNU Lesser General Public License](https://raw.github.com/Sciss/ScalaAudioFile/master/LICENSE) v2.1+ and comes with absolutely no warranties. To contact the author, send an email to `contact at sciss.de`
 
 ## requirements / installation
 
-ScalaAudioFile currently compiles against Scala 2.10 using sbt 0.13.
+ScalaAudioFile currently compiles against Scala 2.11, 2.10 using sbt 0.13.
 
 To use the library in your project:
 
     "de.sciss" %% "scalaaudiofile" % v
 
-The current version `v` is `"1.4.2+"`
+The current version `v` is `"1.4.3+"`
 
 ## supported formats
 

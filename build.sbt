@@ -1,6 +1,6 @@
 name               := "ScalaAudioFile"
 
-version            := "1.4.2"
+version            := "1.4.3"
 
 organization       := "de.sciss"
 
@@ -12,7 +12,7 @@ description        := "A library to read and write uncompressed audio files (AIF
 
 homepage           := Some(url("https://github.com/Sciss/" + name.value))
 
-licenses           := Seq("LGPL v3+" -> url("http://www.gnu.org/licenses/lgpl-3.0.txt"))
+licenses           := Seq("LGPL v2.1+" -> url("http://www.gnu.org/licenses/lgpl-2.1.txt"))
 
 initialCommands in console := """import de.sciss.synth.io._"""
 
