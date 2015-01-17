@@ -2,7 +2,7 @@
  *  BufferHandler.scala
  *  (ScalaAudioFile)
  *
- *  Copyright (c) 2004-2014 Hanns Holger Rutz. All rights reserved.
+ *  Copyright (c) 2004-2015 Hanns Holger Rutz. All rights reserved.
  *
  *  This software is published under the GNU Lesser General Public License v2.1+
  *
@@ -14,9 +14,10 @@
 package de.sciss.synth.io
 
 import java.io.IOException
-import scala.{ Byte => SByte, Double => SDouble, Float => SFloat, Int => SInt, Short => SShort }
-import java.nio.channels.{ ReadableByteChannel, WritableByteChannel }
-import java.nio.{ByteOrder, ByteBuffer}
+import java.nio.channels.{ReadableByteChannel, WritableByteChannel}
+import java.nio.{ByteBuffer, ByteOrder}
+
+import scala.{Byte => SByte, Double => SDouble, Float => SFloat, Int => SInt, Short => SShort}
 
 private[io] trait BufferHandler {
   protected def byteBuf: ByteBuffer
@@ -175,18 +176,18 @@ private[io] object BufferReader {
     final def read(frames: Frames, off: SInt, len: SInt): Unit = {
       var remaining = len
       var position   = off
-      while( remaining > 0 ) {
-        val chunkLen   = math.min( bufFrames, remaining )
-        val m			   = chunkLen * frameSize
-        byteBuf.rewind().limit( m )
-        reader.read( byteBuf )
+      while (remaining > 0) {
+        val chunkLen  = math.min(bufFrames, remaining)
+        val m			    = chunkLen * frameSize
+        byteBuf.rewind().limit(m)
+        reader.read(byteBuf)
         byteBuf.flip()
-        byteBuf.get( arrayBuf, 0, m )
-        var ch = 0; while( ch < numChannels ) {
-          val b = frames( ch )
-          if( b != null ) {
-            var i = ch; var j = position; while( i < m ) {
-              b( j ) = arrayBuf( i ).toFloat / 0x7F
+        byteBuf.get(arrayBuf, 0, m)
+        var ch = 0; while (ch < numChannels) {
+          val b = frames(ch)
+          if (b != null) {
+            var i = ch; var j = position; while (i < m) {
+              b(j) = arrayBuf(i).toFloat / 0x7F
               i += numChannels; j += 1
             }
           }
@@ -204,20 +205,20 @@ private[io] object BufferReader {
     final def read(frames: Frames, off: SInt, len: SInt): Unit = {
       var remaining = len
       var position  = off
-      while( remaining > 0 ) {
-        val chunkLen   = math.min( bufFrames, remaining )
-        val m          = chunkLen * frameSize
-        byteBuf.rewind().limit( m )
-        reader.read( byteBuf )
+      while (remaining > 0) {
+        val chunkLen  = math.min(bufFrames, remaining)
+        val m         = chunkLen * frameSize
+        byteBuf.rewind().limit(m)
+        reader.read(byteBuf)
         byteBuf.flip()
-        byteBuf.get( arrayBuf, 0, m )
-        var ch = 0; while( ch < numChannels ) {
-          val b = frames( ch )
-          if( b != null ) {
-            var i = ch; var j = position; while( i < m ) {
-              val arr1 = arrayBuf( i )
-              // hmmm, java can't handle unsigned bytes
-              b( j ) = (if( arr1 < 0 ) 0x80 + arr1 else arr1 - 0x80).toFloat / 0x7F
+        byteBuf.get(arrayBuf, 0, m)
+        var ch = 0; while (ch < numChannels) {
+          val b = frames(ch)
+          if (b != null) {
+            var i = ch; var j = position; while (i < m) {
+              val arr1 = arrayBuf(i)
+              // java can't handle unsigned bytes
+              b(j) = (if (arr1 < 0) 0x80 + arr1 else arr1 - 0x80).toFloat / 0x7F
             }
             i += numChannels; j += 1
           }
@@ -235,18 +236,18 @@ private[io] object BufferReader {
     final def read(frames: Frames, off: SInt, len: SInt): Unit = {
       var remaining = len
       var position  = off
-      while( remaining > 0 ) {
-        val chunkLen   = math.min( bufFrames, remaining )
-        val m			   = chunkLen * numChannels
-        byteBuf.rewind().limit( chunkLen * frameSize )
-        reader.read( byteBuf )
+      while (remaining > 0) {
+        val chunkLen  = math.min(bufFrames, remaining)
+        val m			    = chunkLen * numChannels
+        byteBuf.rewind().limit(chunkLen * frameSize)
+        reader.read(byteBuf)
         viewBuf.clear()
-        viewBuf.get( arrayBuf, 0, m )
-        var ch = 0; while( ch < numChannels ) {
-          val b = frames( ch )
-          if( b != null ) {
-            var i = ch; var j = position; while( i < m ) {
-              b( j ) = arrayBuf( i ).toFloat / 0x7FFF
+        viewBuf.get(arrayBuf, 0, m)
+        var ch = 0; while (ch < numChannels) {
+          val b = frames(ch)
+          if (b != null) {
+            var i = ch; var j = position; while (i < m) {
+              b(j) = arrayBuf(i).toFloat / 0x7FFF
               i += numChannels; j += 1
             }
           }
@@ -264,20 +265,20 @@ private[io] object BufferReader {
     final def read(frames: Frames, off: SInt, len: SInt): Unit = {
       var remaining = len
       var position  = off
-      while( remaining > 0 ) {
-        val chunkLen   = math.min( bufFrames, remaining )
-        val m			   = chunkLen * frameSize
-        byteBuf.rewind().limit( m )
-        reader.read( byteBuf )
+      while (remaining > 0) {
+        val chunkLen  = math.min(bufFrames, remaining)
+        val m			    = chunkLen * frameSize
+        byteBuf.rewind().limit(m)
+        reader.read(byteBuf)
         byteBuf.flip()
-        byteBuf.get( arrayBuf, 0, m )
-        var ch = 0; var p = 0; while( ch < numChannels ) {
-          val b = frames( ch )
-          if( b != null ) {
-            var i = p; var j = position; while( i < m ) {
-              b( j ) = ((arrayBuf( i ) << 16 ) |
-                       ((arrayBuf( i + 1 ) & 0xFF) << 8) |
-                        (arrayBuf( i + 2 ) & 0xFF)).toFloat / 0x7FFFFF
+        byteBuf.get(arrayBuf, 0, m)
+        var ch = 0; var p = 0; while (ch < numChannels) {
+          val b = frames(ch)
+          if (b != null) {
+            var i = p; var j = position; while (i < m) {
+              b(j) = ((arrayBuf(i) << 16 ) |
+                     ((arrayBuf(i + 1) & 0xFF) << 8) |
+                      (arrayBuf(i + 2) & 0xFF)).toFloat / 0x7FFFFF
               i += chStep; j += 1
             }
           }
@@ -295,20 +296,20 @@ private[io] object BufferReader {
     final def read(frames: Frames, off: SInt, len: SInt): Unit = {
       var remaining = len
       var position  = off
-      while( remaining > 0 ) {
+      while (remaining > 0) {
         val chunkLen  = math.min(bufFrames, remaining)
         val m			    = chunkLen * frameSize
         byteBuf.rewind().limit(m)
         reader.read(byteBuf)
         byteBuf.flip()
         byteBuf.get(arrayBuf, 0, m)
-        var ch = 0; var p = 0; while( ch < numChannels ) {
-          val b = frames( ch )
-          if( b != null ) {
-            var i = p; var j = position; while( i < m ) {
-              b( j ) = ((arrayBuf( i ) & 0xFF)|
-                       ((arrayBuf( i + 1 ) & 0xFF) << 8) |
-                        (arrayBuf( i + 2 ) << 16 )).toFloat / 0x7FFFFF
+        var ch = 0; var p = 0; while (ch < numChannels) {
+          val b = frames(ch)
+          if (b != null) {
+            var i = p; var j = position; while (i < m) {
+              b(j) = ((arrayBuf(i) & 0xFF)|
+                     ((arrayBuf(i + 1) & 0xFF) << 8) |
+                      (arrayBuf(i + 2) << 16 )).toFloat / 0x7FFFFF
               i += chStep; j += 1
             }
           }
@@ -327,17 +328,17 @@ private[io] object BufferReader {
       var remaining = len
       var position  = off
       while (remaining > 0) {
-        val chunkLen   = math.min( bufFrames, remaining )
+        val chunkLen   = math.min(bufFrames, remaining)
         val m			   = chunkLen * numChannels
-        byteBuf.rewind().limit( chunkLen * frameSize )
-        reader.read( byteBuf )
+        byteBuf.rewind().limit(chunkLen * frameSize)
+        reader.read(byteBuf)
         viewBuf.clear()
-        viewBuf.get( arrayBuf, 0, m )
-        var ch = 0; while( ch < numChannels ) {
-          val b = frames( ch )
-          if( b != null ) {
-            var i = ch; var j = position; while( i < m ) {
-              b( j ) = arrayBuf( i ).toFloat / 0x7FFFFFFF
+        viewBuf.get(arrayBuf, 0, m)
+        var ch = 0; while (ch < numChannels) {
+          val b = frames(ch)
+          if (b != null) {
+            var i = ch; var j = position; while (i < m) {
+              b(j) = arrayBuf(i).toFloat / 0x7FFFFFFF
               i += numChannels; j += 1
             }
           }
@@ -356,17 +357,17 @@ private[io] object BufferReader {
       var remaining = len
       var position  = off
       while (remaining > 0) {
-        val chunkLen   = math.min( bufFrames, remaining )
+        val chunkLen   = math.min(bufFrames, remaining)
         val m          = chunkLen * numChannels
-        byteBuf.rewind().limit( chunkLen * frameSize )
-        reader.read( byteBuf )
+        byteBuf.rewind().limit(chunkLen * frameSize)
+        reader.read(byteBuf)
         viewBuf.clear()
-        viewBuf.get( arrayBuf, 0, m )
-        var ch = 0; while( ch < numChannels ) {
-          val b = frames( ch )
-          if( b != null ) {
-            var i = ch; var j = position; while( i < m ) {
-              b( j ) = arrayBuf( i )
+        viewBuf.get(arrayBuf, 0, m)
+        var ch = 0; while (ch < numChannels) {
+          val b = frames(ch)
+          if (b != null) {
+            var i = ch; var j = position; while (i < m) {
+              b(j) = arrayBuf(i)
               i += numChannels; j += 1
             }
           }
@@ -385,17 +386,17 @@ private[io] object BufferReader {
       var remaining = len
       var position  = off
       while (remaining > 0) {
-        val chunkLen   = math.min( bufFrames, remaining )
+        val chunkLen   = math.min(bufFrames, remaining)
         val m			   = chunkLen * numChannels
-        byteBuf.rewind().limit( chunkLen * frameSize )
-        reader.read( byteBuf )
+        byteBuf.rewind().limit(chunkLen * frameSize)
+        reader.read(byteBuf)
         viewBuf.clear()
-        viewBuf.get( arrayBuf, 0, m )
-        var ch = 0; while( ch < numChannels ) {
-          val b = frames( ch )
-          if( b != null ) {
-            var i = ch; var j = position; while( i < m ) {
-              b( j ) = arrayBuf( i ).toFloat
+        viewBuf.get(arrayBuf, 0, m)
+        var ch = 0; while (ch < numChannels) {
+          val b = frames(ch)
+          if (b != null) {
+            var i = ch; var j = position; while (i < m) {
+              b(j) = arrayBuf(i).toFloat
               i += numChannels; j += 1
             }
           }
@@ -411,7 +412,7 @@ private[io] object BufferReader {
 // -------------- Write --------------
 
 private[io] trait BufferWriterFactory {
-   def apply( write: WritableByteChannel, byteBuf: ByteBuffer, numChannels: SInt ) : BufferWriter
+  def apply(write: WritableByteChannel, byteBuf: ByteBuffer, numChannels: SInt): BufferWriter
 }
 
 private[io] object BufferWriter {
@@ -438,13 +439,12 @@ private[io] object BufferWriter {
   }
 
   object ThreeBytes extends BufferWriterFactory {
-    def apply(write: WritableByteChannel, byteBuf: ByteBuffer, numChannels: SInt): BufferWriter = {
+    def apply(write: WritableByteChannel, byteBuf: ByteBuffer, numChannels: SInt): BufferWriter =
       if (byteBuf.order() == ByteOrder.LITTLE_ENDIAN) {
         new ThreeBytesLE(write, byteBuf, numChannels)
       } else {
         new ThreeBytesBE(write, byteBuf, numChannels)
       }
-    }
   }
 
   final case class ThreeBytesBE(writer: WritableByteChannel, byteBuf: ByteBuffer, numChannels: SInt)
@@ -475,20 +475,20 @@ private[io] object BufferWriter {
       var remaining = len
       var position = off
       while (remaining > 0) {
-        val chunkLen   = math.min( bufFrames, remaining )
-        val m			   = chunkLen * frameSize
-        var ch = 0; while( ch < numChannels ) {
-          val b = frames( ch )
-          var i = ch; var j = position; while( i < m ) {
-            arrayBuf( i ) = (b( j ) * 0x7F).toByte
+        val chunkLen  = math.min(bufFrames, remaining)
+        val m			    = chunkLen * frameSize
+        var ch = 0; while(ch < numChannels) {
+          val b = frames(ch)
+          var i = ch; var j = position; while (i < m) {
+            arrayBuf(i) = (b(j) * 0x7F).toByte
             i += numChannels; j += 1
           }
           ch += 1
         }
         byteBuf.clear()
-        byteBuf.put( arrayBuf, 0, m )
+        byteBuf.put(arrayBuf, 0, m)
         byteBuf.flip()
-        writer.write( byteBuf )
+        writer.write(byteBuf)
         remaining -= chunkLen
         position  += chunkLen
       }
@@ -502,20 +502,20 @@ private[io] object BufferWriter {
       var remaining = len
       var position = off
       while (remaining > 0) {
-        val chunkLen   = math.min( bufFrames, remaining )
-        val m			   = chunkLen * frameSize
-        var ch = 0; while( ch < numChannels ) {
-          val b = frames( ch )
-          var i = ch; var j = position; while( i < m ) {
-            arrayBuf( i ) = (b( j ) * 0x7F + 0x80).toByte
+        val chunkLen  = math.min(bufFrames, remaining)
+        val m			    = chunkLen * frameSize
+        var ch = 0; while (ch < numChannels) {
+          val b = frames(ch)
+          var i = ch; var j = position; while (i < m) {
+            arrayBuf(i) = (b(j) * 0x7F + 0x80).toByte
             i += numChannels; j += 1
           }
           ch += 1
         }
         byteBuf.clear()
-        byteBuf.put( arrayBuf, 0, m )
+        byteBuf.put(arrayBuf, 0, m)
         byteBuf.flip()
-        writer.write( byteBuf )
+        writer.write(byteBuf)
         remaining -= chunkLen
         position  += chunkLen
       }
@@ -529,22 +529,22 @@ private[io] object BufferWriter {
       var remaining = len
       var position = off
       while (remaining > 0) {
-        val chunkLen   = math.min( bufFrames, remaining )
-        val m			   = chunkLen * numChannels
-        var ch = 0; while( ch < numChannels ) {
-          val b = frames( ch )
-          if( b != null ) {
-            var i = ch; var j = position; while( i < m ) {
-              arrayBuf( i ) = (b( j ) * 0x7FFF).toShort
+        val chunkLen  = math.min(bufFrames, remaining)
+        val m			    = chunkLen * numChannels
+        var ch = 0; while (ch < numChannels) {
+          val b = frames(ch)
+          if (b != null) {
+            var i = ch; var j = position; while (i < m) {
+              arrayBuf(i) = (b(j) * 0x7FFF).toShort
               i += numChannels; j += 1
             }
           }
           ch += 1
         }
         viewBuf.clear()
-        viewBuf.put( arrayBuf, 0, m )
-        byteBuf.rewind().limit( chunkLen * frameSize )
-        writer.write( byteBuf )
+        viewBuf.put(arrayBuf, 0, m)
+        byteBuf.rewind().limit(chunkLen * frameSize)
+        writer.write(byteBuf)
         remaining -= chunkLen
         position  += chunkLen
       }
@@ -558,23 +558,23 @@ private[io] object BufferWriter {
       var remaining = len
       var position = off
       while (remaining > 0) {
-        val chunkLen   = math.min( bufFrames, remaining )
-        val m			   = chunkLen * frameSize
-        var ch = 0; var p = 0; while( ch < numChannels ) {
-          val b = frames( ch )
-          var i = p; var j = position; while( i < m ) {
-            val k = (b( j ) * 0x7FFFFF).toInt
-            arrayBuf( i )     = (k >> 16).toByte
-            arrayBuf( i + 1 ) = (k >> 8).toByte
-            arrayBuf( i + 2 ) = k.toByte
+        val chunkLen  = math.min(bufFrames, remaining)
+        val m			    = chunkLen * frameSize
+        var ch = 0; var p = 0; while (ch < numChannels) {
+          val b = frames(ch)
+          var i = p; var j = position; while (i < m) {
+            val k = (b(j) * 0x7FFFFF).toInt
+            arrayBuf(i)     = (k >> 16).toByte
+            arrayBuf(i + 1) = (k >> 8).toByte
+            arrayBuf(i + 2) = k.toByte
             i += chStep; j += 1
           }
           ch += 1; p += 3
         }
         byteBuf.clear()
-        byteBuf.put( arrayBuf, 0, m )
+        byteBuf.put(arrayBuf, 0, m)
         byteBuf.flip()
-        writer.write( byteBuf )
+        writer.write(byteBuf)
         remaining -= chunkLen
         position  += chunkLen
       }
@@ -588,25 +588,25 @@ private[io] object BufferWriter {
       var remaining = len
       var position  = off
       while (remaining > 0) {
-        val chunkLen   = math.min( bufFrames, remaining )
-        val m			   = chunkLen * frameSize
-        var ch = 0; var p = 0; while( ch < numChannels ) {
-          val b = frames( ch )
-          if( b != null ) {
-            var i = p; var j = position; while( i < m ) {
-              val k = (b( j ) * 0x7FFFFF).toInt
-              arrayBuf( i )     = k.toByte
-              arrayBuf( i + 1 ) = (k >> 8).toByte
-              arrayBuf( i + 2 ) = (k >> 16).toByte
+        val chunkLen  = math.min(bufFrames, remaining)
+        val m			    = chunkLen * frameSize
+        var ch = 0; var p = 0; while (ch < numChannels) {
+          val b = frames(ch)
+          if (b != null) {
+            var i = p; var j = position; while (i < m) {
+              val k = (b(j) * 0x7FFFFF).toInt
+              arrayBuf(i)     = k.toByte
+              arrayBuf(i + 1) = (k >> 8).toByte
+              arrayBuf(i + 2) = (k >> 16).toByte
               i += chStep; j += 1
             }
           }
           ch += 1; p += 3
         }
         byteBuf.clear()
-        byteBuf.put( arrayBuf, 0, m )
+        byteBuf.put(arrayBuf, 0, m)
         byteBuf.flip()
-        writer.write( byteBuf )
+        writer.write(byteBuf)
         remaining -= chunkLen
         position  += chunkLen
       }
@@ -620,22 +620,22 @@ private[io] object BufferWriter {
       var remaining = len
       var position  = off
       while (remaining > 0) {
-        val chunkLen   = math.min( bufFrames, remaining )
+        val chunkLen   = math.min(bufFrames, remaining)
         val m	         = chunkLen * numChannels
-        var ch = 0; while( ch < numChannels ) {
-          val b = frames( ch )
-          if( b != null ) {
-            var i = ch; var j = position; while( i < m ) {
-              arrayBuf( i ) = (b( j ) * 0x7FFFFFFF).toInt
+        var ch = 0; while (ch < numChannels) {
+          val b = frames(ch)
+          if (b != null) {
+            var i = ch; var j = position; while (i < m) {
+              arrayBuf(i) = (b(j) * 0x7FFFFFFF).toInt
               i += numChannels; j += 1
             }
           }
           ch += 1
         }
         viewBuf.clear()
-        viewBuf.put( arrayBuf, 0, m )
-        byteBuf.rewind().limit( chunkLen * frameSize )
-        writer.write( byteBuf )
+        viewBuf.put(arrayBuf, 0, m)
+        byteBuf.rewind().limit(chunkLen * frameSize)
+        writer.write(byteBuf)
         remaining -= chunkLen
         position  += chunkLen
       }
@@ -649,20 +649,20 @@ private[io] object BufferWriter {
       var remaining = len
       var position  = off
       while (remaining > 0) {
-        val chunkLen   = math.min( bufFrames, remaining )
-        val m			   = chunkLen * numChannels
-        var ch = 0; while( ch < numChannels ) {
-          val b = frames( ch )
-          var i = ch; var j = position; while( i < m ) {
-            arrayBuf( i ) = b( j )
+        val chunkLen  = math.min(bufFrames, remaining)
+        val m			    = chunkLen * numChannels
+        var ch = 0; while (ch < numChannels) {
+          val b = frames(ch)
+          var i = ch; var j = position; while (i < m) {
+            arrayBuf(i) = b(j)
             i += numChannels; j += 1
           }
           ch += 1
         }
         viewBuf.clear()
-        viewBuf.put( arrayBuf, 0, m )
-        byteBuf.rewind().limit( chunkLen * frameSize )
-        writer.write( byteBuf )
+        viewBuf.put(arrayBuf, 0, m)
+        byteBuf.rewind().limit(chunkLen * frameSize)
+        writer.write(byteBuf)
         remaining -= chunkLen
         position  += chunkLen
       }
@@ -676,22 +676,22 @@ private[io] object BufferWriter {
       var remaining = len
       var position  = off
       while (remaining > 0) {
-        val chunkLen   = math.min( bufFrames, remaining )
-        val m			   = chunkLen * numChannels
-        var ch = 0; while( ch < numChannels ) {
-          val b = frames( ch )
-          if( b != null ) {
-            var i = ch; var j = position; while( i < m ) {
-              arrayBuf( i ) = b( j )
+        val chunkLen  = math.min(bufFrames, remaining)
+        val m			    = chunkLen * numChannels
+        var ch = 0; while (ch < numChannels) {
+          val b = frames(ch)
+          if (b != null) {
+            var i = ch; var j = position; while (i < m) {
+              arrayBuf(i) = b(j)
               i += numChannels; j += 1
             }
           }
           ch += 1
         }
         viewBuf.clear()
-        viewBuf.put( arrayBuf, 0, m )
-        byteBuf.rewind().limit( chunkLen * frameSize )
-        writer.write( byteBuf )
+        viewBuf.put(arrayBuf, 0, m)
+        byteBuf.rewind().limit(chunkLen * frameSize)
+        writer.write(byteBuf)
         remaining -= chunkLen
         position  += chunkLen
       }
@@ -725,13 +725,12 @@ private[io] object BufferBidi {
 
   object ThreeBytes extends BufferBidiFactory {
     def apply(read: ReadableByteChannel, write: WritableByteChannel, byteBuf: ByteBuffer,
-              numChannels: SInt): BufferBidi = {
+              numChannels: SInt): BufferBidi =
       if (byteBuf.order() == ByteOrder.LITTLE_ENDIAN) {
         new ThreeBytesLE(read, write, byteBuf, numChannels)
       } else {
         new ThreeBytesBE(read, write, byteBuf, numChannels)
       }
-    }
   }
 
   final case class ThreeBytesBE(reader: ReadableByteChannel, writer: WritableByteChannel,

@@ -7,9 +7,9 @@ package de.sciss.synth.io
 
  */
 class ReadWriteSpec extends TempFileSpec {
-  val rwTypes = AudioFileType.readable.collect {
-    case cw: AudioFileType.CanWrite => cw
-  }
+   val rwTypes = AudioFileType.readable.collect {
+      case cw: AudioFileType.CanWrite => cw
+   }
 
    val chanNums = List( 1, 2, 3 )
 
@@ -18,7 +18,7 @@ class ReadWriteSpec extends TempFileSpec {
    val size2      = totalSize - bufSize
    val sr         = 44100.0
 
-   def generate( buf: Frames, num: Int, seed: Long = 0L ): Unit = {
+   def generate(buf: Frames, num: Int, seed: Long = 0L): Unit = {
       val rnd = new util.Random( seed )
       var ch = 0; while( ch < buf.length ) {
          val cb = buf( ch )

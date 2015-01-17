@@ -2,7 +2,7 @@
 
 ## statement
 
-ScalaAudioFile is a Scala library to read and write audio files. It is (C)opyright 2004-2014 by Hanns Holger Rutz. All rights reserved. ScalaAudioFile is released under the [GNU Lesser General Public License](https://raw.github.com/Sciss/ScalaAudioFile/master/LICENSE) v2.1+ and comes with absolutely no warranties. To contact the author, send an email to `contact at sciss.de`
+ScalaAudioFile is a Scala library to read and write audio files. It is (C)opyright 2004-2015 by Hanns Holger Rutz. All rights reserved. ScalaAudioFile is released under the [GNU Lesser General Public License](https://raw.github.com/Sciss/ScalaAudioFile/master/LICENSE) v2.1+ and comes with absolutely no warranties. To contact the author, send an email to `contact at sciss.de`
 
 ## requirements / installation
 
@@ -12,7 +12,7 @@ To use the library in your project:
 
     "de.sciss" %% "scalaaudiofile" % v
 
-The current version `v` is `"1.4.3+"`
+The current version `v` is `"1.4.3"`
 
 ## supported formats
 
@@ -88,5 +88,9 @@ Here is an example of opening an existing file, reading through it to determine 
     in.close()
     
 ```
+
+## properties
+
+There is a system property `de.sciss.synth.io.AudioFile.DirectMemory` whose value can be set to `true` in order to use direct-memory buffers (`ByteBuffer.allocateDirect`). Reading in a 1 GB is around 6% faster with direct memory. Direct memory can have the disadvantage that it requires an individual VM switch to adjust the maximum available memory before throwing an out-of-memory error. The default is __false__.
 
 For all further information, please refer to the API docs. They can be created with `sbt doc`.

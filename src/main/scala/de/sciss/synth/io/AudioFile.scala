@@ -2,7 +2,7 @@
  *  AudioFile.scala
  *  (ScalaAudioFile)
  *
- *  Copyright (c) 2004-2014 Hanns Holger Rutz. All rights reserved.
+ *  Copyright (c) 2004-2015 Hanns Holger Rutz. All rights reserved.
  *
  *  This software is published under the GNU Lesser General Public License v2.1+
  *
@@ -13,11 +13,13 @@
 
 package de.sciss.synth.io
 
+import java.io.{BufferedInputStream, BufferedOutputStream, DataInputStream, DataOutputStream, File, FileInputStream, IOException, InputStream, OutputStream, RandomAccessFile}
 import java.nio.ByteBuffer
-import math.{min, max}
-import java.io.{DataOutputStream, BufferedOutputStream, OutputStream, BufferedInputStream, DataInputStream, File, FileInputStream, IOException, InputStream, RandomAccessFile}
 import java.nio.channels.{Channel => NIOChannel, Channels}
-import AudioFileHeader.opNotSupported
+
+import de.sciss.synth.io.AudioFileHeader.opNotSupported
+
+import scala.math.{max, min}
 
 /** The <code>AudioFile</code> allows reading and writing
   * of sound files. It can operate both on a <code>RandomAccessFile</code>
@@ -39,35 +41,27 @@ import AudioFileHeader.opNotSupported
   *
   * @see    AudioFileType
   *
-  * @todo   openWrite is currently missing
-  *         the goodies of ScissLib are missing, e.g. support for
-  *         markers, comments, app-code.
-  *
   * @todo   the copyTo method uses a user-buffer. it should
   *         check for the possibility to directly transfer data
   *         if input and output are compatible.
   */
 object AudioFile extends ReaderFactory {
-  //   private val NAME_LOOP		= "loop"
-  //   private val NAME_MARK		= "mark"
-  //   private val NAME_REGION		= "region"
-
   /** Opens an audio file for reading.
     *
     * @param  f  the path name of the file
     * @return a new <code>AudioFile</code> object
     *         whose header is already parsed and can
-    *         be obtained through the <code>getDescr</code> method.
+    *         be obtained through the <code>spec</code> method.
     *
-    * @throws IOException if the file was not found, could not be reader
+    * @throws java.io.IOException if the file was not found, could not be reader
     *                     or has an unknown or unsupported format
     */
   @throws(classOf[IOException])
   def openRead(f: File): AudioFile = {
     val raf   = new RandomAccessFile(f, "r")
     val dis   = dataInput(Channels.newInputStream(raf.getChannel))
-    val afhr  = createHeaderReader(dis)
-    finishOpenFileRead(f, raf, afhr)
+    val hr    = createHeaderReader(dis)
+    finishOpenFileRead(f, raf, hr)
   }
 
   private[io] def openFileWithReader(f: File, reader: AudioFileType.CanRead): AudioFile = {
@@ -75,9 +69,9 @@ object AudioFile extends ReaderFactory {
     finishOpenFileRead(f, raf, reader)
   }
 
-  private def finishOpenFileRead(f: File, raf: RandomAccessFile, afhr: AudioFileType.CanRead): AudioFile = {
+  private def finishOpenFileRead(f: File, raf: RandomAccessFile, hr: AudioFileType.CanRead): AudioFile = {
     raf.seek(0L) // BufferedInputStream did advance the position!
-    val afh   = afhr.read(raf)
+    val afh   = hr.read(raf)
     val buf   = createBuffer(afh)
     val spec  = afh.spec
     val sf    = spec.sampleFormat
@@ -89,8 +83,8 @@ object AudioFile extends ReaderFactory {
   @throws(classOf[IOException])
   def openRead(is: InputStream): AudioFile = {
     val dis   = dataInput(is)
-    val afhr  = createHeaderReader(dis)
-    finishOpenStreamRead(dis, afhr)
+    val hr    = createHeaderReader(dis)
+    finishOpenStreamRead(dis, hr)
   }
 
   private[io] def openStreamWithReader(is: InputStream, reader: AudioFileType.CanRead): AudioFile = {
@@ -98,8 +92,8 @@ object AudioFile extends ReaderFactory {
     finishOpenStreamRead(dis, reader)
   }
 
-  private def finishOpenStreamRead(dis: DataInputStream, afhr: AudioFileType.CanRead): AudioFile = {
-    val afh   = afhr.read(dis)
+  private def finishOpenStreamRead(dis: DataInputStream, hr: AudioFileType.CanRead): AudioFile = {
+    val afh   = hr.read(dis)
     val buf   = createBuffer(afh)
     val spec  = afh.spec
     val sf    = spec.sampleFormat
@@ -117,73 +111,74 @@ object AudioFile extends ReaderFactory {
     }
   }
 
+  private final val useDirect = sys.props.getOrElse("de.sciss.synth.io.AudioFile.DirectMemory", "false").toBoolean
+
   private def createBuffer(afh: AudioFileHeader): ByteBuffer = {
     val spec      = afh.spec
     val frameSize = (spec.sampleFormat.bitsPerSample >> 3) * spec.numChannels
     val bufFrames = max(1, 65536 / max(1, frameSize))
     val bufSize   = bufFrames * frameSize
-    val byteBuf   = ByteBuffer.allocateDirect(bufSize)
+    val byteBuf   = if (useDirect) ByteBuffer.allocateDirect(bufSize) else ByteBuffer.allocate(bufSize)
     byteBuf.order(afh.byteOrder)
   }
 
-   private def dataInput( is: InputStream )   = new DataInputStream( new BufferedInputStream( is, 1024 ))
-   private def dataOutput( os: OutputStream )  = new DataOutputStream( new BufferedOutputStream( os, 1024 ))
+  private def dataInput (is: InputStream ) = new DataInputStream (new BufferedInputStream (is, 1024))
+  private def dataOutput(os: OutputStream) = new DataOutputStream(new BufferedOutputStream(os, 1024))
 
-   private def noDecoder( msg: AnyRef ) = throw new IOException( "No decoder for " + msg )
-   private def noEncoder( msg: AnyRef ) = throw new IOException( "No encoder for " + msg )
+  private def noDecoder(msg: AnyRef) = throw new IOException(s"No decoder for $msg")
+  private def noEncoder(msg: AnyRef) = throw new IOException(s"No encoder for $msg")
 
-   @throws( classOf[ IOException ])
-   def openWrite( path: String, spec: AudioFileSpec ) : AudioFile = openWrite( new File( path ), spec )
+  @throws(classOf[IOException])
+  def openWrite(path: String, spec: AudioFileSpec): AudioFile = openWrite(new File(path), spec)
 
-   /**
-    *  Opens an audiofile for reading/writing. The pathname
-    *	 is determined by the <code>file</code> field of the provided <code>AudioFileInfo</code>.
-    *	 If a file denoted by this path already exists, it will be
-    *	 deleted before opening.
-    *	 <p>
-    *	 Note that the initial audio file header is written immediately.
-    *	 Special tags for the header thus need to be set in the <code>AudioFileInfo</code>
-    *	 before calling this method, including markers and regions. It is not
-    *	 possible to writer markers and regions after the file has been opened
-    *	 (since the header size has to be constant).
+  /** Opens an audio file for reading/writing. The pathname
+    * is determined by the <code>file</code> field of the provided <code>AudioFileInfo</code>.
+    * If a file denoted by this path already exists, it will be
+    * deleted before opening.
+    * <p>
+    * Note that the initial audio file header is written immediately.
+    * Special tags for the header thus need to be set in the <code>AudioFileInfo</code>
+    * before calling this method, including markers and regions. It is not
+    * possible to writer markers and regions after the file has been opened
+    * (since the header size has to be constant).
     *
-    *  @param  f  the path name of the file.
-    *  @param  spec   format and resolution of the new audio file.
-    *				      the header is immediately written to the harddisc
+    * @param  f  the path name of the file.
+    * @param  spec   format and resolution of the new audio file.
+    *                the header is immediately written to the hard-disc
     *
-    *  @throws IOException if the file could not be created or the
-    *						      format is unsupported
+    * @throws java.io.IOException if the file could not be created or the
+    *                     format is unsupported
     */
-   @throws( classOf[ IOException ])
-   def openWrite( f: File, spec: AudioFileSpec ) : AudioFile = {
-      val afhw = createHeaderWriter( spec )
-      if( f.exists ) f.delete
-      val raf  = new RandomAccessFile( f, "rw" )
-      val afh  = afhw.write( raf, spec )
-      val buf  = createBuffer( afh )
-      val sf   = spec.sampleFormat
-      val ch   = raf.getChannel
-      sf.bidiFactory match {
-         case Some( bbf ) =>
-            val bb   = bbf( ch, ch, buf, spec.numChannels )
-            new BidiFileImpl( f, raf, afh, bb )
-         case None        =>
-            val bw = sf.writerFactory.map( _.apply( ch, buf, spec.numChannels )).getOrElse( noEncoder( sf ))
-            new WritableFileImpl( f, raf, afh, bw )
-      }
-   }
+  @throws(classOf[IOException])
+  def openWrite(f: File, spec: AudioFileSpec): AudioFile = {
+    val hw  = createHeaderWriter(spec)
+    if (f.exists) f.delete()
+    val raf = new RandomAccessFile(f, "rw")
+    val afh = hw.write(raf, spec)
+    val buf = createBuffer(afh)
+    val sf  = spec.sampleFormat
+    val ch  = raf.getChannel
+    sf.bidiFactory match {
+      case Some(bbf) =>
+        val bb = bbf(ch, ch, buf, spec.numChannels)
+        new BidiFileImpl(f, raf, afh, bb)
+      case None =>
+        val bw = sf.writerFactory.map(_.apply(ch, buf, spec.numChannels)).getOrElse(noEncoder(sf))
+        new WritableFileImpl(f, raf, afh, bw)
+    }
+  }
 
-   @throws( classOf[ IOException ])
-   def openWrite( os: OutputStream, spec: AudioFileSpec ) : AudioFile = {
-      val afhw = createHeaderWriter( spec )
-      val dos  = dataOutput( os )
-      val afh  = afhw.write( dos, spec )
-      val buf  = createBuffer( afh )
-      val sf   = spec.sampleFormat
-      val bw   = sf.writerFactory.map( _.apply( Channels.newChannel( dos ), buf, spec.numChannels ))
-         .getOrElse( noEncoder( sf ))
-      new WritableStreamImpl( dos, afh, bw )
-   }
+  @throws(classOf[IOException])
+  def openWrite(os: OutputStream, spec: AudioFileSpec): AudioFile = {
+    val hw  = createHeaderWriter(spec)
+    val dos = dataOutput(os)
+    val afh = hw.write(dos, spec)
+    val buf = createBuffer(afh)
+    val sf  = spec.sampleFormat
+    val bw  = sf.writerFactory.map(_.apply(Channels.newChannel(dos), buf, spec.numChannels))
+      .getOrElse(noEncoder(sf))
+    new WritableStreamImpl(dos, afh, bw)
+  }
 
   private def createHeaderWriter(spec: AudioFileSpec): AudioFileType.CanWrite =
     spec.fileType match {
@@ -200,9 +195,9 @@ object AudioFile extends ReaderFactory {
     val raf = new RandomAccessFile(f, "r")
     try {
       val dis   = dataInput(Channels.newInputStream(raf.getChannel))
-      val afhr  = createHeaderReader(dis)
+      val hr    = createHeaderReader(dis)
       raf.seek(0L) // BufferedInputStream did advance the position!
-      afhr.read(raf).spec
+      hr.read(raf).spec
     } finally {
       raf.close()
     }
@@ -214,8 +209,8 @@ object AudioFile extends ReaderFactory {
     */
   @throws(classOf[IOException])
   def readSpec(dis: DataInputStream): AudioFileSpec = {
-    val afhr = createHeaderReader(dis)
-    afhr.read(dis).spec
+    val hr = createHeaderReader(dis)
+    hr.read(dis).spec
   }
 
   @throws(classOf[IOException])
@@ -228,7 +223,7 @@ object AudioFile extends ReaderFactory {
     *            e.g. <code>TYPE_AIFF</code>. Returns <code>TYPE_UNKNOWN</code>
     *            if the file could not be identified.
     *
-    * @throws IOException if the file could not be reader
+    * @throws java.io.IOException if the file could not be reader
     */
   @throws(classOf[IOException])
   def identify(f: File): Option[AudioFileType.CanIdentify] = {
@@ -259,7 +254,6 @@ object AudioFile extends ReaderFactory {
     protected def afh: AudioFileHeader
     protected def bh : BufferHandler
 
-    //      def numFrames : Long       = afh.spec.numFrames
     final def position: Long = framePositionVar
 
     def spec: AudioFileSpec = afh.spec
@@ -470,8 +464,6 @@ object AudioFile extends ReaderFactory {
 }
 
 trait AudioFile extends NIOChannel {
-  //   import AudioFile._
-
   //-------- public methods --------
 
   /** Returns a description of the audio file's specification. */
@@ -489,8 +481,8 @@ trait AudioFile extends NIOChannel {
 
   /** Reads sample frames from the current position
     *
-    * @param  data	buffer to hold the frames reader from harddisc.
-    *               the samples will be deinterleaved such that
+    * @param  data	buffer to hold the frames reader from hard-disc.
+    *               the samples will be de-interleaved such that
     *               data[0][] holds the first channel, data[1][]
     *               holds the second channel etc.
     *               ; it is allowed to have null arrays in the data
@@ -501,7 +493,7 @@ trait AudioFile extends NIOChannel {
     *              be placed in data[0][off] etc.
     * @param  len  number of continuous frames to reader.
     *
-    * @throws IOException if a reader error or end-of-file occurs.
+    * @throws java.io.IOException if a reader error or end-of-file occurs.
     */
   @throws(classOf[IOException])
   def read(data: Frames, off: Int, len: Int): AudioFile
@@ -531,7 +523,7 @@ trait AudioFile extends NIOChannel {
     * @param  frame the sample frame which should be
     *               the new file position. this is really
     *               the sample index and not the physical file pointer.
-    * @throws IOException when a seek error occurs or you try to
+    * @throws java.io.IOException when a seek error occurs or you try to
     *                     seek past the file's end.
     */
   @throws(classOf[IOException])
@@ -552,7 +544,7 @@ trait AudioFile extends NIOChannel {
     * @return		the sample frame index which is the off
     *            for the next reader or writer operation.
     *
-    * @throws IOException		when the position cannot be queried
+    * @throws java.io.IOException		when the position cannot be queried
     */
   def position: Long
 
@@ -561,8 +553,8 @@ trait AudioFile extends NIOChannel {
 
   /** Writes sample frames to the file starting at the current position.
     *
-    * @param  data	buffer holding the frames to writer to harddisc.
-    *               the samples must be deinterleaved such that
+    * @param  data	buffer holding the frames to writer to hard-disc.
+    *               the samples must be de-interleaved such that
     *               data[0][] holds the first channel, data[1][]
     *               holds the second channel etc.
     * @param  off  off in the buffer in sample frames, such
@@ -570,7 +562,7 @@ trait AudioFile extends NIOChannel {
     *              be reader from data[0][off] etc.
     * @param  len  number of continuous frames to writer.
     *
-    * @throws IOException if a writer error occurs.
+    * @throws java.io.IOException if a writer error occurs.
     */
   @throws(classOf[IOException])
   def write(data: Frames, off: Int, len: Int): AudioFile
@@ -598,14 +590,11 @@ trait AudioFile extends NIOChannel {
     *          in the file. includes pending
     *          buffer content
     *
-    * @throws	IOException	this is never thrown
+    * @throws	java.io.IOException	this is never thrown
     *                       but declared as of the <code>InterleavedStreamFile</code>
     *                       interface
     */
   def numFrames: Long
-
-  //   @throws( classOf[ IOException ])
-  //	def numFrames_=( frames : Long ) : AudioFile
 
   /** Convenience method: Returns the number of channels
     * in the file. Same as <code>spec.numChannels</code>.
@@ -631,18 +620,18 @@ trait AudioFile extends NIOChannel {
     *                    and writing begins at the current positions
     *                    of both files.
     *
-    * @throws	IOException	if a reador writer error occurs
+    * @throws	java.io.IOException	if a read or writer error occurs
     */
   @throws(classOf[IOException])
   def copyTo(target: AudioFile, numFrames: Long): AudioFile
 
   /** Flushes and closes the file
     *
-    * @throws IOException if an error occurs during buffer flush
+    * @throws java.io.IOException if an error occurs during buffer flush
     *                     or closing the file.
     */
   @throws(classOf[IOException])
-  def close(): Unit // : AudioFile
+  def close(): Unit
 
   /** Flushes and closes the file. As opposed
     * to <code>close()</code>, this does not
@@ -650,33 +639,5 @@ trait AudioFile extends NIOChannel {
     *
     * @see	#close()
     */
-  def cleanUp(): Unit //  : AudioFile
-
-  //  /** Reads markers into the audio file description
-  //    * if there are any. This method sets the <code>KEY_MARKERS</code>
-  //    * property of the afd, if markers are available. It sets
-  //    * the <code>KEY_LOOP</code> property if a loop span is available.
-  //    *
-  //    * @see	#getDescr()
-  //    * @see	AudioFileInfo#KEY_MARKERS
-  //    * @see  AudioFileInfo#KEY_LOOP
-  //    *
-  //    * @throws	IOException	if a reader or parsing error occurs
-  //    */
-  //   @throws( classOf[ IOException ])
-  //	def readMarkers { afh.readMarkers }
-
-  //  /** Reads application specific code into the audio file description
-  //    * if there is such code. This method sets the <code>KEY_APPCODE</code>
-  //    * property of the afd. The caller can check the <code>appCode</code>
-  //    * field of the afd to ensure that potential app code is relevantto it.
-  //    *
-  //    * @see	#getDescr()
-  //    * @see	AudioFileInfo#KEY_APPCODE
-  //    * @see	AudioFileInfo#appCode
-  //    *
-  //    * @throws	IOException	if a reader or parsing error occurs
-  //    */
-  //   @throws( classOf[ IOException ])
-  //	def readAppCode { afh.readAppCode }
+  def cleanUp(): Unit
 }

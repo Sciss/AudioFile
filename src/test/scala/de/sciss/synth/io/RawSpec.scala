@@ -8,30 +8,29 @@ class RawSpec extends TempFileSpec {
     val spec = AudioFileSpec(AudioFileType.Raw, SampleFormat.Float, numChannels = 1, sampleRate = 44100)
     val afOut   = AudioFile.openWrite( f, spec )
     val bufOut  = afOut.buffer( 3 )
-    bufOut( 0 )( 0 )  = 0.1f
-    bufOut( 0 )( 1 )  = 0.2f
-    bufOut( 0 )( 2 )  = -0.3f
+    bufOut(0)(0) = 0.1f
+    bufOut(0)(1) = 0.2f
+    bufOut(0)(2) = -0.3f
     try {
-       afOut.write( bufOut )
+      afOut.write(bufOut)
     } finally {
-       afOut.close()
+      afOut.close()
     }
-//println( "RAW FILE : " + f )
 
-      val raw     = AudioFileType.Raw.reader( spec )
-      val afIn    = raw.openRead( f )
-      try {
-         assert( afIn.numFrames    === 3L )
-         assert( afIn.numChannels  === 1  )
-         assert( afIn.sampleFormat === SampleFormat.Float )
-         assert( afIn.sampleRate   === 44100.0 )
+    val raw = AudioFileType.Raw.reader(spec)
+    val afIn = raw.openRead(f)
+    try {
+      assert(afIn.numFrames === 3L)
+      assert(afIn.numChannels === 1)
+      assert(afIn.sampleFormat === SampleFormat.Float)
+      assert(afIn.sampleRate === 44100.0)
 
-         val bufIn   = afIn.buffer( 3 )
-         afIn.read( bufIn )
-         assert( bufIn === bufOut )
+      val bufIn = afIn.buffer(3)
+      afIn.read(bufIn)
+      assert(bufIn === bufOut)
 
-      } finally {
-         afIn.close()
-      }
-   }
+    } finally {
+      afIn.close()
+    }
+  }
 }
