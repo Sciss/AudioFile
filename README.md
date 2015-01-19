@@ -12,7 +12,7 @@ To use the library in your project:
 
     "de.sciss" %% "scalaaudiofile" % v
 
-The current version `v` is `"1.4.3"`
+The current version `v` is `"1.4.4"`
 
 ## supported formats
 
