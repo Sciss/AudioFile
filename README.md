@@ -1,5 +1,8 @@
 # ScalaAudioFile
 
+[![Flattr this](http://api.flattr.com/button/flattr-badge-large.png)](https://flattr.com/submit/auto?user_id=sciss&url=https%3A%2F%2Fgithub.com%2FSciss%2FScalaAudioFile&title=ScalaAudioFile%20Library&language=Scala&tags=github&category=software)
+[![Maven Central](https://maven-badges.herokuapp.com/maven-central/de.sciss/scalaaudiofile_2.11/badge.svg)](https://maven-badges.herokuapp.com/maven-central/de.sciss/scalaaudiofile_2.11)
+
 ## statement
 
 ScalaAudioFile is a Scala library to read and write audio files. It is (C)opyright 2004-2015 by Hanns Holger Rutz. All rights reserved. ScalaAudioFile is released under the [GNU Lesser General Public License](https://raw.github.com/Sciss/ScalaAudioFile/master/LICENSE) v2.1+ and comes with absolutely no warranties. To contact the author, send an email to `contact at sciss.de`
