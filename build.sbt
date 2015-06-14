@@ -1,12 +1,12 @@
 name               := "ScalaAudioFile"
 
-version            := "1.4.4"
+version            := "1.5.0-SNAPSHOT"
 
 organization       := "de.sciss"
 
-scalaVersion       := "2.11.5"
+scalaVersion       := "2.11.6"
 
-crossScalaVersions := Seq("2.11.5", "2.10.4")
+crossScalaVersions := Seq("2.11.6", "2.10.5")
 
 description        := "A library to read and write uncompressed audio files (AIFF, WAVE, etc.)"
 
@@ -17,17 +17,15 @@ licenses           := Seq("LGPL v2.1+" -> url("http://www.gnu.org/licenses/lgpl-
 initialCommands in console := """import de.sciss.synth.io._"""
 
 libraryDependencies ++= Seq(
-  "de.sciss"      %% "serial"    % "1.0.2",
-  "org.scalatest" %% "scalatest" % "2.2.3" % "test"
+  "de.sciss"      %% "serial"    % "1.1.0-SNAPSHOT",
+  "org.scalatest" %% "scalatest" % "2.2.4" % "test"
 )
 
 scalacOptions ++= Seq("-deprecation", "-unchecked", "-feature", "-Xfuture", "-encoding", "utf8")
 
 // ---- build info ----
 
-buildInfoSettings
-
-sourceGenerators in Compile <+= buildInfo
+enablePlugins(BuildInfoPlugin)
 
 buildInfoKeys := Seq(name, organization, version, scalaVersion, description,
   BuildInfoKey.map(homepage) { case (k, opt)           => k -> opt.get },
@@ -67,10 +65,7 @@ pomExtra := { val n = name.value
 
 // ---- ls.implicit.ly ----
 
-seq(lsSettings :_*)
-
-(LsKeys.tags   in LsKeys.lsync) := Seq("audio-file", "audio", "sound-file", "sound", "dsp")
-
-(LsKeys.ghUser in LsKeys.lsync) := Some("Sciss")
-
-(LsKeys.ghRepo in LsKeys.lsync) := Some(name.value)
+// seq(lsSettings :_*)
+// (LsKeys.tags   in LsKeys.lsync) := Seq("audio-file", "audio", "sound-file", "sound", "dsp")
+// (LsKeys.ghUser in LsKeys.lsync) := Some("Sciss")
+// (LsKeys.ghRepo in LsKeys.lsync) := Some(name.value)
