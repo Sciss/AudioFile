@@ -18,7 +18,7 @@ initialCommands in console := """import de.sciss.synth.io._"""
 
 libraryDependencies ++= Seq(
   "de.sciss"      %% "serial"    % "1.1.0-SNAPSHOT",
-  "org.scalatest" %% "scalatest" % "2.2.4" % "test"
+  "org.scalatest" %% "scalatest" % "2.2.5" % "test"
 )
 
 scalacOptions ++= Seq("-deprecation", "-unchecked", "-feature", "-Xfuture", "-encoding", "utf8")
