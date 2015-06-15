@@ -1,6 +1,6 @@
 name               := "ScalaAudioFile"
 
-version            := "1.5.0-SNAPSHOT"
+version            := "1.4.5"
 
 organization       := "de.sciss"
 
@@ -17,7 +17,7 @@ licenses           := Seq("LGPL v2.1+" -> url("http://www.gnu.org/licenses/lgpl-
 initialCommands in console := """import de.sciss.synth.io._"""
 
 libraryDependencies ++= Seq(
-  "de.sciss"      %% "serial"    % "1.1.0-SNAPSHOT",
+  "de.sciss"      %% "serial"    % "1.0.2",
   "org.scalatest" %% "scalatest" % "2.2.5" % "test"
 )
 

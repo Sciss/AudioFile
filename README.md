@@ -16,7 +16,7 @@ To use the library in your project:
 
     "de.sciss" %% "scalaaudiofile" % v
 
-The current version `v` is `"1.4.4"`
+The current version `v` is `"1.4.5"`
 
 ## supported formats
 
@@ -66,7 +66,7 @@ Here is an example of opening an existing file, reading through it to determine 
       val chunk = math.min(bufSz, remain).toInt
       in.read(buf, 0, chunk)
       buf.foreach { chan =>
-        mag = math.max(mag, chan.maxBy(math.abs(_)))
+        mag = math.max(mag, math.abs(chan.maxBy(math.abs)))
       }
       remain -= chunk
     }
