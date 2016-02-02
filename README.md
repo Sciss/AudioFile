@@ -18,6 +18,10 @@ To use the library in your project:
 
 The current version `v` is `"1.4.5"`
 
+## contributing
+
+Please see the file [CONTRIBUTING.md](CONTRIBUTING.md)
+
 ## supported formats
 
 |**name**        |**read/write**   |**notes**      |
