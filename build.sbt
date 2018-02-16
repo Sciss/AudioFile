@@ -7,8 +7,8 @@ lazy val mimaVersion    = "1.4.2"
 name               := baseName
 version            := projectVersion
 organization       := "de.sciss"
-scalaVersion       := "2.11.8"
-crossScalaVersions := Seq("2.12.1", "2.11.8", "2.10.6")
+scalaVersion       := "2.13.0-M3"
+crossScalaVersions := Seq("2.12.4", "2.11.12")
 description        := "A library to read and write uncompressed audio files (AIFF, WAVE, etc.)"
 homepage           := Some(url(s"https://github.com/Sciss/${name.value}"))
 licenses           := Seq("LGPL v2.1+" -> url("http://www.gnu.org/licenses/lgpl-2.1.txt"))
@@ -17,9 +17,18 @@ mimaPreviousArtifacts := Set("de.sciss" %% baseNameL % mimaVersion)
 
 initialCommands in console := """import de.sciss.synth.io._"""
 
+lazy val deps = new {
+  val main = new {
+    val serial = "1.0.3"
+  }
+  val test = new {
+    val scalatest = "3.0.5-M1"
+  }
+}
+
 libraryDependencies ++= Seq(
-  "de.sciss"      %% "serial"    % "1.0.3",
-  "org.scalatest" %% "scalatest" % "3.0.1" % "test"
+  "de.sciss"      %% "serial"    % deps.main.serial,
+  "org.scalatest" %% "scalatest" % deps.test.scalatest % "test"
 )
 
 scalacOptions ++= Seq("-deprecation", "-unchecked", "-feature", "-Xfuture", "-encoding", "utf8", "-Xlint")
