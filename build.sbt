@@ -1,8 +1,8 @@
 lazy val baseName  = "ScalaAudioFile"
 lazy val baseNameL = baseName.toLowerCase
 
-lazy val projectVersion = "1.4.7"
-lazy val mimaVersion    = "1.4.6"
+lazy val projectVersion = "1.5.0-SNAPSHOT"
+lazy val mimaVersion    = "1.5.0"
 
 name               := baseName
 version            := projectVersion
@@ -18,7 +18,7 @@ mimaPreviousArtifacts := Set("de.sciss" %% baseNameL % mimaVersion)
 initialCommands in console := """import de.sciss.synth.io._"""
 
 libraryDependencies ++= Seq(
-  "de.sciss"      %% "serial"    % "1.0.3",
+  "de.sciss"      %% "serial"    % "1.1.0-SNAPSHOT",
   "org.scalatest" %% "scalatest" % "3.0.5" % "test"
 )
 
