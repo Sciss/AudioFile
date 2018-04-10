@@ -1,8 +1,8 @@
 /*
  *  NeXTHeader.scala
- *  (ScalaAudioFile)
+ *  (AudioFile)
  *
- *  Copyright (c) 2004-2015 Hanns Holger Rutz. All rights reserved.
+ *  Copyright (c) 2004-2018 Hanns Holger Rutz. All rights reserved.
  *
  *  This software is published under the GNU Lesser General Public License v2.1+
  *
@@ -14,9 +14,10 @@
 package de.sciss.synth.io
 package impl
 
-import java.io.{DataOutputStream, DataOutput, DataInput, DataInputStream, RandomAccessFile, IOException}
-import annotation.switch
+import java.io.{DataInput, DataInputStream, DataOutput, DataOutputStream, IOException, RandomAccessFile}
 import java.nio.ByteOrder
+
+import scala.annotation.switch
 
 /** NeXT or SND format.
   *
@@ -26,7 +27,7 @@ private[io] object NeXTHeader {
   private final val SND_MAGIC = 0x2E736E64 // '.snd'
 
   @throws(classOf[IOException])
-  def identify(dis: DataInputStream) = dis.readInt() == SND_MAGIC
+  def identify(dis: DataInputStream): Boolean = dis.readInt() == SND_MAGIC
 
   import AudioFileHeader._
 

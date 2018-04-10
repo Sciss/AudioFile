@@ -1,8 +1,8 @@
 /*
  *  AIFFHeader.scala
- *  (ScalaAudioFile)
+ *  (AudioFile)
  *
- *  Copyright (c) 2004-2015 Hanns Holger Rutz. All rights reserved.
+ *  Copyright (c) 2004-2018 Hanns Holger Rutz. All rights reserved.
  *
  *  This software is published under the GNU Lesser General Public License v2.1+
  *
@@ -14,11 +14,12 @@
 package de.sciss.synth.io
 package impl
 
+import java.io.{DataInput, DataInputStream, DataOutput, DataOutputStream, EOFException, IOException, RandomAccessFile}
 import java.nio.ByteOrder
-import ByteOrder.{BIG_ENDIAN, LITTLE_ENDIAN}
-import math.{pow, signum}
-import java.io.{DataOutput, DataOutputStream, DataInput, DataInputStream, EOFException, IOException, RandomAccessFile}
-import annotation.switch
+import java.nio.ByteOrder.{BIG_ENDIAN, LITTLE_ENDIAN}
+
+import scala.annotation.switch
+import scala.math.{pow, signum}
 
 private[io] object AIFFHeader extends BasicHeader {
   private final val FORM_MAGIC = 0x464F524D     // 'FORM'
@@ -87,7 +88,7 @@ private[io] object AIFFHeader extends BasicHeader {
     val isAIFC = (din.readInt(): @switch) match {
       case AIFC_MAGIC => true
       case AIFF_MAGIC => false
-      case m          => formatError()
+      case _          => formatError()
     }
     //         len	           -= 4
     var chunkLen = 0 // updated per chunk; after each chunk we skip the remaining bytes

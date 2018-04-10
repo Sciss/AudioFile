@@ -1,8 +1,8 @@
 /*
  *  Wave64Header.java
- *  (ScalaAudioFile)
+ *  (AudioFile)
  *
- *  Copyright (c) 2004-2015 Hanns Holger Rutz. All rights reserved.
+ *  Copyright (c) 2004-2018 Hanns Holger Rutz. All rights reserved.
  *
  *  This software is published under the GNU Lesser General Public License v2.1+
  *
@@ -13,9 +13,10 @@
 
 package de.sciss.synth.io.impl
 
-import de.sciss.synth.io.{WritableAudioFileHeader, AudioFileSpec, AudioFileType, AudioFileHeader}
-import java.io.{DataOutput, RandomAccessFile, EOFException, DataInputStream, IOException, DataInput}
+import java.io.{DataInput, DataInputStream, DataOutput, EOFException, IOException, RandomAccessFile}
 import java.nio.ByteOrder
+
+import de.sciss.synth.io.{AudioFileHeader, AudioFileSpec, AudioFileType, WritableAudioFileHeader}
 
 /** The 64 bit version of Wave.
   *
@@ -24,8 +25,8 @@ import java.nio.ByteOrder
   */
 private[io] object Wave64Header extends AbstractRIFFHeader {
 
-  import AudioFileHeader._
   import AbstractRIFFHeader._
+  import AudioFileHeader._
 
   // private final val RIFF_MAGIC1a	= 0x72696666	// 'riff' ; first 4 bytes of RIFF-GUID in big endian notation
   // private final val RIFF_MAGIC1b	= 0x2E91CF11   //          next 2 shorts of RIFF-GUID in big endian notation

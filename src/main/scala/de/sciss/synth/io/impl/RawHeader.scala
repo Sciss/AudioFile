@@ -1,8 +1,8 @@
 /*
  *  RawHeader.java
- *  (ScalaAudioFile)
+ *  (AudioFile)
  *
- *  Copyright (c) 2004-2015 Hanns Holger Rutz. All rights reserved.
+ *  Copyright (c) 2004-2018 Hanns Holger Rutz. All rights reserved.
  *
  *  This software is published under the GNU Lesser General Public License v2.1+
  *
@@ -14,7 +14,7 @@
 package de.sciss.synth.io
 package impl
 
-import java.io.{RandomAccessFile, DataOutputStream}
+import java.io.{DataOutputStream, RandomAccessFile}
 import java.nio.ByteOrder
 
 private[io] object RawHeader {

@@ -1,8 +1,8 @@
 /*
  *  WaveHeader.java
- *  (ScalaAudioFile)
+ *  (AudioFile)
  *
- *  Copyright (c) 2004-2015 Hanns Holger Rutz. All rights reserved.
+ *  Copyright (c) 2004-2018 Hanns Holger Rutz. All rights reserved.
  *
  *  This software is published under the GNU Lesser General Public License v2.1+
  *
@@ -14,9 +14,10 @@
 package de.sciss.synth.io
 package impl
 
-import java.io.{DataOutput, DataOutputStream, DataInput, DataInputStream, EOFException, IOException, RandomAccessFile}
+import java.io.{DataInput, DataInputStream, DataOutput, DataOutputStream, EOFException, IOException, RandomAccessFile}
 import java.nio.ByteOrder
-import annotation.switch
+
+import scala.annotation.switch
 
 private[impl] object AbstractRIFFHeader {
 
@@ -30,8 +31,8 @@ private[impl] object AbstractRIFFHeader {
 
 private[impl] trait AbstractRIFFHeader extends BasicHeader {
 
-  import AudioFileHeader._
   import AbstractRIFFHeader._
+  import AudioFileHeader._
 
   protected final val ADTL_MAGIC    = 0x6164746C  // 'adtl'
   protected final val LABL_MAGIC    = 0x6C61626C  // 'labl'
@@ -208,8 +209,8 @@ private[impl] trait AbstractRIFFHeader extends BasicHeader {
 
 private[io] object WaveHeader extends AbstractRIFFHeader {
 
-  import AudioFileHeader._
   import AbstractRIFFHeader._
+  import AudioFileHeader._
 
   private final val RIFF_MAGIC  = 0x52494646  // 'RIFF'
   private final val WAVE_MAGIC  = 0x57415645  // 'WAVE' (off 8)
@@ -265,7 +266,7 @@ private[io] object WaveHeader extends AbstractRIFFHeader {
         }
       }
     } catch {
-      case e: EOFException =>
+      case _: EOFException =>
     }
     throw new IOException(s"${AudioFileType.Wave.name} header misses data chunk")
   }

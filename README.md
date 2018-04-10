@@ -1,21 +1,26 @@
-# ScalaAudioFile
+# AudioFile
 
-[![Build Status](https://travis-ci.org/Sciss/ScalaAudioFile.svg?branch=master)](https://travis-ci.org/Sciss/ScalaAudioFile)
-[![Maven Central](https://maven-badges.herokuapp.com/maven-central/de.sciss/scalaaudiofile_2.11/badge.svg)](https://maven-badges.herokuapp.com/maven-central/de.sciss/scalaaudiofile_2.11)
+[![Build Status](https://travis-ci.org/Sciss/AudioFile.svg?branch=master)](https://travis-ci.org/Sciss/AudioFile)
+[![Maven Central](https://maven-badges.herokuapp.com/maven-central/de.sciss/audiofile_2.11/badge.svg)](https://maven-badges.herokuapp.com/maven-central/de.sciss/audiofile_2.11)
 
 ## statement
 
-ScalaAudioFile is a Scala library to read and write audio files. It is (C)opyright 2004&ndash;2018 by Hanns Holger Rutz. All rights reserved. ScalaAudioFile is released under the [GNU Lesser General Public License](https://raw.github.com/Sciss/ScalaAudioFile/master/LICENSE) v2.1+ and comes with absolutely no warranties. To contact the author, send an email to `contact at sciss.de`
+AudioFile is a Scala library to read and write audio files. It is (C)opyright 2004&ndash;2018 by Hanns Holger Rutz.
+All rights reserved. AudioFile is released under
+the [GNU Lesser General Public License](https://raw.github.com/Sciss/AudioFile/master/LICENSE) v2.1+ and comes
+with absolutely no warranties. To contact the author, send an email to `contact at sciss.de`
+
+(Note: the project and artifacts were formerly called **Scala**AudioFile.)
 
 ## requirements / installation
 
-ScalaAudioFile currently compiles against Scala 2.12, 2.11 using sbt.
+AudioFile currently compiles against Scala 2.12, 2.11 using sbt.
 
 To use the library in your project:
 
-    "de.sciss" %% "scalaaudiofile" % v
+    "de.sciss" %% "audiofile" % v
 
-The current version `v` is `"1.4.7"`
+The current version `v` is `"1.5.0"`
 
 ## contributing
 
@@ -34,7 +39,7 @@ Please see the file [CONTRIBUTING.md](CONTRIBUTING.md)
 
 ## getting started
 
-ScalaAudioFile currently supports reading and writing files, while still lacking a few features of the Java predecessor `de.sciss.io.AudioFile`
+AudioFile currently supports reading and writing files, while still lacking a few features of the Java predecessor `de.sciss.io.AudioFile`
 from [ScissLib](http://sourceforge.net/projects/scisslib), such as reading and writing markers and application specific chunks.
 
 * To open an audio file for __reading__: `AudioFile.openRead(aFile)` or `AudioFile.openRead(anInputStream)`. The `InputStream` variant has limited functionality, e.g. you cannot seek into the file, but only read sequentially. The stream variant can be used to decode files from an HTTP connection or in-memory (`ByteArrayInputStream`).
@@ -98,6 +103,9 @@ Here is an example of opening an existing file, reading through it to determine 
 
 ## properties
 
-There is a system property `de.sciss.synth.io.AudioFile.DirectMemory` whose value can be set to `true` in order to use direct-memory buffers (`ByteBuffer.allocateDirect`). Reading in a 1 GB is around 6% faster with direct memory. Direct memory can have the disadvantage that it requires an individual VM switch to adjust the maximum available memory before throwing an out-of-memory error. The default is __false__.
+There is a system property `de.sciss.synth.io.AudioFile.DirectMemory` whose value can be set to `true` in order 
+to use direct-memory buffers (`ByteBuffer.allocateDirect`). Reading in a 1 GB is around 6% faster with direct 
+memory. Direct memory can have the disadvantage that it requires an individual VM switch to adjust the maximum 
+available memory before throwing an out-of-memory error. The default is __false__.
 
 For all further information, please refer to the API docs. They can be created with `sbt doc`.

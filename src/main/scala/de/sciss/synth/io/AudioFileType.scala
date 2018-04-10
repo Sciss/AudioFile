@@ -1,8 +1,8 @@
 /*
  *  AudioFileType.scala
- *  (ScalaAudioFile)
+ *  (AudioFile)
  *
- *  Copyright (c) 2004-2015 Hanns Holger Rutz. All rights reserved.
+ *  Copyright (c) 2004-2018 Hanns Holger Rutz. All rights reserved.
  *
  *  This software is published under the GNU Lesser General Public License v2.1+
  *
@@ -13,9 +13,10 @@
 
 package de.sciss.synth.io
 
-import collection.immutable.{IndexedSeq => Vec}
-import java.io.{File, InputStream, DataOutputStream, RandomAccessFile, DataInputStream, IOException}
+import java.io.{DataInputStream, DataOutputStream, File, IOException, InputStream, RandomAccessFile}
 import java.nio.ByteOrder
+
+import scala.collection.immutable.{IndexedSeq => Vec}
 
 /** A recognized audio file type. */
 sealed trait AudioFileType {
@@ -110,7 +111,7 @@ object AudioFileType {
     final val extension   = "aif"
     final val extensions  = Vec("aif", "aiff", "aifc")
 
-    def supportedFormats = SampleFormat.allSigned
+    def supportedFormats: Vec[SampleFormat] = SampleFormat.allSigned
 
     private[io] def identify(dis: DataInputStream ): Boolean          = Impl.identify(dis)
     private[io] def read    (dis: DataInputStream ): AudioFileHeader  = Impl.read(dis)
@@ -129,7 +130,7 @@ object AudioFileType {
     final val extension   = "au"
     final val extensions  = Vec("au", "snd")
 
-    def supportedFormats = SampleFormat.allSigned
+    def supportedFormats: Vec[SampleFormat] = SampleFormat.allSigned
 
     private[io] def identify(dis: DataInputStream ): Boolean         = Impl.identify(dis)
     private[io] def read    (dis: DataInputStream ): AudioFileHeader = Impl.read(dis)
@@ -166,7 +167,7 @@ object AudioFileType {
     final val extension   = "sf"
     final val extensions  = Vec("sf", "irc")
 
-    def supportedFormats = SampleFormat.allSigned
+    def supportedFormats: Vec[SampleFormat] = SampleFormat.allSigned
 
     private[io] def identify(dis: DataInputStream ): Boolean         = Impl.identify(dis)
     private[io] def read    (dis: DataInputStream ): AudioFileHeader = Impl.read(dis)
@@ -185,7 +186,7 @@ object AudioFileType {
     final val extension   = "raw"
     final val extensions  = Vec("raw")
 
-    def supportedFormats = SampleFormat.all
+    def supportedFormats: Vec[SampleFormat] = SampleFormat.all
 
     private[io] def write(dos: DataOutputStream, spec: AudioFileSpec): WritableAudioFileHeader = Impl.write(dos, spec)
     private[io] def write(raf: RandomAccessFile, spec: AudioFileSpec): WritableAudioFileHeader = Impl.write(raf, spec)
@@ -196,17 +197,17 @@ object AudioFileType {
     }
 
     private final case class Readable(spec: AudioFileSpec) extends ReaderFactory with CanRead {
-      def id                = Raw.id
-      def name              = Raw.name
-      def extension         = Raw.extension
-      def extensions        = Raw.extensions
-      def supportedFormats  = Raw.supportedFormats
+      def id              : String            = Raw.id
+      def name            : String            = Raw.name
+      def extension       : String            = Raw.extension
+      def extensions      : Vec[String]       = Raw.extensions
+      def supportedFormats: Vec[SampleFormat] = Raw.supportedFormats
 
       def openRead(f : File       ): AudioFile = AudioFile.openFileWithReader  (f , this)
       def openRead(is: InputStream): AudioFile = AudioFile.openStreamWithReader(is, this)
 
-      def read(dis: DataInputStream ) = reader(dis.available())
-      def read(raf: RandomAccessFile) = reader(raf.length   ())
+      def read(dis: DataInputStream ): AudioFileHeader = reader(dis.available())
+      def read(raf: RandomAccessFile): AudioFileHeader = reader(raf.length   ())
 
       private def reader(fileSize: Long): AudioFileHeader = {
         val bpf         = spec.numChannels * (spec.sampleFormat.bitsPerSample >> 3)

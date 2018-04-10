@@ -1,8 +1,8 @@
 /*
  *  IRCAMHeader.scala
- *  (ScalaAudioFile)
+ *  (AudioFile)
  *
- *  Copyright (c) 2004-2015 Hanns Holger Rutz. All rights reserved.
+ *  Copyright (c) 2004-2018 Hanns Holger Rutz. All rights reserved.
  *
  *  This software is published under the GNU Lesser General Public License v2.1+
  *
@@ -14,9 +14,10 @@
 package de.sciss.synth.io
 package impl
 
-import java.nio.ByteOrder
 import java.io._
-import annotation.switch
+import java.nio.ByteOrder
+
+import scala.annotation.switch
 
 /** IRCAM or BICSF format.
   *
@@ -40,7 +41,7 @@ private[io] object IRCAMHeader {
   // private final val BICSF_PARENTCODE     = 11
 
   @throws(classOf[IOException])
-  def identify(dis: DataInputStream) = {
+  def identify(dis: DataInputStream): Boolean = {
     val magic = dis.readInt()
     magic == IRCAM_VAXLE_MAGIC  || magic == IRCAM_VAXBE_MAGIC  ||
     magic == IRCAM_SUNBE_MAGIC  || magic == IRCAM_SUNLE_MAGIC  ||

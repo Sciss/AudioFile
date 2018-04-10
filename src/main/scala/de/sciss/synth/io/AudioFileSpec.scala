@@ -1,8 +1,8 @@
 /*
  *  AudioFileSpec.scala
- *  (ScalaAudioFile)
+ *  (AudioFile)
  *
- *  Copyright (c) 2004-2015 Hanns Holger Rutz. All rights reserved.
+ *  Copyright (c) 2004-2018 Hanns Holger Rutz. All rights reserved.
  *
  *  This software is published under the GNU Lesser General Public License v2.1+
  *
@@ -14,8 +14,10 @@
 package de.sciss.synth.io
 
 import java.nio.ByteOrder
+
 import de.sciss.serial.{DataInput, DataOutput, ImmutableSerializer}
-import annotation.switch
+
+import scala.annotation.switch
 
 object AudioFileSpec {
   implicit object Serializer extends ImmutableSerializer[AudioFileSpec] {

@@ -1,8 +1,8 @@
 /*
  *  AudioFile.scala
- *  (ScalaAudioFile)
+ *  (AudioFile)
  *
- *  Copyright (c) 2004-2015 Hanns Holger Rutz. All rights reserved.
+ *  Copyright (c) 2004-2018 Hanns Holger Rutz. All rights reserved.
  *
  *  This software is published under the GNU Lesser General Public License v2.1+
  *
@@ -15,7 +15,7 @@ package de.sciss.synth.io
 
 import java.io.{BufferedInputStream, BufferedOutputStream, DataInputStream, DataOutputStream, File, FileInputStream, IOException, InputStream, OutputStream, RandomAccessFile}
 import java.nio.ByteBuffer
-import java.nio.channels.{Channel => NIOChannel, Channels}
+import java.nio.channels.{Channels, Channel => NIOChannel}
 
 import de.sciss.synth.io.AudioFileHeader.opNotSupported
 
@@ -29,7 +29,7 @@ import scala.math.{max, min}
   * seeking is not possible with a plain <code>InputStream</code>).
   *
   * The codecs are registered with <code>AudioFileType</code>.
-  * The codecs that come with ScalaAudioFile are found in the <code>impl</code>
+  * The codecs that come with AudioFile are found in the <code>impl</code>
   * package.
   *
   * Reading and writing data requires a user-buffer which holds de-interleaved
@@ -273,7 +273,7 @@ object AudioFile extends ReaderFactory {
       this
     }
 
-    override def toString = {
+    override def toString: String = {
       val s           = spec.toString
       val specString  = s.substring(14)
       s"AudioFile@$accessString($sourceString,$specString)"
@@ -309,7 +309,7 @@ object AudioFile extends ReaderFactory {
     final def isWritable = false
 
     @throws(classOf[IOException])
-    final def flush() = opNotSupported
+    final def flush(): AudioFile = opNotSupported
 
     @throws(classOf[IOException])
     final def write(data: Frames, off: Int, len: Int): AudioFile = opNotSupported
@@ -376,7 +376,7 @@ object AudioFile extends ReaderFactory {
 
     private val sampleDataOffset = raf.getFilePointer
 
-    protected final def sourceString = f.toString
+    protected final def sourceString: String = f.toString
 
     @throws(classOf[IOException])
     final def seek(frame: Long): AudioFile = {
@@ -386,7 +386,7 @@ object AudioFile extends ReaderFactory {
       this
     }
 
-    final def isOpen = raf.getChannel.isOpen
+    final def isOpen: Boolean = raf.getChannel.isOpen
   }
 
   private trait ReadOnlyFileLike extends FileLike with ReadOnly {
@@ -418,7 +418,7 @@ object AudioFile extends ReaderFactory {
       dis.close()
     }
 
-    final def isOpen = closed
+    final def isOpen: Boolean = closed
   }
 
   private trait WriteOnlyStreamLike extends StreamLike with WriteOnly {
@@ -436,7 +436,7 @@ object AudioFile extends ReaderFactory {
       }
     }
 
-    final def isOpen = closed
+    final def isOpen: Boolean = closed
   }
 
   private final class ReadableStreamImpl(protected val dis: DataInputStream, protected val afh: AudioFileHeader,

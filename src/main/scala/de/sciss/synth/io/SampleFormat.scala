@@ -1,8 +1,8 @@
 /*
  *  SampleFormat.scala
- *  (ScalaAudioFile)
+ *  (AudioFile)
  *
- *  Copyright (c) 2004-2015 Hanns Holger Rutz. All rights reserved.
+ *  Copyright (c) 2004-2018 Hanns Holger Rutz. All rights reserved.
  *
  *  This software is published under the GNU Lesser General Public License v2.1+
  *
@@ -13,7 +13,7 @@
 
 package de.sciss.synth.io
 
-import collection.immutable.{IndexedSeq => Vec}
+import scala.collection.immutable.{IndexedSeq => Vec}
 
 abstract class SampleFormat(val id: String, val bitsPerSample: Int) {
   private[io] def readerFactory: Option[BufferReaderFactory]
@@ -22,9 +22,9 @@ abstract class SampleFormat(val id: String, val bitsPerSample: Int) {
 }
 
 object SampleFormat {
-  val fromInt16  = Vec( Int16, Int24, Int32, Float, Double )
-  val allSigned  = Int8 +: fromInt16
-  val all        = UInt8 +: allSigned
+  val fromInt16 : Vec[SampleFormat] = Vec( Int16, Int24, Int32, Float, Double )
+  val allSigned : Vec[SampleFormat] = Int8  +: fromInt16
+  val all       : Vec[SampleFormat] = UInt8 +: allSigned
 
   case object UInt8 extends SampleFormat("uint8", 8) {
     private[io] def readerFactory = Some(BufferReader.Byte)

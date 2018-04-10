@@ -1,8 +1,8 @@
 /*
  *  AudioFileHeader.java
- *  (ScalaAudioFile)
+ *  (AudioFile)
  *
- *  Copyright (c) 2004-2015 Hanns Holger Rutz. All rights reserved.
+ *  Copyright (c) 2004-2018 Hanns Holger Rutz. All rights reserved.
  *
  *  This software is published under the GNU Lesser General Public License v2.1+
  *
@@ -13,8 +13,8 @@
 
 package de.sciss.synth.io
 
+import java.io.{DataInput, DataInputStream, DataOutput, DataOutputStream, IOException, RandomAccessFile}
 import java.nio.ByteOrder
-import java.io.{ DataInput, DataInputStream, DataOutput, DataOutputStream, IOException, RandomAccessFile }
 
 private[io] object AudioFileHeader {
   def opNotSupported = throw new IOException("Operation not supported")
@@ -125,17 +125,17 @@ private[io] object AudioFileHeader {
   def nativeDataOutputWriter(dout: DataOutput): DataOutputWriter = dataOutputWriter(dout, ByteOrder.nativeOrder)
 
   final class BigDataInputReader(din: DataInput) extends DataInputReader {
-    @throws(classOf[IOException]) def readInt  () = din.readInt()
-    @throws(classOf[IOException]) def readFloat() = din.readFloat()
+    @throws(classOf[IOException]) def readInt  (): Int    = din.readInt()
+    @throws(classOf[IOException]) def readFloat(): Float  = din.readFloat()
 
-    def byteOrder = ByteOrder.BIG_ENDIAN
+    def byteOrder: ByteOrder = ByteOrder.BIG_ENDIAN
   }
 
   final class LittleDataInputReader(din: DataInput) extends DataInputReader {
-    @throws(classOf[IOException]) def readInt  () = readLittleInt(din)
-    @throws(classOf[IOException]) def readFloat() = readLittleFloat(din)
+    @throws(classOf[IOException]) def readInt  (): Int    = readLittleInt(din)
+    @throws(classOf[IOException]) def readFloat(): Float  = readLittleFloat(din)
 
-    def byteOrder = ByteOrder.LITTLE_ENDIAN
+    def byteOrder: ByteOrder = ByteOrder.LITTLE_ENDIAN
   }
 
   final class BigDataOutputWriter(dout: DataOutput) extends DataOutputWriter {
@@ -145,7 +145,7 @@ private[io] object AudioFileHeader {
     @throws(classOf[IOException]) def writeFloat(f: Float): Unit =
       dout.writeFloat(f)
 
-    def byteOrder = ByteOrder.BIG_ENDIAN
+    def byteOrder: ByteOrder = ByteOrder.BIG_ENDIAN
   }
 
   final class LittleDataOutputWriter(dout: DataOutput) extends DataOutputWriter {
@@ -155,7 +155,7 @@ private[io] object AudioFileHeader {
     @throws(classOf[IOException]) def writeFloat(f: Float): Unit =
       writeLittleFloat(dout, f)
 
-    def byteOrder = ByteOrder.LITTLE_ENDIAN
+    def byteOrder: ByteOrder = ByteOrder.LITTLE_ENDIAN
   }
 }
 
