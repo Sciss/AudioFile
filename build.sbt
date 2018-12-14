@@ -4,13 +4,22 @@ lazy val baseNameL = baseName.toLowerCase
 lazy val projectVersion = "1.5.1-SNAPSHOT"
 lazy val mimaVersion    = "1.5.0"
 
+lazy val deps = new {
+  val main = new {
+    val serial = "1.1.1"
+  }
+  val test = new {
+    val scalaTest = "3.0.5"
+  }
+}
+
 lazy val root = project.withId(baseNameL).in(file("."))
   .enablePlugins(BuildInfoPlugin)
   .settings(
     name               := baseName,
     version            := projectVersion,
     organization       := "de.sciss",
-    scalaVersion       := "2.12.8",
+    scalaVersion       := "2.13.0-M5",
     crossScalaVersions := Seq("2.12.8", "2.11.12", "2.13.0-M5"),
     description        := "A library to read and write uncompressed audio files (AIFF, WAVE, etc.)",
     homepage           := Some(url(s"https://github.com/Sciss/${name.value}")),
@@ -18,10 +27,10 @@ lazy val root = project.withId(baseNameL).in(file("."))
     mimaPreviousArtifacts := Set("de.sciss" %% baseNameL % mimaVersion),
     initialCommands in console := """import de.sciss.synth.io._""",
     libraryDependencies ++= Seq(
-      "de.sciss"      %% "serial"    % "1.1.1",
+      "de.sciss" %% "serial" deps.main.serial,
     ),
     libraryDependencies += {
-      val v = if (scalaVersion.value == "2.13.0-M5") "3.0.6-SNAP5" else "3.0.5"
+      val v = if (scalaVersion.value == "2.13.0-M5") "3.0.6-SNAP5" else deps.test.scalaTest
       "org.scalatest" %% "scalatest" % v % Test
     },
     scalacOptions ++= Seq("-deprecation", "-unchecked", "-feature", "-Xfuture", "-encoding", "utf8", "-Xlint"),
