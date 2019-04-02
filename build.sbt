@@ -1,7 +1,7 @@
 lazy val baseName  = "AudioFile"
 lazy val baseNameL = baseName.toLowerCase
 
-lazy val projectVersion = "1.5.1"
+lazy val projectVersion = "1.5.2"
 lazy val mimaVersion    = "1.5.0"
 
 lazy val deps = new {
@@ -9,7 +9,7 @@ lazy val deps = new {
     val serial    = "1.1.1"
   }
   val test = new {
-    val scalaTest = "3.0.5"
+    val scalaTest = "3.0.7"
   }
 }
 
@@ -19,7 +19,7 @@ lazy val root = project.withId(baseNameL).in(file("."))
     name               := baseName,
     version            := projectVersion,
     organization       := "de.sciss",
-    scalaVersion       := "2.13.0-M5",
+    scalaVersion       := "2.12.8",
     crossScalaVersions := Seq("2.12.8", "2.11.12", "2.13.0-M5"),
     description        := "A library to read and write uncompressed audio files (AIFF, WAVE, etc.)",
     homepage           := Some(url(s"https://github.com/Sciss/${name.value}")),
@@ -30,8 +30,7 @@ lazy val root = project.withId(baseNameL).in(file("."))
       "de.sciss" %% "serial" % deps.main.serial
     ),
     libraryDependencies += {
-      val v = if (scalaVersion.value == "2.13.0-M5") "3.0.6-SNAP5" else deps.test.scalaTest
-      "org.scalatest" %% "scalatest" % v % Test
+      "org.scalatest" %% "scalatest" % deps.test.scalaTest % Test
     },
     scalacOptions ++= Seq("-deprecation", "-unchecked", "-feature", "-Xfuture", "-encoding", "utf8", "-Xlint"),
     // ---- build info ----
@@ -58,8 +57,8 @@ lazy val publishSettings = Seq(
   pomIncludeRepository := { _ => false },
   pomExtra := { val n = name.value
 <scm>
-  <url>git@github.com:Sciss/{n}.git</url>
-  <connection>scm:git:git@github.com:Sciss/{n}.git</connection>
+  <url>git@git.iem.at:sciss/{n}.git</url>
+  <connection>scm:git:git@git.iem.at:sciss/{n}.git</connection>
 </scm>
 <developers>
   <developer>

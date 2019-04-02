@@ -2,7 +2,7 @@
  *  SampleFormat.scala
  *  (AudioFile)
  *
- *  Copyright (c) 2004-2018 Hanns Holger Rutz. All rights reserved.
+ *  Copyright (c) 2004-2019 Hanns Holger Rutz. All rights reserved.
  *
  *  This software is published under the GNU Lesser General Public License v2.1+
  *
@@ -22,7 +22,7 @@ abstract class SampleFormat(val id: String, val bitsPerSample: Int) {
 }
 
 object SampleFormat {
-  val fromInt16 : Vec[SampleFormat] = Vec( Int16, Int24, Int32, Float, Double )
+  val fromInt16 : Vec[SampleFormat] = Vec(Int16, Int24, Int32, Float, Double)
   val allSigned : Vec[SampleFormat] = Int8  +: fromInt16
   val all       : Vec[SampleFormat] = UInt8 +: allSigned
 
@@ -33,25 +33,21 @@ object SampleFormat {
   }
 
   case object Int8 extends SampleFormat("int8", 8) {
-    private[io] def readerFactory = Some(BufferReader.Byte)
-    private[io] def writerFactory = Some(BufferWriter.Byte)
-    private[io] def bidiFactory   = Some(BufferBidi  .Byte)
+    private[io] def readerFactory = Some(BufferReader.UByte)
+    private[io] def writerFactory = Some(BufferWriter.UByte)
+    private[io] def bidiFactory   = Some(BufferBidi  .UByte)
   }
 
   case object Int16 extends SampleFormat("int16", 16) {
     private[io] def readerFactory = Some(BufferReader.Short)
-
     private[io] def writerFactory = Some(BufferWriter.Short)
-
-    private[io] def bidiFactory = Some(BufferBidi.Short)
+    private[io] def bidiFactory   = Some(BufferBidi.Short)
   }
 
   case object Int24 extends SampleFormat("int24", 24) {
     private[io] def readerFactory = Some(BufferReader.ThreeBytes)
-
     private[io] def writerFactory = Some(BufferWriter.ThreeBytes)
-
-    private[io] def bidiFactory = Some(BufferBidi.ThreeBytes)
+    private[io] def bidiFactory   = Some(BufferBidi.ThreeBytes)
   }
 
   case object Int32 extends SampleFormat("int32", 32) {

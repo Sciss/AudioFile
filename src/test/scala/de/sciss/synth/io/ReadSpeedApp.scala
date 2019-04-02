@@ -1,7 +1,7 @@
 package de.sciss.synth.io
 
 object ReadSpeedApp extends App {
-  val DirectMemory = args.headOption == Some("--direct")
+  val DirectMemory = args.headOption.contains("--direct")
 
   sys.props.put("de.sciss.synth.io.AudioFile.DirectMemory", DirectMemory.toString)
   val path  = "/home/hhrutz/Documents/misc/HMS/rec/HMSChristmas141225_Set1_Sciss.aif" // c. 1 GB file

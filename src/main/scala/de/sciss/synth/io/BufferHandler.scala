@@ -2,7 +2,7 @@
  *  BufferHandler.scala
  *  (AudioFile)
  *
- *  Copyright (c) 2004-2018 Hanns Holger Rutz. All rights reserved.
+ *  Copyright (c) 2004-2019 Hanns Holger Rutz. All rights reserved.
  *
  *  This software is published under the GNU Lesser General Public License v2.1+
  *
@@ -219,8 +219,8 @@ private[io] object BufferReader {
               val arr1 = arrayBuf(i)
               // java can't handle unsigned bytes
               b(j) = (if (arr1 < 0) 0x80 + arr1 else arr1 - 0x80).toFloat / 0x7F
+              i += numChannels; j += 1
             }
-            i += numChannels; j += 1
           }
           ch += 1
         }

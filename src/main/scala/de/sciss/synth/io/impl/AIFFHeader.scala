@@ -2,7 +2,7 @@
  *  AIFFHeader.scala
  *  (AudioFile)
  *
- *  Copyright (c) 2004-2018 Hanns Holger Rutz. All rights reserved.
+ *  Copyright (c) 2004-2019 Hanns Holger Rutz. All rights reserved.
  *
  *  This software is published under the GNU Lesser General Public License v2.1+
  *
@@ -207,7 +207,7 @@ private[io] object AIFFHeader extends BasicHeader {
       true
     } else false
 
-    val aifcExt = if (smpForm == SampleFormat.Float) {
+    val aifcExt: Array[Byte] = if (smpForm == SampleFormat.Float) {
       fl32_HUMAN
     } else if (smpForm == SampleFormat.Double) {
       fl64_HUMAN

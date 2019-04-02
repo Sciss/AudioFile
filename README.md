@@ -5,7 +5,7 @@
 
 ## statement
 
-AudioFile is a Scala library to read and write audio files. It is (C)opyright 2004&ndash;2018 by Hanns Holger Rutz.
+AudioFile is a Scala library to read and write audio files. It is (C)opyright 2004&ndash;2019 by Hanns Holger Rutz.
 All rights reserved. AudioFile is released under
 the [GNU Lesser General Public License](https://git.iem.at/sciss/AudioFile/raw/master/LICENSE) v2.1+ and comes
 with absolutely no warranties. To contact the author, send an email to `contact at sciss.de`
@@ -20,7 +20,7 @@ To use the library in your project:
 
     "de.sciss" %% "audiofile" % v
 
-The current version `v` is `"1.5.1"`
+The current version `v` is `"1.5.2"`
 
 ## contributing
 
