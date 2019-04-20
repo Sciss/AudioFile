@@ -9,14 +9,14 @@ import scala.collection.immutable.{IndexedSeq => Vec}
   * checking the printed output for detected format.
   *
   * To run only this test:
-  * test-only de.sciss.synth.io.LibSndFileSpec
+  * testOnly de.sciss.synth.io.LibSndFileSpec
   */
 class LibSndFileSpec extends TempFileSpec {
   val rwTypes: Vec[AudioFileType.CanWrite] = AudioFileType.readable.collect {
     case cw: AudioFileType.CanWrite => cw
   }
 
-  val chanNums = List(1, 2, 3)
+  val chanNums: List[Int] = List(1, 2, 3)
 
   val bufSize     = 8192
   val totalSize   = 10000
@@ -32,8 +32,12 @@ class LibSndFileSpec extends TempFileSpec {
 
   val numFrames = 10000L
 
-  val sndFileInfo = "/usr/local/bin/sndfile-info"
-  if (!new File(sndFileInfo).canExecute) {
+  val sndFileInfo = "sndfile-info"
+  val hasSndFileInfo: Boolean = sys.env.getOrElse("PATH", "").split(File.pathSeparator).exists(
+    pre => new File(pre, "sndfile-info").canExecute
+  )
+
+  if (!hasSndFileInfo) {
     println("Error: libsndfile not found (" + sndFileInfo + "); skipping these tests.")
   } else {
     rwTypes.foreach { typ =>

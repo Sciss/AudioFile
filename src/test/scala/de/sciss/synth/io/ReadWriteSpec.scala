@@ -5,7 +5,7 @@ import scala.collection.immutable.{IndexedSeq => Vec}
 /*
   To run only this test:
 
-  test-only de.sciss.synth.io.ReadWriteSpec
+  testOnly de.sciss.synth.io.ReadWriteSpec
 
  */
 class ReadWriteSpec extends TempFileSpec {
@@ -13,7 +13,7 @@ class ReadWriteSpec extends TempFileSpec {
     case cw: AudioFileType.CanWrite => cw
   }
 
-  val chanNums = List(1, 2, 3)
+  val chanNums: List[Int] = List(1, 2, 3)
 
   val bufSize    = 8192
   val totalSize  = 10000

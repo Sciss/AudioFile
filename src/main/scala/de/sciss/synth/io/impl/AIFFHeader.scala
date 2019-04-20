@@ -54,13 +54,19 @@ private[io] object AIFFHeader extends BasicHeader {
   //   private val in16_HUMAN	   = Array[Byte]( 12, 49, 54, 45, 98, 105, 116, 32, 105, 110, 116, 32,  32, 0 ) // "16-bit int  "
 
   // "32-bit float"
-  private final val fl32_HUMAN = Array[Byte](0x66, 0x6C, 0x33, 0x32, 12, 51, 50, 45, 98, 105, 116, 32, 102, 108, 111, 97, 116, 0)
+  private final val fl32_HUMAN = Array[Byte](
+    102, 108, 51, 50, 12,
+    51, 50, 45, 98, 105, 116, 32, 102, 108, 111, 97, 116, 0)
 
   // "64-bit float"
-  private final val fl64_HUMAN = Array[Byte](0x66, 0x6C, 0x36, 0x34, 12, 54, 52, 45, 98, 105, 116, 32, 102, 108, 111, 97, 116, 0)
+  private final val fl64_HUMAN = Array[Byte](
+    102, 108, 54, 52, 12,
+    54, 52, 45, 98, 105, 116, 32, 102, 108, 111, 97, 116, 0)
 
   // "16-bit int  "
-  private final val in16_HUMAN = Array[Byte](0x73, 0x6F, 0x77, 0x74, 12, 49, 54, 45, 98, 105, 116, 32, 105, 110, 116, 32, 32, 0)
+  private final val in16_HUMAN = Array[Byte](
+    115, 111, 119, 116, 12,
+    49, 54, 45, 98, 105, 116, 32, 105, 110, 116, 32, 32, 0)
 
   private final val LN2R = 1.0 / math.log(2)
 

@@ -295,7 +295,7 @@ object AudioFile extends ReaderFactory {
 
     protected def bh: BufferReader
 
-    def numFrames: Long = spec.numFrames
+    override def numFrames: Long = spec.numFrames
 
     @throws(classOf[IOException])
     final def read(data: Frames, off: Int, len: Int): AudioFile = {
@@ -325,7 +325,7 @@ object AudioFile extends ReaderFactory {
 
     protected final var numFramesVar: Long = 0L
 
-    override final def numFrames: Long = numFramesVar
+    override /*final*/ def numFrames: Long = numFramesVar
 
     override final def spec: AudioFileSpec = afh.spec.copy(numFrames = numFramesVar)
 
