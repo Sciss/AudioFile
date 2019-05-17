@@ -20,7 +20,7 @@ lazy val root = project.withId(baseNameL).in(file("."))
     version            := projectVersion,
     organization       := "de.sciss",
     scalaVersion       := "2.12.8",
-    crossScalaVersions := Seq("2.12.8", "2.11.12", "2.13.0-RC1"),
+    crossScalaVersions := Seq("2.12.8", "2.11.12", "2.13.0-RC2"),
     description        := "A library to read and write uncompressed audio files (AIFF, WAVE, etc.)",
     homepage           := Some(url(s"https://github.com/Sciss/${name.value}")),
     licenses           := Seq("LGPL v2.1+" -> url("http://www.gnu.org/licenses/lgpl-2.1.txt")),
@@ -30,7 +30,11 @@ lazy val root = project.withId(baseNameL).in(file("."))
       "de.sciss" %% "serial" % deps.main.serial
     ),
     libraryDependencies += {
-      "org.scalatest" %% "scalatest" % deps.test.scalaTest % Test
+      if (scalaVersion.value == "2.13.0-RC2") {
+        "org.scalatest" % "scalatest_2.13.0-RC1" % deps.test.scalaTest % Test
+      } else {
+        "org.scalatest" %% "scalatest" % deps.test.scalaTest % Test
+      }
     },
     scalacOptions ++= Seq("-deprecation", "-unchecked", "-feature", "-encoding", "utf8", "-Xlint", "-Xsource:2.13"),
     // ---- build info ----
