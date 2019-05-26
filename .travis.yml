@@ -1,12 +1,12 @@
+dist: trusty
+
 language: scala
 
 scala:
   - 2.12.8
   - 2.11.12
 
-env:
-  - JDK=oraclejdk8
-
-before_script:
-  - jdk_switcher use $JDK
-
+jdk:
+  - oraclejdk8
+  - openjdk8
+  - openjdk11
