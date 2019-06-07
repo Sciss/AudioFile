@@ -14,7 +14,7 @@ with absolutely no warranties. To contact the author, send an email to `contact 
 
 ## requirements / installation
 
-AudioFile currently compiles against Scala 2.12, 2.11 using sbt.
+AudioFile currently compiles against Scala 2.13, 2.12, 2.11 using sbt.
 
 To use the library in your project:
 
