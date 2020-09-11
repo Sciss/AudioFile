@@ -1,13 +1,13 @@
 # AudioFile
 
-[![Build Status](https://travis-ci.org/Sciss/AudioFile.svg?branch=master)](https://travis-ci.org/Sciss/AudioFile)
+[![Build Status](https://travis-ci.org/Sciss/AudioFile.svg?branch=main)](https://travis-ci.org/Sciss/AudioFile)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/de.sciss/audiofile_2.13/badge.svg)](https://maven-badges.herokuapp.com/maven-central/de.sciss/audiofile_2.13)
 
 ## statement
 
 AudioFile is a Scala library to read and write audio files. It is (C)opyright 2004&ndash;2020 by Hanns Holger Rutz.
 All rights reserved. AudioFile is released under
-the [GNU Lesser General Public License](https://git.iem.at/sciss/AudioFile/raw/master/LICENSE) v2.1+ and comes
+the [GNU Lesser General Public License](https://git.iem.at/sciss/AudioFile/raw/main/LICENSE) v2.1+ and comes
 with absolutely no warranties. To contact the author, send an email to `contact at sciss.de`
 
 (Note: the project and artifacts were formerly called **Scala**AudioFile.)
@@ -20,7 +20,7 @@ To use the library in your project:
 
     "de.sciss" %% "audiofile" % v
 
-The current version `v` is `"1.5.4"`
+The current version `v` is `"1.5.5"`
 
 ## contributing
 

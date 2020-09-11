@@ -1,15 +1,15 @@
 lazy val baseName  = "AudioFile"
 lazy val baseNameL = baseName.toLowerCase
 
-lazy val projectVersion = "1.5.4"
+lazy val projectVersion = "1.5.5"
 lazy val mimaVersion    = "1.5.0"
 
 lazy val deps = new {
   val main = new {
-    val serial    = "1.1.1"
+    val serial    = "1.1.3"
   }
   val test = new {
-    val scalaTest = "3.1.1"
+    val scalaTest = "3.2.2"
   }
 }
 
@@ -19,8 +19,8 @@ lazy val root = project.withId(baseNameL).in(file("."))
     name               := baseName,
     version            := projectVersion,
     organization       := "de.sciss",
-    scalaVersion       := "2.13.1",
-    crossScalaVersions := Seq("2.13.1", "2.12.11"),
+    scalaVersion       := "0.27.0-RC1", // "2.13.3",
+    crossScalaVersions := Seq("0.27.0-RC1", "2.13.3", "2.12.12"),
     description        := "A library to read and write uncompressed audio files (AIFF, WAVE, etc.)",
     homepage           := Some(url(s"https://github.com/Sciss/${name.value}")),
     licenses           := Seq("LGPL v2.1+" -> url("http://www.gnu.org/licenses/lgpl-2.1.txt")),
@@ -33,7 +33,11 @@ lazy val root = project.withId(baseNameL).in(file("."))
       "org.scalatest" %% "scalatest" % deps.test.scalaTest % Test
     },
     scalacOptions ++= Seq("-deprecation", "-unchecked", "-feature", "-encoding", "utf8", "-Xlint", "-Xsource:2.13"),
-    scalacOptions in (Compile, compile) ++= (if (scala.util.Properties.isJavaAtLeast("9")) Seq("-release", "8") else Nil), // JDK >8 breaks API; skip scala-doc
+    scalacOptions in (Compile, compile) ++= {
+      val jdkGt8  = scala.util.Properties.isJavaAtLeast("9")
+      val isDotty = scalaVersion.value.startsWith("0.") // https://github.com/lampepfl/dotty/issues/8634
+      (if (!isDotty && jdkGt8) Seq("-release", "8") else Nil)
+    }, // JDK >8 breaks API; skip scala-doc
     // ---- build info ----
     buildInfoKeys := Seq(name, organization, version, scalaVersion, description,
       BuildInfoKey.map(homepage) { case (k, opt)           => k -> opt.get },

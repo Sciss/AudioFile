@@ -197,7 +197,7 @@ private[impl] trait AbstractRIFFHeader extends BasicHeader {
     val factSmpNumOffset = if (isFloat) {
       writeFactChunk(dout, numFrames)
       factChunkOff + cookieSize + chunkLenSize
-    } else 0L
+    } else 0
 
     // data Chunk (Header)
     val dataChunkSize = fileSize - dataChunkOff

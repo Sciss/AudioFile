@@ -59,7 +59,7 @@ private[io] object NeXTHeader {
     if (skp > 0) din.skipBytes(skp)
     val frameSize = ((sampleFormat.bitsPerSample + 7) >> 3) * numChannels
 
-    val dataSize  = if (dataSize_? == 0xFFFFFFFF) fileLen - dataOffset else dataSize_?
+    val dataSize  = if (dataSize_? == 0xFFFFFFFF) fileLen - dataOffset else dataSize_?.toLong
     val numFrames = math.max(0L, dataSize) / frameSize
 
     val spec = new AudioFileSpec(fileType = AudioFileType.NeXT, sampleFormat = sampleFormat,
