@@ -15,12 +15,12 @@ package de.sciss.synth.io
 
 import java.nio.ByteOrder
 
-import de.sciss.serial.{DataInput, DataOutput, ImmutableSerializer}
+import de.sciss.serial.{DataInput, DataOutput, ConstFormat}
 
 import scala.annotation.switch
 
 object AudioFileSpec {
-  implicit object Serializer extends ImmutableSerializer[AudioFileSpec] {
+  implicit object format extends ConstFormat[AudioFileSpec] {
     def write(spec: AudioFileSpec, out: DataOutput): Unit = {
       val fid = spec.fileType match {
         case AudioFileType.AIFF    => 0

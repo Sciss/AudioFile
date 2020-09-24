@@ -1,12 +1,12 @@
 lazy val baseName  = "AudioFile"
 lazy val baseNameL = baseName.toLowerCase
 
-lazy val projectVersion = "1.5.5"
-lazy val mimaVersion    = "1.5.0"
+lazy val projectVersion = "2.0.0-SNAPSHOT"
+lazy val mimaVersion    = "2.0.0"
 
 lazy val deps = new {
   val main = new {
-    val serial    = "1.1.3"
+    val serial    = "2.0.0-SNAPSHOT"
   }
   val test = new {
     val scalaTest = "3.2.2"
@@ -19,7 +19,7 @@ lazy val root = project.withId(baseNameL).in(file("."))
     name               := baseName,
     version            := projectVersion,
     organization       := "de.sciss",
-    scalaVersion       := "0.27.0-RC1", // "2.13.3",
+    scalaVersion       := "2.13.3",
     crossScalaVersions := Seq("0.27.0-RC1", "2.13.3", "2.12.12"),
     description        := "A library to read and write uncompressed audio files (AIFF, WAVE, etc.)",
     homepage           := Some(url(s"https://github.com/Sciss/${name.value}")),
