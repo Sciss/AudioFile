@@ -404,8 +404,8 @@ object AudioFile extends ReaderFactory {
       }
   }
 
-   private trait WriteOnlyFileLike extends WritableFileLike with WriteOnly
-   private trait BidiFileLike      extends WritableFileLike with Bidi
+  private trait WriteOnlyFileLike extends WritableFileLike with WriteOnly
+  private trait BidiFileLike      extends WritableFileLike with Bidi
 
   private trait ReadOnlyStreamLike extends StreamLike with ReadOnly {
     protected def dis: DataInputStream
