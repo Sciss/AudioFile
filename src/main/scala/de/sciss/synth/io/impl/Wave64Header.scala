@@ -59,27 +59,25 @@ private[io] object Wave64Header extends AbstractRIFFHeader {
     din.skipBytes(8) // len = readLittleLong
     if (din.readLong() != WAVE_MAGIC1 || din.readLong() != WAVE_MAGIC2) formatError() // WAVE
 
-    var chunkLen = 0L
+    var chunkRem = 0L
     var fc: FormatChunk = null
 
     try {
       while (true) {
-        while (chunkLen > 0) {
-          val skp = math.min(chunkLen, 0x7FFFFFFF).toInt
+        while (chunkRem > 0) {
+          val skp = math.min(chunkRem, 0x7FFFFFFF).toInt
           din.skipBytes(skp)
-          chunkLen -= skp
+          chunkRem -= skp
         }
 
-        val magic1  = din.readLong()
-        val magic2  = din.readLong()
-        chunkLen    = (readLittleLong(din) + 7) & 0xFFFFFFFFFFFFFFF8L
-
-        // len         -= chunkLen
-        chunkLen -= 24
+        val magic1    = din.readLong()
+        val magic2    = din.readLong()
+        val chunkLen  = readLittleLong(din) - 24  // minus 16-bytes magic and 8-bytes length
+        chunkRem      = (chunkLen + 7) & 0xFFFFFFFFFFFFFFF8L
 
         if (magic1 == FMT_MAGIC1 && magic2 == FMT_MAGIC2) {
-          fc = readFormatChunk(din, chunkLen.toInt)
-          chunkLen = fc.chunkSkip
+          fc = readFormatChunk(din, chunkRem.toInt)
+          chunkRem = fc.chunkSkip
 
         } else if (magic1 == DATA_MAGIC1 && magic2 == DATA_MAGIC2) {
           return createReader(fc, AudioFileType.Wave64, chunkLen)
@@ -92,7 +90,7 @@ private[io] object Wave64Header extends AbstractRIFFHeader {
       case _: EOFException =>
     }
     throw new IOException(s"${AudioFileType.Wave64.name} header misses data chunk")
-   }
+  }
 
   final protected def createWriter(raf: RandomAccessFile, spec: AudioFileSpec, factSmpNumOffset: Long,
                                    dataChunkLenOff: Long): WritableAudioFileHeader =

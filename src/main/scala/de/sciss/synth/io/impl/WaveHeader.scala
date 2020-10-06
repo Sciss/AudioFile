@@ -239,25 +239,23 @@ private[io] object WaveHeader extends AbstractRIFFHeader {
   protected def readDataInput(din: DataInput): AudioFileHeader = {
     if (din.readInt() != RIFF_MAGIC) formatError() // RIFF
     din.readInt()
-    //         len	= raf.len() - 8;
     if (din.readInt() != WAVE_MAGIC) formatError() // WAVE
-    //         len	   -= 4;
 
-    var chunkLen = 0
+    var chunkRem = 0
     var fc: FormatChunk = null
 
     try {
       while (true) {
-        if (chunkLen > 0) din.skipBytes(chunkLen) // skip remainder from previous chunk
+        if (chunkRem > 0) din.skipBytes(chunkRem) // skip remainder from previous chunk
 
-        val magic = din.readInt()
-        chunkLen = (readLittleInt(din) + 1) & 0xFFFFFFFE
-        // len		   -= chunkLen + 8;
+        val magic     = din.readInt()
+        val chunkLen  = readLittleInt(din)
+        chunkRem      = (chunkLen + 1) & 0xFFFFFFFE
 
         (magic: @switch) match {
           case FMT_MAGIC =>
             fc = readFormatChunk(din, chunkLen)
-            chunkLen = fc.chunkSkip
+            chunkRem = fc.chunkSkip
 
           case DATA_MAGIC =>
             return createReader(fc, AudioFileType.Wave, chunkLen)
