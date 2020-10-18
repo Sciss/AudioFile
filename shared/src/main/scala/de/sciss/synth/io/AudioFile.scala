@@ -13,7 +13,7 @@
 
 package de.sciss.synth.io
 
-import java.io.{BufferedInputStream, BufferedOutputStream, DataInputStream, DataOutputStream, File, FileInputStream, IOException, InputStream, OutputStream, RandomAccessFile}
+import java.io.{BufferedOutputStream, DataInputStream, DataOutputStream, File, FileInputStream, IOException, InputStream, OutputStream}
 import java.nio.ByteBuffer
 import java.nio.channels.{Channels, Channel => NIOChannel}
 
@@ -45,41 +45,7 @@ import scala.math.{max, min}
   *         check for the possibility to directly transfer data
   *         if input and output are compatible.
   */
-object AudioFile extends ReaderFactory {
-  /** Opens an audio file for reading.
-    *
-    * @param  f  the path name of the file
-    * @return a new <code>AudioFile</code> object
-    *         whose header is already parsed and can
-    *         be obtained through the <code>spec</code> method.
-    *
-    * @throws java.io.IOException if the file was not found, could not be reader
-    *                     or has an unknown or unsupported format
-    */
-  @throws(classOf[IOException])
-  def openRead(f: File): AudioFile = {
-    val raf   = new RandomAccessFile(f, "r")
-    val dis   = dataInput(Channels.newInputStream(raf.getChannel))
-    val hr    = createHeaderReader(dis)
-    finishOpenFileRead(f, raf, hr)
-  }
-
-  private[io] def openFileWithReader(f: File, reader: AudioFileType.CanRead): AudioFile = {
-    val raf = new RandomAccessFile(f, "r")
-    finishOpenFileRead(f, raf, reader)
-  }
-
-  private def finishOpenFileRead(f: File, raf: RandomAccessFile, hr: AudioFileType.CanRead): AudioFile = {
-    raf.seek(0L) // BufferedInputStream did advance the position!
-    val afh   = hr.read(raf)
-    val buf   = createBuffer(afh)
-    val spec  = afh.spec
-    val sf    = spec.sampleFormat
-    val br    = sf.readerFactory.map(_.apply(raf.getChannel, buf, spec.numChannels))
-      .getOrElse(noDecoder(sf))
-    new ReadableFileImpl(f, raf, afh, br)
-  }
-
+object AudioFile extends ReaderFactory with AudioFilePlatformCompanion {
   @throws(classOf[IOException])
   def openRead(is: InputStream): AudioFile = {
     val dis   = dataInput(is)
@@ -103,7 +69,7 @@ object AudioFile extends ReaderFactory {
   }
 
   @throws(classOf[IOException])
-  private def createHeaderReader(dis: DataInputStream): AudioFileType.CanRead = {
+  private[io] def createHeaderReader(dis: DataInputStream): AudioFileType.CanRead = {
     val fileType = identify(dis).getOrElse(throw new IOException("Unrecognized audio file format"))
     fileType match {
       case cr: AudioFileType.CanRead  => cr
@@ -113,7 +79,7 @@ object AudioFile extends ReaderFactory {
 
   private final val useDirect = sys.props.getOrElse("de.sciss.synth.io.AudioFile.DirectMemory", "false").toBoolean
 
-  private def createBuffer(afh: AudioFileHeader): ByteBuffer = {
+  private[io] def createBuffer(afh: AudioFileHeader): ByteBuffer = {
     val spec      = afh.spec
     val frameSize = (spec.sampleFormat.bitsPerSample >> 3) * spec.numChannels
     val bufFrames = max(1, 65536 / max(1, frameSize))
@@ -122,51 +88,11 @@ object AudioFile extends ReaderFactory {
     byteBuf.order(afh.byteOrder)
   }
 
-  private def dataInput (is: InputStream ) = new DataInputStream (new BufferedInputStream (is, 1024))
+  private def dataInput (is: InputStream ) = new DataInputStream (is)
   private def dataOutput(os: OutputStream) = new DataOutputStream(new BufferedOutputStream(os, 1024))
 
-  private def noDecoder(msg: AnyRef) = throw new IOException(s"No decoder for $msg")
-  private def noEncoder(msg: AnyRef) = throw new IOException(s"No encoder for $msg")
-
-  @throws(classOf[IOException])
-  def openWrite(path: String, spec: AudioFileSpec): AudioFile = openWrite(new File(path), spec)
-
-  /** Opens an audio file for reading/writing. The pathname
-    * is determined by the <code>file</code> field of the provided <code>AudioFileInfo</code>.
-    * If a file denoted by this path already exists, it will be
-    * deleted before opening.
-    * <p>
-    * Note that the initial audio file header is written immediately.
-    * Special tags for the header thus need to be set in the <code>AudioFileInfo</code>
-    * before calling this method, including markers and regions. It is not
-    * possible to writer markers and regions after the file has been opened
-    * (since the header size has to be constant).
-    *
-    * @param  f  the path name of the file.
-    * @param  spec   format and resolution of the new audio file.
-    *                the header is immediately written to the hard-disc
-    *
-    * @throws java.io.IOException if the file could not be created or the
-    *                     format is unsupported
-    */
-  @throws(classOf[IOException])
-  def openWrite(f: File, spec: AudioFileSpec): AudioFile = {
-    val hw  = createHeaderWriter(spec)
-    if (f.exists) f.delete()
-    val raf = new RandomAccessFile(f, "rw")
-    val afh = hw.write(raf, spec)
-    val buf = createBuffer(afh)
-    val sf  = spec.sampleFormat
-    val ch  = raf.getChannel
-    sf.bidiFactory match {
-      case Some(bbf) =>
-        val bb = bbf(ch, ch, buf, spec.numChannels)
-        new BidiFileImpl(f, raf, afh, bb)
-      case None =>
-        val bw = sf.writerFactory.map(_.apply(ch, buf, spec.numChannels)).getOrElse(noEncoder(sf))
-        new WritableFileImpl(f, raf, afh, bw)
-    }
-  }
+  private[io] def noDecoder(msg: AnyRef) = throw new IOException(s"No decoder for $msg")
+  private[io] def noEncoder(msg: AnyRef) = throw new IOException(s"No encoder for $msg")
 
   @throws(classOf[IOException])
   def openWrite(os: OutputStream, spec: AudioFileSpec): AudioFile = {
@@ -180,7 +106,7 @@ object AudioFile extends ReaderFactory {
     new WritableStreamImpl(dos, afh, bw)
   }
 
-  private def createHeaderWriter(spec: AudioFileSpec): AudioFileType.CanWrite =
+  private[io] def createHeaderWriter(spec: AudioFileSpec): AudioFileType.CanWrite =
     spec.fileType match {
       case cw: AudioFileType.CanWrite => cw
       case other                      => noEncoder(other)
@@ -188,20 +114,6 @@ object AudioFile extends ReaderFactory {
 
   def buffer(numChannels: Int, bufFrames: Int = 8192): Frames =
     Array.ofDim[Float](numChannels, bufFrames)
-
-  def readSpec(path: String): AudioFileSpec = readSpec(new File(path))
-
-  def readSpec(f: File): AudioFileSpec = {
-    val raf = new RandomAccessFile(f, "r")
-    try {
-      val dis   = dataInput(Channels.newInputStream(raf.getChannel))
-      val hr    = createHeaderReader(dis)
-      raf.seek(0L) // BufferedInputStream did advance the position!
-      hr.read(raf).spec
-    } finally {
-      raf.close()
-    }
-  }
 
   /** Note that this method advances in
     * the provided input stream, its
@@ -248,7 +160,7 @@ object AudioFile extends ReaderFactory {
       }
     }
 
-  private trait Basic extends AudioFile {
+  private[io] trait Basic extends AudioFile {
     protected final var framePositionVar: Long = 0L
 
     protected def afh: AudioFileHeader
@@ -290,7 +202,7 @@ object AudioFile extends ReaderFactory {
       }
   }
 
-  private trait Readable extends Basic {
+  private[io] trait Readable extends Basic {
     final def isReadable = true
 
     protected def bh: BufferReader
@@ -305,7 +217,7 @@ object AudioFile extends ReaderFactory {
     }
   }
 
-  private trait ReadOnly extends Readable {
+  private[io] trait ReadOnly extends Readable {
     final def isWritable = false
 
     @throws(classOf[IOException])
@@ -317,7 +229,7 @@ object AudioFile extends ReaderFactory {
     protected final def accessString = "r"
   }
 
-  private trait Writable extends Basic {
+  private[io] trait Writable extends Basic {
     final def isWritable = true
 
     protected def bh : BufferWriter
@@ -344,13 +256,13 @@ object AudioFile extends ReaderFactory {
     }
   }
 
-  private trait Bidi extends Readable with Writable {
+  private[io] trait Bidi extends Readable with Writable {
     override protected def bh: BufferBidi
 
     protected final def accessString = "rw"
   }
 
-  private trait WriteOnly extends Writable {
+  private[io] trait WriteOnly extends Writable {
     final def isReadable = false
 
     protected final def accessString = "w"
@@ -359,7 +271,7 @@ object AudioFile extends ReaderFactory {
     final def read(data: Frames, off: Int, len: Int): AudioFile = opNotSupported
   }
 
-  private trait StreamLike extends Basic {
+  private[io] trait StreamLike extends Basic {
     final def file: Option[File] = None
 
     @throws(classOf[IOException])
@@ -367,45 +279,6 @@ object AudioFile extends ReaderFactory {
 
     protected final def sourceString = "<stream>"
   }
-
-  private trait FileLike extends Basic {
-    protected def f  : File
-    protected def raf: RandomAccessFile
-
-    final def file: Option[File] = Some(f)
-
-    private val sampleDataOffset = raf.getFilePointer
-
-    protected final def sourceString: String = f.toString
-
-    @throws(classOf[IOException])
-    final def seek(frame: Long): AudioFile = {
-      val physical = sampleDataOffset + frame * bh.frameSize
-      raf.seek(physical)
-      framePositionVar = frame
-      this
-    }
-
-    final def isOpen: Boolean = raf.getChannel.isOpen
-  }
-
-  private trait ReadOnlyFileLike extends FileLike with ReadOnly {
-    @throws(classOf[IOException])
-    final def close(): Unit = raf.close()
-  }
-
-  private trait WritableFileLike extends FileLike with Writable {
-    @throws(classOf[IOException])
-    final def close(): Unit =
-      try {
-        flush()
-      } finally {
-        raf.close()
-      }
-  }
-
-  private trait WriteOnlyFileLike extends WritableFileLike with WriteOnly
-  private trait BidiFileLike      extends WritableFileLike with Bidi
 
   private trait ReadOnlyStreamLike extends StreamLike with ReadOnly {
     protected def dis: DataInputStream
@@ -421,7 +294,7 @@ object AudioFile extends ReaderFactory {
     final def isOpen: Boolean = closed
   }
 
-  private trait WriteOnlyStreamLike extends StreamLike with WriteOnly {
+  private[io] trait WriteOnlyStreamLike extends StreamLike with WriteOnly {
     protected def dos: DataOutputStream
 
     private var closed: Boolean = false
@@ -439,42 +312,25 @@ object AudioFile extends ReaderFactory {
     final def isOpen: Boolean = closed
   }
 
-  private final class ReadableStreamImpl(protected val dis: DataInputStream, protected val afh: AudioFileHeader,
-                                         protected val bh: BufferReader)
+  private final class ReadableStreamImpl(protected val dis: DataInputStream,
+                                         protected val afh: AudioFileHeader,
+                                         protected val bh : BufferReader,
+                                        )
     extends ReadOnlyStreamLike
 
-  private final class ReadableFileImpl(protected val f: File,
-                                       protected val raf: RandomAccessFile, protected val afh: AudioFileHeader,
-                                       protected val bh: BufferReader)
-    extends ReadOnlyFileLike
-
-  private final class WritableFileImpl(protected val f: File,
-                                       protected val raf: RandomAccessFile, protected val afh: WritableAudioFileHeader,
-                                       protected val bh: BufferWriter)
-    extends WriteOnlyFileLike
-
-  private final class WritableStreamImpl(protected val dos: DataOutputStream, protected val afh: WritableAudioFileHeader,
-                                         protected val bh: BufferWriter)
+  private final class WritableStreamImpl(protected val dos: DataOutputStream,
+                                         protected val afh: WritableAudioFileHeader,
+                                         protected val bh : BufferWriter,
+                                        )
     extends WriteOnlyStreamLike
 
-  private final class BidiFileImpl(protected val f: File,
-                                   protected val raf: RandomAccessFile, protected val afh: WritableAudioFileHeader,
-                                   protected val bh: BufferBidi)
-    extends BidiFileLike
 }
 
-trait AudioFile extends NIOChannel {
+trait AudioFile extends NIOChannel with AudioFilePlatform {
   //-------- public methods --------
 
   /** Returns a description of the audio file's specification. */
   def spec: AudioFileSpec
-
-  /** Returns the underlying <code>File</code> if it was
-    * provided to the <code>AudioFile</code> constructor.
-    * For an <code>AudioFile</code> created from an <code>InputStream</code>
-    * this will return <code>None</code>.
-    */
-  def file: Option[File]
 
   def isReadable: Boolean
   def isWritable: Boolean

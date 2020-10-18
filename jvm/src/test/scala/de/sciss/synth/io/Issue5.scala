@@ -1,6 +1,6 @@
 package de.sciss.synth.io
 
-class Issue5 extends TempFileSpec{
+class Issue5 extends TempFileSpec {
   "Wave64" should "correctly report numFrames" in { f =>
     val data = Array.ofDim[Float](1, 1)
     val afOut = AudioFile.openWrite(f, AudioFileSpec(AudioFileType.Wave64, SampleFormat.Int24, numChannels = 1,

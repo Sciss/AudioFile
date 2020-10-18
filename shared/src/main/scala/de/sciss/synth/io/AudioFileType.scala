@@ -13,7 +13,7 @@
 
 package de.sciss.synth.io
 
-import java.io.{DataInputStream, DataOutputStream, File, IOException, InputStream, RandomAccessFile}
+import java.io.{DataInputStream, DataOutputStream, IOException, InputStream}
 import java.nio.ByteOrder
 
 import scala.collection.immutable.{IndexedSeq => Vec}
@@ -35,27 +35,21 @@ sealed trait AudioFileType {
   def supportedFormats: Vec[SampleFormat]
 }
 
-object AudioFileType {
+object AudioFileType extends AudioFileTypePlatform {
 
   sealed trait CanIdentify extends AudioFileType {
     @throws(classOf[IOException])
     private[io] def identify(dis: DataInputStream): Boolean
   }
 
-  trait CanRead extends AudioFileType {
+  trait CanRead extends AudioFileType with CanReadPlatform {
     @throws(classOf[IOException])
     private[io] def read(dis: DataInputStream): AudioFileHeader
-
-    @throws(classOf[IOException])
-    private[io] def read(raf: RandomAccessFile): AudioFileHeader
   }
 
-  trait CanWrite extends AudioFileType {
+  trait CanWrite extends AudioFileType with CanWritePlatform {
     @throws(classOf[IOException])
     private[io] def write(dos: DataOutputStream, spec: AudioFileSpec): WritableAudioFileHeader
-
-    @throws(classOf[IOException])
-    private[io] def write(raf: RandomAccessFile, spec: AudioFileSpec): WritableAudioFileHeader
   }
 
   //   private val sync  = new AnyRef
@@ -102,7 +96,7 @@ object AudioFileType {
   def writable: Vec[CanWrite   ] = writableVar
 
   /** Apple's audio interchange file format. */
-  case object AIFF extends CanIdentify with CanRead with CanWrite {
+  case object AIFF extends CanIdentify with CanRead with CanWrite with AIFFPlatform {
 
     import impl.{AIFFHeader => Impl}
 
@@ -115,13 +109,11 @@ object AudioFileType {
 
     private[io] def identify(dis: DataInputStream ): Boolean          = Impl.identify(dis)
     private[io] def read    (dis: DataInputStream ): AudioFileHeader  = Impl.read(dis)
-    private[io] def read    (raf: RandomAccessFile): AudioFileHeader  = Impl.read(raf)
     private[io] def write   (dos: DataOutputStream, spec: AudioFileSpec): WritableAudioFileHeader = Impl.write(dos, spec)
-    private[io] def write   (raf: RandomAccessFile, spec: AudioFileSpec): WritableAudioFileHeader = Impl.write(raf, spec)
   }
 
   /** The NeXT .snd or Sun .au format. */
-  case object NeXT extends CanIdentify with CanRead with CanWrite {
+  case object NeXT extends CanIdentify with CanRead with CanWrite with NeXTPlatform {
 
     import impl.{NeXTHeader => Impl}
 
@@ -134,13 +126,11 @@ object AudioFileType {
 
     private[io] def identify(dis: DataInputStream ): Boolean         = Impl.identify(dis)
     private[io] def read    (dis: DataInputStream ): AudioFileHeader = Impl.read(dis)
-    private[io] def read    (raf: RandomAccessFile): AudioFileHeader = Impl.read(raf)
     private[io] def write   (dos: DataOutputStream, spec: AudioFileSpec): WritableAudioFileHeader = Impl.write(dos, spec)
-    private[io] def write   (raf: RandomAccessFile, spec: AudioFileSpec): WritableAudioFileHeader = Impl.write(raf, spec)
   }
 
   /** Microsoft's Wave (RIFF) format. */
-  case object Wave extends CanIdentify with CanRead with CanWrite {
+  case object Wave extends CanIdentify with CanRead with CanWrite with WavePlatform {
 
     import impl.{WaveHeader => Impl}
 
@@ -152,13 +142,11 @@ object AudioFileType {
 
     private[io] def identify(dis: DataInputStream ): Boolean         = Impl.identify(dis)
     private[io] def read    (dis: DataInputStream ): AudioFileHeader = Impl.read(dis)
-    private[io] def read    (raf: RandomAccessFile): AudioFileHeader = Impl.read(raf)
     private[io] def write   (dos: DataOutputStream, spec: AudioFileSpec): WritableAudioFileHeader = Impl.write(dos, spec)
-    private[io] def write   (raf: RandomAccessFile, spec: AudioFileSpec): WritableAudioFileHeader = Impl.write(raf, spec)
   }
 
   /** IRCAM, Berkeley or Carl sound format (BICSF). */
-  case object IRCAM extends CanIdentify with CanRead with CanWrite {
+  case object IRCAM extends CanIdentify with CanRead with CanWrite with IRCAMPlatform {
 
     import impl.{IRCAMHeader => Impl}
 
@@ -171,13 +159,11 @@ object AudioFileType {
 
     private[io] def identify(dis: DataInputStream ): Boolean         = Impl.identify(dis)
     private[io] def read    (dis: DataInputStream ): AudioFileHeader = Impl.read(dis)
-    private[io] def read    (raf: RandomAccessFile): AudioFileHeader = Impl.read(raf)
     private[io] def write   (dos: DataOutputStream, spec: AudioFileSpec): WritableAudioFileHeader = Impl.write(dos, spec)
-    private[io] def write   (raf: RandomAccessFile, spec: AudioFileSpec): WritableAudioFileHeader = Impl.write(raf, spec)
   }
 
   /** Raw (headerless) file type. */
-  case object Raw extends CanWrite {
+  case object Raw extends CanWrite with RawPlatform {
 
     import impl.{RawHeader => Impl}
 
@@ -189,27 +175,24 @@ object AudioFileType {
     def supportedFormats: Vec[SampleFormat] = SampleFormat.all
 
     private[io] def write(dos: DataOutputStream, spec: AudioFileSpec): WritableAudioFileHeader = Impl.write(dos, spec)
-    private[io] def write(raf: RandomAccessFile, spec: AudioFileSpec): WritableAudioFileHeader = Impl.write(raf, spec)
 
     def reader(spec: AudioFileSpec): ReaderFactory = {
       val spec1 = if (spec.fileType == Raw) spec else spec.copy(fileType = Raw)
       Readable(spec1)
     }
 
-    private final case class Readable(spec: AudioFileSpec) extends ReaderFactory with CanRead {
+    private final case class Readable(spec: AudioFileSpec) extends ReaderFactory with CanRead with ReadablePlatform {
       def id              : String            = Raw.id
       def name            : String            = Raw.name
       def extension       : String            = Raw.extension
       def extensions      : Vec[String]       = Raw.extensions
       def supportedFormats: Vec[SampleFormat] = Raw.supportedFormats
 
-      def openRead(f : File       ): AudioFile = AudioFile.openFileWithReader  (f , this)
       def openRead(is: InputStream): AudioFile = AudioFile.openStreamWithReader(is, this)
 
       def read(dis: DataInputStream ): AudioFileHeader = reader(dis.available())
-      def read(raf: RandomAccessFile): AudioFileHeader = reader(raf.length   ())
 
-      private def reader(fileSize: Long): AudioFileHeader = {
+      protected def reader(fileSize: Long): AudioFileHeader = {
         val bpf         = spec.numChannels * (spec.sampleFormat.bitsPerSample >> 3)
         val numFrames   = fileSize / bpf
         val byteOrder   = spec.byteOrder.getOrElse(ByteOrder.nativeOrder())
@@ -218,11 +201,10 @@ object AudioFileType {
         ReadableAudioFileHeader(spec1, byteOrder)
       }
     }
-
   }
 
   /** Sony Wave 64, the 64-bit extension of the Wave format. */
-  case object Wave64 extends CanIdentify with CanRead with CanWrite {
+  case object Wave64 extends CanIdentify with CanRead with CanWrite with Wave64Platform {
 
     import impl.{Wave64Header => Impl}
 
@@ -234,8 +216,6 @@ object AudioFileType {
 
     private[io] def identify(dis: DataInputStream ): Boolean         = Impl.identify(dis)
     private[io] def read    (dis: DataInputStream ): AudioFileHeader = Impl.read(dis)
-    private[io] def read    (raf: RandomAccessFile): AudioFileHeader = Impl.read(raf)
     private[io] def write   (dos: DataOutputStream, spec: AudioFileSpec): WritableAudioFileHeader = Impl.write(dos, spec)
-    private[io] def write   (raf: RandomAccessFile, spec: AudioFileSpec): WritableAudioFileHeader = Impl.write(raf, spec)
   }
 }
