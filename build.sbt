@@ -13,24 +13,28 @@ lazy val deps = new {
   }
 }
 
-lazy val root = project.withId(baseNameL).in(file("."))
+lazy val commonJvmSettings = Seq(
+  crossScalaVersions := Seq("0.27.0-RC1", "2.13.3", "2.12.12"),
+)
+
+lazy val root = crossProject(JSPlatform, JVMPlatform).in(file("."))
   .enablePlugins(BuildInfoPlugin)
+  .jvmSettings(commonJvmSettings)
   .settings(
     name               := baseName,
     version            := projectVersion,
     organization       := "de.sciss",
     scalaVersion       := "2.13.3",
-    crossScalaVersions := Seq("0.27.0-RC1", "2.13.3", "2.12.12"),
     description        := "A library to read and write uncompressed audio files (AIFF, WAVE, etc.)",
     homepage           := Some(url(s"https://github.com/Sciss/${name.value}")),
     licenses           := Seq("LGPL v2.1+" -> url("http://www.gnu.org/licenses/lgpl-2.1.txt")),
     mimaPreviousArtifacts := Set("de.sciss" %% baseNameL % mimaVersion),
     initialCommands in console := """import de.sciss.synth.io._""",
     libraryDependencies ++= Seq(
-      "de.sciss" %% "serial" % deps.main.serial
+      "de.sciss" %%% "serial" % deps.main.serial
     ),
     libraryDependencies += {
-      "org.scalatest" %% "scalatest" % deps.test.scalaTest % Test
+      "org.scalatest" %%% "scalatest" % deps.test.scalaTest % Test
     },
     scalacOptions ++= Seq("-deprecation", "-unchecked", "-feature", "-encoding", "utf8", "-Xlint", "-Xsource:2.13"),
     scalacOptions in (Compile, compile) ++= {
