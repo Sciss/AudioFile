@@ -13,7 +13,7 @@
 
 package de.sciss.synth.io
 
-import java.io.{BufferedOutputStream, DataInputStream, DataOutputStream, File, FileInputStream, IOException, InputStream, OutputStream}
+import java.io.{BufferedOutputStream, DataInputStream, DataOutputStream, IOException, InputStream, OutputStream}
 import java.nio.ByteBuffer
 import java.nio.channels.{Channels, Channel => NIOChannel}
 
@@ -45,7 +45,7 @@ import scala.math.{max, min}
   *         check for the possibility to directly transfer data
   *         if input and output are compatible.
   */
-object AudioFile extends ReaderFactory with AudioFilePlatformCompanion {
+object AudioFile extends ReaderFactory with AudioFilePlatform {
   @throws(classOf[IOException])
   def openRead(is: InputStream): AudioFile = {
     val dis   = dataInput(is)
@@ -123,28 +123,6 @@ object AudioFile extends ReaderFactory with AudioFilePlatformCompanion {
   def readSpec(dis: DataInputStream): AudioFileSpec = {
     val hr = createHeaderReader(dis)
     hr.read(dis).spec
-  }
-
-  @throws(classOf[IOException])
-  def identify(path: String): Option[AudioFileType] = identify(new File(path))
-
-  /** Determines the type of audio file.
-    *
-    * @param		f   the pathname of the file
-    * @return		the type code as defined in <code>AudioFileInfo</code>,
-    *            e.g. <code>TYPE_AIFF</code>. Returns <code>TYPE_UNKNOWN</code>
-    *            if the file could not be identified.
-    *
-    * @throws java.io.IOException if the file could not be reader
-    */
-  @throws(classOf[IOException])
-  def identify(f: File): Option[AudioFileType.CanIdentify] = {
-    val dis = dataInput(new FileInputStream(f))
-    try {
-      identify(dis)
-    } finally {
-      dis.close()
-    }
   }
 
   @throws(classOf[IOException])
@@ -272,8 +250,6 @@ object AudioFile extends ReaderFactory with AudioFilePlatformCompanion {
   }
 
   private[io] trait StreamLike extends Basic {
-    final def file: Option[File] = None
-
     @throws(classOf[IOException])
     final def seek(frame: Long): AudioFile = opNotSupported
 
@@ -326,7 +302,7 @@ object AudioFile extends ReaderFactory with AudioFilePlatformCompanion {
 
 }
 
-trait AudioFile extends NIOChannel with AudioFilePlatform {
+trait AudioFile extends NIOChannel {
   //-------- public methods --------
 
   /** Returns a description of the audio file's specification. */

@@ -2,10 +2,8 @@ package de.sciss.synth.io
 
 import java.io.{File, IOException}
 
+/** The JVM platform supports File I/O, i.e. opening an audio file using `openRead(f: File)`. */
 trait ReaderFactoryPlatform {
-  @throws(classOf[IOException])
-  final def openRead(path: String): AudioFile = openRead(new File(path))
-
   /** Opens an audio file for reading.
     *
     * @param  f  the path name of the file
@@ -17,5 +15,8 @@ trait ReaderFactoryPlatform {
     *                     or has an unknown or unsupported format
     */
   @throws(classOf[IOException])
-  def openRead(f: File): AudioFile
+  def openRead(f: File): AudioFile.HasFile
+
+  @throws(classOf[IOException])
+  final def openRead(path: String): AudioFile.HasFile = openRead(new File(path))
 }

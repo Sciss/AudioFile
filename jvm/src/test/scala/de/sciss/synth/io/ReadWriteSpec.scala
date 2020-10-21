@@ -87,7 +87,7 @@ class ReadWriteSpec extends TempFileSpec {
           assert(afIn.numChannels     === numCh)
           assert(afIn.sampleFormat    === smpFmt)
           assert(afIn.sampleRate      === sr)
-          assert(afIn.file            === Some(f))
+          assert(afIn.file            === f)
           assert(afIn.fileType        === typ)
           afIn.read(bufIn)
           generate(bufOut, bufSize, 0L)

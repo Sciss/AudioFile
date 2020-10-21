@@ -4,6 +4,7 @@ import java.io.{File, IOException, RandomAccessFile}
 
 import de.sciss.synth.io.AudioFileType.CanRead
 
+/** The JVM platform supports File I/O, e.g. reading from and writing to `RandomAccessFile`. */
 trait AudioFileTypePlatform {
   trait CanReadPlatform {
     @throws(classOf[IOException])
@@ -52,7 +53,7 @@ trait AudioFileTypePlatform {
   trait ReadablePlatform extends CanRead {
     protected def reader(fileSize: Long): AudioFileHeader
 
-    def openRead(f: File): AudioFile = AudioFile.openFileWithReader(f, this)
+    def openRead(f: File): AudioFile.HasFile = AudioFile.openFileWithReader(f, this)
 
     def read(raf: RandomAccessFile): AudioFileHeader = reader(raf.length())
   }

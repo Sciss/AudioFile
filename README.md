@@ -8,19 +8,20 @@
 AudioFile is a Scala library to read and write audio files. It is (C)opyright 2004&ndash;2020 by Hanns Holger Rutz.
 All rights reserved. AudioFile is released under
 the [GNU Lesser General Public License](https://git.iem.at/sciss/AudioFile/raw/main/LICENSE) v2.1+ and comes
-with absolutely no warranties. To contact the author, send an email to `contact at sciss.de`
+with absolutely no warranties. To contact the author, send an e-mail to `contact at sciss.de`.
 
 (Note: the project and artifacts were formerly called **Scala**AudioFile.)
 
 ## requirements / installation
 
-AudioFile currently compiles against Scala 2.13, 2.12 using sbt. The last version to support Scala 2.11 was v1.5.3.
+AudioFile builds with sbt against Scala 2.13, 2.12, Dotty (JVM) and Scala 2.13 (JS).
+The last version to support Scala 2.11 was v1.5.3.
 
 To use the library in your project:
 
     "de.sciss" %% "audiofile" % v
 
-The current version `v` is `"2.0.1"`
+The current version `v` is `"2.1.0"`
 
 ## contributing
 
@@ -100,6 +101,11 @@ Here is an example of opening an existing file, reading through it to determine 
     in.close()
     
 ```
+
+## Scala.js
+
+Scala.js does not know the type `java.io.File`, therefore audio file support is currently restricted to using
+`InputStream` and `OutputStream` instances.ReadWriteSpec
 
 ## properties
 
