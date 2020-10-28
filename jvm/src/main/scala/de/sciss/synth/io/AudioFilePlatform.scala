@@ -7,7 +7,7 @@ import java.nio.channels.{AsynchronousFileChannel, Channels, CompletionHandler, 
 import java.nio.file.{Path, StandardOpenOption}
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
 
-import de.sciss.synth.io.AudioFile.{Basic, Bidi, ReadOnly, Writable, WriteOnly, createBuffer, createHeaderReader, createHeaderReaderAsync, createHeaderWriter, finishOpenStreamReadAsync, noDecoder, noEncoder}
+import de.sciss.synth.io.AudioFile.{Basic, Bidi, ReadOnly, Writable, WriteOnly, createBuffer, createHeaderReader, finishOpenStreamWriteAsync, createHeaderReaderAsync, createHeaderWriter, finishOpenStreamReadAsync, noDecoder, noEncoder}
 
 import scala.concurrent.{ExecutionContext, Future, Promise}
 
@@ -132,35 +132,27 @@ trait AudioFilePlatform {
     */
   @throws(classOf[IOException])
   def openReadAsync(uri: URI)(implicit executionContext: ExecutionContext): Future[AsyncAudioFile] = {
-//    Future.successful(()).flatMap { _ =>
-      val jch = AsynchronousFileChannel.open(Path.of(uri), StandardOpenOption.READ)
-      val ch  = new WrapAsyncFileChannel(jch)
-
-      val hrFut = createHeaderReaderAsync(ch)
-      hrFut.flatMap { hr =>
-        finishOpenStreamReadAsync(ch, hr, sourceString = uri.toString)
-      }
-//    }
+    val jch   = AsynchronousFileChannel.open(Path.of(uri),
+      StandardOpenOption.READ,
+    )
+    val ch    = new WrapAsyncFileChannel(jch)
+    val hrFut = createHeaderReaderAsync(ch)
+    hrFut.flatMap { hr =>
+      finishOpenStreamReadAsync(ch, hr, sourceString = uri.toString)
+    }
   }
 
   @throws(classOf[IOException])
-  def openWriteAsync(uri: URI, spec: AudioFileSpec): Future[AsyncAudioFile] = {
-    val hw  = createHeaderWriter(spec)
-    ???
-//    if (f.exists) f.delete()
-//    val raf = new RandomAccessFile(f, "rw")
-//    val afh = hw.write(raf, spec)
-//    val buf = createBuffer(afh)
-//    val sf  = spec.sampleFormat
-//    val ch  = raf.getChannel
-//    sf.bidiFactory match {
-//      case Some(bbf) =>
-//        val bb = bbf(ch, ch, buf, spec.numChannels)
-//        new BidiFileImpl(f, raf, afh, bb)
-//      case None =>
-//        val bw = sf.writerFactory.map(_.apply(ch, buf, spec.numChannels)).getOrElse(noEncoder(sf))
-//        new WritableFileImpl(f, raf, afh, bw)
-//    }
+  def openWriteAsync(uri: URI, spec: AudioFileSpec)
+                    (implicit executionContext: ExecutionContext): Future[AsyncAudioFile] = {
+    val jch   = AsynchronousFileChannel.open(Path.of(uri),
+      StandardOpenOption.WRITE,
+      StandardOpenOption.CREATE,
+      StandardOpenOption.TRUNCATE_EXISTING,
+    )
+    val ch    = new WrapAsyncFileChannel(jch)
+    val hw    = createHeaderWriter(spec)
+    finishOpenStreamWriteAsync(ch, hw, spec, sourceString = uri.toString)
   }
 
   // ---- synchronous impl ----
@@ -241,7 +233,7 @@ trait AudioFilePlatform {
 
   private final class WrapAsyncFileChannel(peer: AsynchronousFileChannel)
                                           (implicit val executionContext: ExecutionContext)
-    extends AsyncReadableByteChannel with CompletionHandler[java.lang.Integer, Promise[Int]] {
+    extends AsyncWritableByteChannel with CompletionHandler[java.lang.Integer, Promise[Int]] {
 
 //    private[this] val reqThread   = Thread.currentThread()
 
@@ -265,6 +257,8 @@ trait AudioFilePlatform {
       peer.read(dst, pos, pr, this)
       pr.future
     }
+
+    def write(src: ByteBuffer): Future[Int] = ???
 
     def size: Long = peer.size()
 

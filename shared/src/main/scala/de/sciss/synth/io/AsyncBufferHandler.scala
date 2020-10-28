@@ -30,14 +30,14 @@ private[io] trait AsyncBufferReader extends AsyncBufferHandler {
   @throws(classOf[IOException])
   def read(frames: Frames, off: SInt, len: SInt): Future[Unit]
 
-  val reader: AsyncReadableByteChannel
+  val channel: AsyncReadableByteChannel
 }
 
 private[io] trait AsyncBufferWriter extends AsyncBufferHandler {
   @throws(classOf[IOException])
   def write(frames: Frames, off: SInt, len: SInt): Future[Unit]
 
-  protected def writer: AsyncWritableByteChannel
+  val channel: AsyncWritableByteChannel
 }
 
 private[io] trait AsyncBufferBidi extends AsyncBufferReader with AsyncBufferWriter
@@ -53,7 +53,7 @@ private[io] object AsyncBufferReader {
 
   object Byte extends AsyncBufferReaderFactory
 
-  final case class Byte(reader: AsyncReadableByteChannel, byteBuf: ByteBuffer, numChannels: SInt)
+  final case class Byte(channel: AsyncReadableByteChannel, byteBuf: ByteBuffer, numChannels: SInt)
                        (implicit val executionContext: ExecutionContext)
     extends BufferHandler.Byte with ByteLike
 
@@ -61,13 +61,13 @@ private[io] object AsyncBufferReader {
   // which is how libsndfile behaves
   object UByte extends AsyncBufferReaderFactory
 
-  final case class UByte(reader: AsyncReadableByteChannel, byteBuf: ByteBuffer, numChannels: SInt)
+  final case class UByte(channel: AsyncReadableByteChannel, byteBuf: ByteBuffer, numChannels: SInt)
                         (implicit val executionContext: ExecutionContext)
     extends BufferHandler.UByte with UByteLike
 
   object Short extends AsyncBufferReaderFactory
 
-  final case class Short(reader: AsyncReadableByteChannel, byteBuf: ByteBuffer, numChannels: SInt)
+  final case class Short(channel: AsyncReadableByteChannel, byteBuf: ByteBuffer, numChannels: SInt)
                         (implicit val executionContext: ExecutionContext)
     extends BufferHandler.Short with ShortLike
 
@@ -85,32 +85,32 @@ private[io] object AsyncBufferReader {
   /*
    *  24bit big endian
    */
-  final case class ThreeBytesBE(reader: AsyncReadableByteChannel, byteBuf: ByteBuffer, numChannels: SInt)
+  final case class ThreeBytesBE(channel: AsyncReadableByteChannel, byteBuf: ByteBuffer, numChannels: SInt)
                                (implicit val executionContext: ExecutionContext)
     extends BufferHandler.ThreeBytes with ThreeBytesBELike
 
   /*
    *  24bit little endian
    */
-  final case class ThreeBytesLE(reader: AsyncReadableByteChannel, byteBuf: ByteBuffer, numChannels: SInt)
+  final case class ThreeBytesLE(channel: AsyncReadableByteChannel, byteBuf: ByteBuffer, numChannels: SInt)
                                (implicit val executionContext: ExecutionContext)
     extends BufferHandler.ThreeBytes with ThreeBytesLELike
 
   object Int extends AsyncBufferReaderFactory
 
-  final case class Int(reader: AsyncReadableByteChannel, byteBuf: ByteBuffer, numChannels: SInt)
+  final case class Int(channel: AsyncReadableByteChannel, byteBuf: ByteBuffer, numChannels: SInt)
                       (implicit val executionContext: ExecutionContext)
     extends BufferHandler.Int with IntLike
 
   object Float extends AsyncBufferReaderFactory
 
-  final case class Float(reader: AsyncReadableByteChannel, byteBuf: ByteBuffer, numChannels: SInt)
+  final case class Float(channel: AsyncReadableByteChannel, byteBuf: ByteBuffer, numChannels: SInt)
                         (implicit val executionContext: ExecutionContext)
     extends BufferHandler.Float with FloatLike
 
   object Double extends AsyncBufferReaderFactory
 
-  final case class Double(reader: AsyncReadableByteChannel, byteBuf: ByteBuffer, numChannels: SInt)
+  final case class Double(channel: AsyncReadableByteChannel, byteBuf: ByteBuffer, numChannels: SInt)
                          (implicit val executionContext: ExecutionContext)
     extends BufferHandler.Double with DoubleLike
 
@@ -124,7 +124,7 @@ private[io] object AsyncBufferReader {
         val chunkLen  = min(bufFrames, remaining)
         val m			    = chunkLen * frameSize
         (byteBuf: Buffer).rewind().limit(m)
-        val fut = reader.read(byteBuf)
+        val fut = channel.read(byteBuf)
         fut.map { _ =>
           byteBuf.flip()
           byteBuf.get(arrayBuf, 0, m)
@@ -156,7 +156,7 @@ private[io] object AsyncBufferReader {
         val chunkLen  = min(bufFrames, remaining)
         val m         = chunkLen * frameSize
         (byteBuf: Buffer).rewind().limit(m)
-        reader.read(byteBuf)
+        channel.read(byteBuf)
         byteBuf.flip()
         byteBuf.get(arrayBuf, 0, m)
         var ch = 0; while (ch < numChannels) {
@@ -188,7 +188,7 @@ private[io] object AsyncBufferReader {
         val chunkLen  = min(bufFrames, remaining)
         val m			    = chunkLen * numChannels
         (byteBuf: Buffer).rewind().limit(chunkLen * frameSize)
-        reader.read(byteBuf)
+        channel.read(byteBuf)
         (viewBuf: Buffer).clear()
         viewBuf.get(arrayBuf, 0, m)
         var ch = 0; while (ch < numChannels) {
@@ -218,7 +218,7 @@ private[io] object AsyncBufferReader {
         val chunkLen  = min(bufFrames, remaining)
         val m			    = chunkLen * frameSize
         (byteBuf: Buffer).rewind().limit(m)
-        reader.read(byteBuf)
+        channel.read(byteBuf)
         byteBuf.flip()
         byteBuf.get(arrayBuf, 0, m)
         var ch = 0; var p = 0; while (ch < numChannels) {
@@ -250,7 +250,7 @@ private[io] object AsyncBufferReader {
         val chunkLen  = min(bufFrames, remaining)
         val m			    = chunkLen * frameSize
         (byteBuf: Buffer).rewind().limit(m)
-        reader.read(byteBuf)
+        channel.read(byteBuf)
         byteBuf.flip()
         byteBuf.get(arrayBuf, 0, m)
         var ch = 0; var p = 0; while (ch < numChannels) {
@@ -282,7 +282,7 @@ private[io] object AsyncBufferReader {
         val chunkLen   = min(bufFrames, remaining)
         val m			   = chunkLen * numChannels
         (byteBuf: Buffer).rewind().limit(chunkLen * frameSize)
-        reader.read(byteBuf)
+        channel.read(byteBuf)
         (viewBuf: Buffer).clear()
         viewBuf.get(arrayBuf, 0, m)
         var ch = 0; while (ch < numChannels) {
@@ -313,7 +313,7 @@ private[io] object AsyncBufferReader {
           (byteBuf: Buffer).rewind().limit(chunkLen * frameSize)
           // println(s"READ [1]: off = $off, len = $len, byteBuf.limit = ${byteBuf.limit()}")
 //          println(" ---> ")
-          reader.read(byteBuf)
+          channel.read(byteBuf)
         }
         fut.flatMap { _ =>
 //          println(" <--- ")
@@ -352,7 +352,7 @@ private[io] object AsyncBufferReader {
         val chunkLen   = math.min(bufFrames, remaining)
         val m			   = chunkLen * numChannels
         (byteBuf: Buffer).rewind().limit(chunkLen * frameSize)
-        reader.read(byteBuf)
+        channel.read(byteBuf)
         (viewBuf: Buffer).clear()
         viewBuf.get(arrayBuf, 0, m)
         var ch = 0; while (ch < numChannels) {
@@ -384,7 +384,7 @@ private[io] object AsyncBufferWriter {
 
   object Byte extends AsyncBufferWriterFactory
 
-  final case class Byte(writer: AsyncWritableByteChannel, byteBuf: ByteBuffer, numChannels: SInt)
+  final case class Byte(channel: AsyncWritableByteChannel, byteBuf: ByteBuffer, numChannels: SInt)
                        (implicit val executionContext: ExecutionContext)
     extends BufferHandler.Byte with ByteLike
 
@@ -392,7 +392,7 @@ private[io] object AsyncBufferWriter {
   // which is how libsndfile behaves
   object UByte extends AsyncBufferWriterFactory
 
-  final case class UByte(writer: AsyncWritableByteChannel, byteBuf: ByteBuffer, numChannels: SInt)
+  final case class UByte(channel: AsyncWritableByteChannel, byteBuf: ByteBuffer, numChannels: SInt)
                         (implicit val executionContext: ExecutionContext)
     extends BufferHandler.UByte with UByteLike {
     //      checkCapacity()
@@ -400,7 +400,7 @@ private[io] object AsyncBufferWriter {
 
   object Short extends AsyncBufferWriterFactory
 
-  final case class Short(writer: AsyncWritableByteChannel, byteBuf: ByteBuffer, numChannels: SInt)
+  final case class Short(channel: AsyncWritableByteChannel, byteBuf: ByteBuffer, numChannels: SInt)
                         (implicit val executionContext: ExecutionContext)
     extends BufferHandler.Short with ShortLike {
     //      checkCapacity()
@@ -416,29 +416,29 @@ private[io] object AsyncBufferWriter {
       }
   }
 
-  final case class ThreeBytesBE(writer: AsyncWritableByteChannel, byteBuf: ByteBuffer, numChannels: SInt)
+  final case class ThreeBytesBE(channel: AsyncWritableByteChannel, byteBuf: ByteBuffer, numChannels: SInt)
                                (implicit val executionContext: ExecutionContext)
     extends BufferHandler.ThreeBytes with ThreeBytesBELike
 
-  final case class ThreeBytesLE(writer: AsyncWritableByteChannel, byteBuf: ByteBuffer, numChannels: SInt)
+  final case class ThreeBytesLE(channel: AsyncWritableByteChannel, byteBuf: ByteBuffer, numChannels: SInt)
                                (implicit val executionContext: ExecutionContext)
     extends BufferHandler.ThreeBytes with ThreeBytesLELike
 
   object Int extends AsyncBufferWriterFactory
 
-  final case class Int(writer: AsyncWritableByteChannel, byteBuf: ByteBuffer, numChannels: SInt)
+  final case class Int(channel: AsyncWritableByteChannel, byteBuf: ByteBuffer, numChannels: SInt)
                       (implicit val executionContext: ExecutionContext)
     extends BufferHandler.Int with IntLike
 
   object Float extends AsyncBufferWriterFactory
 
-  final case class Float(writer: AsyncWritableByteChannel, byteBuf: ByteBuffer, numChannels: SInt)
+  final case class Float(channel: AsyncWritableByteChannel, byteBuf: ByteBuffer, numChannels: SInt)
                         (implicit val executionContext: ExecutionContext)
     extends BufferHandler.Float with FloatLike
 
   object Double extends AsyncBufferWriterFactory
 
-  final case class Double(writer: AsyncWritableByteChannel, byteBuf: ByteBuffer, numChannels: SInt)
+  final case class Double(channel: AsyncWritableByteChannel, byteBuf: ByteBuffer, numChannels: SInt)
                          (implicit val executionContext: ExecutionContext)
     extends BufferHandler.Double with DoubleLike
 
@@ -462,7 +462,7 @@ private[io] object AsyncBufferWriter {
         (byteBuf: Buffer).clear()
         byteBuf.put(arrayBuf, 0, m)
         byteBuf.flip()
-        writer.write(byteBuf)
+        channel.write(byteBuf)
         remaining -= chunkLen
         position  += chunkLen
       }
@@ -490,7 +490,7 @@ private[io] object AsyncBufferWriter {
         (byteBuf: Buffer).clear()
         byteBuf.put(arrayBuf, 0, m)
         byteBuf.flip()
-        writer.write(byteBuf)
+        channel.write(byteBuf)
         remaining -= chunkLen
         position  += chunkLen
       }
@@ -520,7 +520,7 @@ private[io] object AsyncBufferWriter {
         (viewBuf: Buffer).clear()
         viewBuf.put(arrayBuf, 0, m)
         (byteBuf: Buffer).rewind().limit(chunkLen * frameSize)
-        writer.write(byteBuf)
+        channel.write(byteBuf)
         remaining -= chunkLen
         position  += chunkLen
       }
@@ -551,7 +551,7 @@ private[io] object AsyncBufferWriter {
         (byteBuf: Buffer).clear()
         byteBuf.put(arrayBuf, 0, m)
         byteBuf.flip()
-        writer.write(byteBuf)
+        channel.write(byteBuf)
         remaining -= chunkLen
         position  += chunkLen
       }
@@ -584,7 +584,7 @@ private[io] object AsyncBufferWriter {
         (byteBuf: Buffer).clear()
         byteBuf.put(arrayBuf, 0, m)
         byteBuf.flip()
-        writer.write(byteBuf)
+        channel.write(byteBuf)
         remaining -= chunkLen
         position  += chunkLen
       }
@@ -614,7 +614,7 @@ private[io] object AsyncBufferWriter {
         (viewBuf: Buffer).clear()
         viewBuf.put(arrayBuf, 0, m)
         (byteBuf: Buffer).rewind().limit(chunkLen * frameSize)
-        writer.write(byteBuf)
+        channel.write(byteBuf)
         remaining -= chunkLen
         position  += chunkLen
       }
@@ -642,7 +642,7 @@ private[io] object AsyncBufferWriter {
         (viewBuf: Buffer).clear()
         viewBuf.put(arrayBuf, 0, m)
         (byteBuf: Buffer).rewind().limit(chunkLen * frameSize)
-        writer.write(byteBuf)
+        channel.write(byteBuf)
         remaining -= chunkLen
         position  += chunkLen
       }
@@ -672,7 +672,7 @@ private[io] object AsyncBufferWriter {
         (viewBuf: Buffer).clear()
         viewBuf.put(arrayBuf, 0, m)
         (byteBuf: Buffer).rewind().limit(chunkLen * frameSize)
-        writer.write(byteBuf)
+        channel.write(byteBuf)
         remaining -= chunkLen
         position  += chunkLen
       }
@@ -684,7 +684,7 @@ private[io] object AsyncBufferWriter {
 // -------------- Handler -------------- 
 
 private[io] trait AsyncBufferBidiFactory {
-  def apply(read: AsyncReadableByteChannel, write: AsyncWritableByteChannel, byteBuf: ByteBuffer, numChannels: SInt)
+  def apply(channel: AsyncWritableByteChannel, byteBuf: ByteBuffer, numChannels: SInt)
            (implicit ec: ExecutionContext): AsyncBufferBidi
 }
 
@@ -692,7 +692,7 @@ private[io] object AsyncBufferBidi {
 
   object Byte extends AsyncBufferBidiFactory
 
-  final case class Byte(reader: AsyncReadableByteChannel, writer: AsyncWritableByteChannel, byteBuf: ByteBuffer,
+  final case class Byte(channel: AsyncWritableByteChannel, byteBuf: ByteBuffer,
                         numChannels: SInt)
                        (implicit val executionContext: ExecutionContext)
     extends BufferHandler.Byte with AsyncBufferReader.ByteLike with AsyncBufferWriter.ByteLike
@@ -700,7 +700,7 @@ private[io] object AsyncBufferBidi {
 
   object UByte extends AsyncBufferBidiFactory
 
-  final case class UByte(reader: AsyncReadableByteChannel, writer: AsyncWritableByteChannel, byteBuf: ByteBuffer,
+  final case class UByte(channel: AsyncWritableByteChannel, byteBuf: ByteBuffer,
                          numChannels: SInt)
                         (implicit val executionContext: ExecutionContext)
     extends BufferHandler.UByte with AsyncBufferReader.UByteLike with AsyncBufferWriter.UByteLike
@@ -708,30 +708,30 @@ private[io] object AsyncBufferBidi {
 
   object Short extends AsyncBufferBidiFactory
 
-  final case class Short(reader: AsyncReadableByteChannel, writer: AsyncWritableByteChannel, byteBuf: ByteBuffer,
+  final case class Short(channel: AsyncWritableByteChannel, byteBuf: ByteBuffer,
                          numChannels: SInt)
                         (implicit val executionContext: ExecutionContext)
     extends BufferHandler.Short with AsyncBufferReader.ShortLike with AsyncBufferWriter.ShortLike
       with AsyncBufferBidi
 
   object ThreeBytes extends AsyncBufferBidiFactory {
-    def apply(read: AsyncReadableByteChannel, write: AsyncWritableByteChannel, byteBuf: ByteBuffer,
+    def apply(channel: AsyncWritableByteChannel, byteBuf: ByteBuffer,
               numChannels: SInt)
              (implicit ec: ExecutionContext): AsyncBufferBidi =
       if (byteBuf.order() == ByteOrder.LITTLE_ENDIAN) {
-        ThreeBytesLE(read, write, byteBuf, numChannels)
+        ThreeBytesLE(channel, byteBuf, numChannels)
       } else {
-        ThreeBytesBE(read, write, byteBuf, numChannels)
+        ThreeBytesBE(channel, byteBuf, numChannels)
       }
   }
 
-  final case class ThreeBytesBE(reader: AsyncReadableByteChannel, writer: AsyncWritableByteChannel,
+  final case class ThreeBytesBE(channel: AsyncWritableByteChannel,
                                 byteBuf: ByteBuffer, numChannels: SInt)
                                (implicit val executionContext: ExecutionContext)
     extends BufferHandler.ThreeBytes with AsyncBufferReader.ThreeBytesBELike with AsyncBufferWriter.ThreeBytesBELike
       with AsyncBufferBidi
 
-  final case class ThreeBytesLE(reader: AsyncReadableByteChannel, writer: AsyncWritableByteChannel,
+  final case class ThreeBytesLE(channel: AsyncWritableByteChannel,
                                 byteBuf: ByteBuffer, numChannels: SInt)
                                (implicit val executionContext: ExecutionContext)
     extends BufferHandler.ThreeBytes with AsyncBufferReader.ThreeBytesLELike with AsyncBufferWriter.ThreeBytesLELike
@@ -739,7 +739,7 @@ private[io] object AsyncBufferBidi {
 
   object Int extends AsyncBufferBidiFactory
 
-  final case class Int(reader: AsyncReadableByteChannel, writer: AsyncWritableByteChannel, byteBuf: ByteBuffer,
+  final case class Int(channel: AsyncWritableByteChannel, byteBuf: ByteBuffer,
                        numChannels: SInt)
                       (implicit val executionContext: ExecutionContext)
     extends BufferHandler.Int with AsyncBufferReader.IntLike with AsyncBufferWriter.IntLike
@@ -747,7 +747,7 @@ private[io] object AsyncBufferBidi {
 
   object Float extends AsyncBufferBidiFactory
 
-  final case class Float(reader: AsyncReadableByteChannel, writer: AsyncWritableByteChannel, byteBuf: ByteBuffer,
+  final case class Float(channel: AsyncWritableByteChannel, byteBuf: ByteBuffer,
                          numChannels: SInt)
                         (implicit val executionContext: ExecutionContext)
     extends BufferHandler.Float with AsyncBufferReader.FloatLike with AsyncBufferWriter.FloatLike
@@ -755,7 +755,7 @@ private[io] object AsyncBufferBidi {
 
   object Double extends AsyncBufferBidiFactory
 
-  final case class Double(reader: AsyncReadableByteChannel, writer: AsyncWritableByteChannel, byteBuf: ByteBuffer,
+  final case class Double(channel: AsyncWritableByteChannel, byteBuf: ByteBuffer,
                           numChannels: SInt)
                          (implicit val executionContext: ExecutionContext)
     extends BufferHandler.Double with AsyncBufferReader.DoubleLike with AsyncBufferWriter.DoubleLike
