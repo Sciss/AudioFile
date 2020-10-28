@@ -1,11 +1,12 @@
 lazy val baseName  = "AudioFile"
 lazy val baseNameL = baseName.toLowerCase
 
-lazy val projectVersion = "2.1.0"
-lazy val mimaVersion    = "2.1.0"
+lazy val projectVersion = "2.2.0-SNAPSHOT"
+lazy val mimaVersion    = "2.2.0"
 
 lazy val deps = new {
   val main = new {
+    val dom       = "1.1.0"
     val serial    = "2.0.0"
   }
   val test = new {
@@ -31,11 +32,9 @@ lazy val root = crossProject(JSPlatform, JVMPlatform).in(file("."))
     mimaPreviousArtifacts := Set("de.sciss" %% baseNameL % mimaVersion),
     initialCommands in console := """import de.sciss.synth.io._""",
     libraryDependencies ++= Seq(
-      "de.sciss" %%% "serial" % deps.main.serial
-    ),
-    libraryDependencies += {
-      "org.scalatest" %%% "scalatest" % deps.test.scalaTest % Test
-    },
+      "de.sciss"      %%% "serial"    % deps.main.serial,
+      "org.scalatest" %%% "scalatest" % deps.test.scalaTest % Test,
+),
     scalacOptions ++= Seq("-deprecation", "-unchecked", "-feature", "-encoding", "utf8", "-Xlint", "-Xsource:2.13"),
     scalacOptions in (Compile, compile) ++= {
       val jdkGt8  = scala.util.Properties.isJavaAtLeast("9")
@@ -48,6 +47,11 @@ lazy val root = crossProject(JSPlatform, JVMPlatform).in(file("."))
       BuildInfoKey.map(licenses) { case (_, Seq((lic, _))) => "license" -> lic }
     ),
     buildInfoPackage := "de.sciss.synth.io"
+  )
+  .jsSettings(
+    libraryDependencies ++= Seq(
+      "org.scala-js" %%% "scalajs-dom" % deps.main.dom,
+    ),
   )
   .settings(publishSettings)
 

@@ -68,7 +68,7 @@ object ReadAsyncTest {
   def runAsync(file: File)(implicit ec: ExecutionContext): Future[Unit] = {
     println("Reading file asynchronously...")
     val t1    = System.currentTimeMillis()
-    val afFut = AudioFile.openReadAsync(file.toPath): Future[AsyncAudioFile]
+    val afFut = AudioFile.openReadAsync(file.toURI): Future[AsyncAudioFile]
     afFut.flatMap { af =>
       val N     = af.numFrames
       println(s"numFrames = $N")

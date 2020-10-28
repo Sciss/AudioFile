@@ -1,6 +1,7 @@
 package de.sciss.synth.io
 
 import java.io.{BufferedInputStream, DataInputStream, File, FileInputStream, IOException, InputStream, RandomAccessFile}
+import java.net.URI
 import java.nio.ByteBuffer
 import java.nio.channels.{AsynchronousFileChannel, Channels, CompletionHandler, ReadPendingException}
 import java.nio.file.{Path, StandardOpenOption}
@@ -130,14 +131,14 @@ trait AudioFilePlatform {
     *                     or has an unknown or unsupported format
     */
   @throws(classOf[IOException])
-  def openReadAsync(p: Path)(implicit executionContext: ExecutionContext): Future[AsyncAudioFile] = {
+  def openReadAsync(uri: URI)(implicit executionContext: ExecutionContext): Future[AsyncAudioFile] = {
 //    Future.successful(()).flatMap { _ =>
-      val jch = AsynchronousFileChannel.open(p, StandardOpenOption.READ)
+      val jch = AsynchronousFileChannel.open(Path.of(uri), StandardOpenOption.READ)
       val ch  = new WrapAsyncFileChannel(jch)
 
       val hrFut = createHeaderReaderAsync(ch)
       hrFut.flatMap { hr =>
-        finishOpenStreamReadAsync(ch, hr, sourceString = p.toString)
+        finishOpenStreamReadAsync(ch, hr, sourceString = uri.toString)
       }
 //    }
   }
@@ -247,6 +248,8 @@ trait AudioFilePlatform {
 
     def size: Long = peer.size()
 
+    def remaining: Long = size - position
+
     def close(): Unit = peer.close()
 
     def isOpen: Boolean = peer.isOpen
@@ -257,20 +260,20 @@ trait AudioFilePlatform {
 //      println(s"completed ${Thread.currentThread().hashCode().toHexString}")
       posRef.addAndGet(res.toLong)
 //      println(" <== ")
-      if (!pendingRef.compareAndSet(true, false)) {
-        pr.failure(new AssertionError("No pending read"))
-      } else {
+      if (pendingRef.compareAndSet(true, false)) {
         pr.success(res)
+      } else {
+        pr.failure(new AssertionError("No pending read"))
       }
     }
 
     def failed(e: Throwable, pr: Promise[Int]): Unit = {
 //      println(s"failed ${Thread.currentThread().hashCode().toHexString}")
 //      println(" <== ")
-      if (!pendingRef.compareAndSet(true, false)) {
-        pr.failure(new AssertionError("No pending read"))
-      } else {
+      if (pendingRef.compareAndSet(true, false)) {
         pr.failure(e)
+      } else {
+        pr.failure(new AssertionError("No pending read"))
       }
     }
   }

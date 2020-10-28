@@ -11,6 +11,8 @@ trait AsyncReadableByteChannel extends AsynchronousChannel {
 
   def size: Long
 
+  def remaining: Long
+
   /** Advances the position by `len` bytes. Note that negative
     * numbers are allowed, essentially moving the position backwards.
     */
