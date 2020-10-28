@@ -1,9 +1,14 @@
 package de.sciss.synth.io
 
 import java.io.{BufferedInputStream, DataInputStream, File, FileInputStream, IOException, InputStream, RandomAccessFile}
-import java.nio.channels.Channels
+import java.nio.ByteBuffer
+import java.nio.channels.{AsynchronousFileChannel, Channels, CompletionHandler, ReadPendingException}
+import java.nio.file.{Path, StandardOpenOption}
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
 
-import de.sciss.synth.io.AudioFile.{Basic, Bidi, ReadOnly, Writable, WriteOnly, createBuffer, createHeaderReader, createHeaderWriter, noDecoder, noEncoder}
+import de.sciss.synth.io.AudioFile.{Basic, Bidi, ReadOnly, Writable, WriteOnly, createBuffer, createHeaderReader, createHeaderReaderAsync, createHeaderWriter, finishOpenStreamReadAsync, noDecoder, noEncoder}
+
+import scala.concurrent.{ExecutionContext, Future, Promise}
 
 /** The JVM platform supports File I/O, e.g. opening an audio file using `openRead(f: File)`. */
 trait AudioFilePlatform {
@@ -13,6 +18,8 @@ trait AudioFilePlatform {
   trait HasFile extends AudioFile {
     def file: File
   }
+
+  // ---- synchronous ----
   
   /** Opens an audio file for reading.
     *
@@ -110,6 +117,33 @@ trait AudioFilePlatform {
   @throws(classOf[IOException])
   def identify(path: String): Option[AudioFileType] = identify(new File(path))
 
+  // ---- asynchronous ----
+
+  /** Opens an audio file for asynchronous reading.
+    *
+    * @param  f  the path name of the file
+    * @return a future  <code>AsyncAudioFile</code> object
+    *         whose header is already parsed when the future completes, and
+    *         that can be obtained through the <code>spec</code> method.
+    *
+    * @throws java.io.IOException if the file was not found, could not be reader
+    *                     or has an unknown or unsupported format
+    */
+  @throws(classOf[IOException])
+  def openReadAsync(p: Path)(implicit executionContext: ExecutionContext): Future[AsyncAudioFile] = {
+//    Future.successful(()).flatMap { _ =>
+      val jch = AsynchronousFileChannel.open(p, StandardOpenOption.READ)
+      val ch  = new WrapAsyncFileChannel(jch)
+
+      val hrFut = createHeaderReaderAsync(ch)
+      hrFut.flatMap { hr =>
+        finishOpenStreamReadAsync(ch, hr, sourceString = p.toString)
+      }
+//    }
+  }
+
+  // ---- synchronous impl ----
+
   private[io] def openFileWithReader(f: File, reader: AudioFileType.CanRead): AudioFile.HasFile = {
     val raf = new RandomAccessFile(f, "r")
     finishOpenFileRead(f, raf, reader)
@@ -181,4 +215,63 @@ trait AudioFilePlatform {
                                    protected val bh : BufferBidi,
                                   )
     extends BidiFileLike
+
+  // ---- asynchronous impl ----
+
+  private final class WrapAsyncFileChannel(peer: AsynchronousFileChannel)
+                                          (implicit val executionContext: ExecutionContext)
+    extends AsyncReadableByteChannel with CompletionHandler[java.lang.Integer, Promise[Int]] {
+
+//    private[this] val reqThread   = Thread.currentThread()
+
+    private[this] val posRef      = new AtomicLong(0L)
+    private[this] val pendingRef  = new AtomicBoolean(false)
+
+    def position        : Long        = posRef.get()
+    def position_=(value: Long): Unit = posRef.set(value)
+
+    def skip(len: Long): Unit = posRef.addAndGet(len)
+
+    def read(dst: ByteBuffer): Future[Int] = {
+//      require (Thread.currentThread() == reqThread)
+
+//      println(" ==> ")
+      if (!pendingRef.compareAndSet(false, true)) throw new ReadPendingException()
+
+      val pos = posRef.get()
+      val pr  = Promise[Int]()
+//      println(s"peer.read($dst, $pos, ...)")
+      peer.read(dst, pos, pr, this)
+      pr.future
+    }
+
+    def size: Long = peer.size()
+
+    def close(): Unit = peer.close()
+
+    def isOpen: Boolean = peer.isOpen
+
+    // ---- CompletionHandler ----
+
+    def completed (res: Integer, pr: Promise[Int]): Unit = {
+//      println(s"completed ${Thread.currentThread().hashCode().toHexString}")
+      posRef.addAndGet(res.toLong)
+//      println(" <== ")
+      if (!pendingRef.compareAndSet(true, false)) {
+        pr.failure(new AssertionError("No pending read"))
+      } else {
+        pr.success(res)
+      }
+    }
+
+    def failed(e: Throwable, pr: Promise[Int]): Unit = {
+//      println(s"failed ${Thread.currentThread().hashCode().toHexString}")
+//      println(" <== ")
+      if (!pendingRef.compareAndSet(true, false)) {
+        pr.failure(new AssertionError("No pending read"))
+      } else {
+        pr.failure(e)
+      }
+    }
+  }
 }

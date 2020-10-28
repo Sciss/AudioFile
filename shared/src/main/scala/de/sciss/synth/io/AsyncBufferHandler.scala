@@ -18,6 +18,7 @@ import java.nio.{Buffer, ByteBuffer, ByteOrder}
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.{Int => SInt}
+import scala.math.min
 
 private[io] trait AsyncBufferHandler extends BufferHandler {
   implicit def executionContext: ExecutionContext
@@ -27,7 +28,7 @@ private[io] trait AsyncBufferReader extends AsyncBufferHandler {
   @throws(classOf[IOException])
   def read(frames: Frames, off: SInt, len: SInt): Future[Unit]
 
-  protected def reader: AsyncReadableByteChannel
+  val reader: AsyncReadableByteChannel
 }
 
 private[io] trait AsyncBufferWriter extends AsyncBufferHandler {
@@ -118,7 +119,7 @@ private[io] object AsyncBufferReader {
       var remaining = len
       var position   = off
       while (remaining > 0) {
-        val chunkLen  = math.min(bufFrames, remaining)
+        val chunkLen  = min(bufFrames, remaining)
         val m			    = chunkLen * frameSize
         (byteBuf: Buffer).rewind().limit(m)
         val fut = reader.read(byteBuf)
@@ -150,7 +151,7 @@ private[io] object AsyncBufferReader {
       var remaining = len
       var position  = off
       while (remaining > 0) {
-        val chunkLen  = math.min(bufFrames, remaining)
+        val chunkLen  = min(bufFrames, remaining)
         val m         = chunkLen * frameSize
         (byteBuf: Buffer).rewind().limit(m)
         reader.read(byteBuf)
@@ -182,7 +183,7 @@ private[io] object AsyncBufferReader {
       var remaining = len
       var position  = off
       while (remaining > 0) {
-        val chunkLen  = math.min(bufFrames, remaining)
+        val chunkLen  = min(bufFrames, remaining)
         val m			    = chunkLen * numChannels
         (byteBuf: Buffer).rewind().limit(chunkLen * frameSize)
         reader.read(byteBuf)
@@ -212,7 +213,7 @@ private[io] object AsyncBufferReader {
       var remaining = len
       var position  = off
       while (remaining > 0) {
-        val chunkLen  = math.min(bufFrames, remaining)
+        val chunkLen  = min(bufFrames, remaining)
         val m			    = chunkLen * frameSize
         (byteBuf: Buffer).rewind().limit(m)
         reader.read(byteBuf)
@@ -244,7 +245,7 @@ private[io] object AsyncBufferReader {
       var remaining = len
       var position  = off
       while (remaining > 0) {
-        val chunkLen  = math.min(bufFrames, remaining)
+        val chunkLen  = min(bufFrames, remaining)
         val m			    = chunkLen * frameSize
         (byteBuf: Buffer).rewind().limit(m)
         reader.read(byteBuf)
@@ -276,7 +277,7 @@ private[io] object AsyncBufferReader {
       var remaining = len
       var position  = off
       while (remaining > 0) {
-        val chunkLen   = math.min(bufFrames, remaining)
+        val chunkLen   = min(bufFrames, remaining)
         val m			   = chunkLen * numChannels
         (byteBuf: Buffer).rewind().limit(chunkLen * frameSize)
         reader.read(byteBuf)
@@ -302,31 +303,41 @@ private[io] object AsyncBufferReader {
   trait FloatLike extends AsyncBufferReader {
     me: BufferHandler.Float =>
 
-    final def read(frames: Frames, off: SInt, len: SInt): Future[Unit] = {
-      var remaining = len
-      var position  = off
-      while (remaining > 0) {
-        val chunkLen   = math.min(bufFrames, remaining)
+    final def read(frames: Frames, off: SInt, len: SInt): Future[Unit] =
+      if (len <= 0) Future.successful(()) else {
+        val chunkLen   = min(bufFrames, len)
         val m          = chunkLen * numChannels
-        (byteBuf: Buffer).rewind().limit(chunkLen * frameSize)
-        reader.read(byteBuf)
-        (viewBuf: Buffer).clear()
-        viewBuf.get(arrayBuf, 0, m)
-        var ch = 0; while (ch < numChannels) {
-          val b = frames(ch)
-          if (b != null) {
-            var i = ch; var j = position; while (i < m) {
-              b(j) = arrayBuf(i)
-              i += numChannels; j += 1
-            }
-          }
-          ch += 1
+        val fut = byteBuf.synchronized {
+          (byteBuf: Buffer).rewind().limit(chunkLen * frameSize)
+          // println(s"READ [1]: off = $off, len = $len, byteBuf.limit = ${byteBuf.limit()}")
+//          println(" ---> ")
+          reader.read(byteBuf)
         }
-        remaining -= chunkLen
-        position  += chunkLen
+        fut.flatMap { _ =>
+//          println(" <--- ")
+
+          // N.B.: "Buffers are not safe for use by multiple concurrent threads.
+          // If a buffer is to be used by more than one thread then access to the buffer
+          // should be controlled by appropriate synchronization."
+          viewBuf.synchronized {
+            (viewBuf: Buffer).clear()
+            // println(s"READ [2]: m = $m, viewBuf.limit = ${viewBuf.limit()}, _.position = ${viewBuf.position()}, _.remaining ${viewBuf.remaining()}")
+            viewBuf.get(arrayBuf, 0, m)
+          }
+          var ch = 0
+          while (ch < numChannels) {
+            val b = frames(ch)
+            if (b != null) {
+              var i = ch; var j = off; while (i < m) {
+                b(j) = arrayBuf(i)
+                i += numChannels; j += 1
+              }
+            }
+            ch += 1
+          }
+          read(frames, off = off + chunkLen, len = len - chunkLen)
+        }
       }
-      ???
-    }
   }
 
   trait DoubleLike extends AsyncBufferReader {

@@ -17,6 +17,7 @@ import java.io.{DataInputStream, DataOutputStream, IOException, InputStream}
 import java.nio.ByteOrder
 
 import scala.collection.immutable.{IndexedSeq => Vec}
+import scala.concurrent.Future
 
 /** A recognized audio file type. */
 sealed trait AudioFileType {
@@ -40,11 +41,15 @@ object AudioFileType extends AudioFileTypePlatform {
   sealed trait CanIdentify extends AudioFileType {
     @throws(classOf[IOException])
     private[io] def identify(dis: DataInputStream): Boolean
+
+//    private[io] def identifyAsync(ch: AsyncReadableByteChannel): Future[Boolean]
   }
 
   trait CanRead extends AudioFileType with CanReadPlatform {
     @throws(classOf[IOException])
     private[io] def read(dis: DataInputStream): AudioFileHeader
+
+    private[io] def readAsync(ch: AsyncReadableByteChannel): Future[AudioFileHeader]
   }
 
   trait CanWrite extends AudioFileType with CanWritePlatform {
@@ -109,7 +114,12 @@ object AudioFileType extends AudioFileTypePlatform {
 
     private[io] def identify(dis: DataInputStream ): Boolean          = Impl.identify(dis)
     private[io] def read    (dis: DataInputStream ): AudioFileHeader  = Impl.read(dis)
-    private[io] def write   (dos: DataOutputStream, spec: AudioFileSpec): WritableAudioFileHeader = Impl.write(dos, spec)
+
+    private[io] def write   (dos: DataOutputStream, spec: AudioFileSpec): WritableAudioFileHeader =
+      Impl.write(dos, spec)
+
+    private[io] def readAsync(ch: AsyncReadableByteChannel): Future[AudioFileHeader] =
+      Impl.readAsync(ch)
   }
 
   /** The NeXT .snd or Sun .au format. */
@@ -127,6 +137,8 @@ object AudioFileType extends AudioFileTypePlatform {
     private[io] def identify(dis: DataInputStream ): Boolean         = Impl.identify(dis)
     private[io] def read    (dis: DataInputStream ): AudioFileHeader = Impl.read(dis)
     private[io] def write   (dos: DataOutputStream, spec: AudioFileSpec): WritableAudioFileHeader = Impl.write(dos, spec)
+
+    private[io] def readAsync(ch: AsyncReadableByteChannel) = ???
   }
 
   /** Microsoft's Wave (RIFF) format. */
@@ -143,6 +155,8 @@ object AudioFileType extends AudioFileTypePlatform {
     private[io] def identify(dis: DataInputStream ): Boolean         = Impl.identify(dis)
     private[io] def read    (dis: DataInputStream ): AudioFileHeader = Impl.read(dis)
     private[io] def write   (dos: DataOutputStream, spec: AudioFileSpec): WritableAudioFileHeader = Impl.write(dos, spec)
+
+    private[io] def readAsync(ch: AsyncReadableByteChannel) = ???
   }
 
   /** IRCAM, Berkeley or Carl sound format (BICSF). */
@@ -160,6 +174,8 @@ object AudioFileType extends AudioFileTypePlatform {
     private[io] def identify(dis: DataInputStream ): Boolean         = Impl.identify(dis)
     private[io] def read    (dis: DataInputStream ): AudioFileHeader = Impl.read(dis)
     private[io] def write   (dos: DataOutputStream, spec: AudioFileSpec): WritableAudioFileHeader = Impl.write(dos, spec)
+
+    private[io] def readAsync(ch: AsyncReadableByteChannel) = ???
   }
 
   /** Raw (headerless) file type. */
@@ -192,6 +208,8 @@ object AudioFileType extends AudioFileTypePlatform {
 
       def read(dis: DataInputStream ): AudioFileHeader = reader(dis.available())
 
+      def readAsync(ch: AsyncReadableByteChannel) = ???
+
       protected def reader(fileSize: Long): AudioFileHeader = {
         val bpf         = spec.numChannels * (spec.sampleFormat.bitsPerSample >> 3)
         val numFrames   = fileSize / bpf
@@ -217,5 +235,7 @@ object AudioFileType extends AudioFileTypePlatform {
     private[io] def identify(dis: DataInputStream ): Boolean         = Impl.identify(dis)
     private[io] def read    (dis: DataInputStream ): AudioFileHeader = Impl.read(dis)
     private[io] def write   (dos: DataOutputStream, spec: AudioFileSpec): WritableAudioFileHeader = Impl.write(dos, spec)
+
+    private[io] def readAsync(ch: AsyncReadableByteChannel) = ???
   }
 }

@@ -110,8 +110,10 @@ Scala.js does not know the type `java.io.File`, therefore audio file support is 
 ## properties
 
 There is a system property `de.sciss.synth.io.AudioFile.DirectMemory` whose value can be set to `true` in order 
-to use direct-memory buffers (`ByteBuffer.allocateDirect`). Reading in a 1 GB is around 6% faster with direct 
+to use direct-memory buffers (`ByteBuffer.allocateDirect`). Reading in a 1.6 GB is around 18% faster with direct 
 memory. Direct memory can have the disadvantage that it requires an individual VM switch to adjust the maximum 
 available memory before throwing an out-of-memory error. The default is __false__.
+
+Using an asynchronous file I/O is around 26% slower than synchronous I/O (on JVM).
 
 For all further information, please refer to the API docs. They can be created with `sbt doc`.

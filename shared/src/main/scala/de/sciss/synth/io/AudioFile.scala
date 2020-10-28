@@ -13,12 +13,14 @@
 
 package de.sciss.synth.io
 
-import java.io.{BufferedOutputStream, DataInputStream, DataOutputStream, IOException, InputStream, OutputStream}
+import java.io.{BufferedOutputStream, ByteArrayInputStream, DataInputStream, DataOutputStream, IOException, InputStream, OutputStream}
 import java.nio.ByteBuffer
-import java.nio.channels.{Channels, Channel => NIOChannel}
+import java.nio.channels.{AsynchronousChannel, Channels}
+import java.util.concurrent.atomic.AtomicLong
 
 import de.sciss.synth.io.AudioFileHeader.opNotSupported
 
+import scala.concurrent.{ExecutionContext, Future}
 import scala.math.{max, min}
 
 /** The <code>AudioFile</code> allows reading and writing
@@ -46,12 +48,85 @@ import scala.math.{max, min}
   *         if input and output are compatible.
   */
 object AudioFile extends ReaderFactory with AudioFilePlatform {
+  // ---- synchronous ----
+
   @throws(classOf[IOException])
   def openRead(is: InputStream): AudioFile = {
     val dis   = dataInput(is)
     val hr    = createHeaderReader(dis)
     finishOpenStreamRead(dis, hr)
   }
+
+  @throws(classOf[IOException])
+  def openWrite(os: OutputStream, spec: AudioFileSpec): AudioFile = {
+    val hw  = createHeaderWriter(spec)
+    val dos = dataOutput(os)
+    val afh = hw.write(dos, spec)
+    val buf = createBuffer(afh)
+    val sf  = spec.sampleFormat
+    val bw  = sf.writerFactory.map(_.apply(Channels.newChannel(dos), buf, spec.numChannels))
+      .getOrElse(noEncoder(sf))
+    new WritableStreamImpl(dos, afh, bw)
+  }
+
+  /** Note that this method advances in
+    * the provided input stream, its
+    * previous position is not reset.
+    */
+  @throws(classOf[IOException])
+  def readSpec(dis: DataInputStream): AudioFileSpec = {
+    val hr = createHeaderReader(dis)
+    hr.read(dis).spec
+  }
+
+  @throws(classOf[IOException])
+  def identify(dis: DataInputStream): Option[AudioFileType.CanIdentify] =
+    AudioFileType.known.find { f =>
+      dis.mark(1024)
+      try {
+        f.identify(dis)
+      } catch {
+        case _: IOException => false
+      } finally {
+        dis.reset()
+      }
+    }
+
+  // ---- asynchronous ----
+
+  @throws(classOf[IOException])
+  def openReadAsync(ch: AsyncReadableByteChannel)(implicit ec: ExecutionContext): Future[AsyncAudioFile] = {
+    val hrFut = createHeaderReaderAsync(ch)
+    hrFut.flatMap { hr =>
+      finishOpenStreamReadAsync(ch, hr, "<stream>")
+    }
+  }
+
+  // ---- generic ----
+
+  def buffer(numChannels: Int, bufFrames: Int = 8192): Frames =
+    Array.ofDim[Float](numChannels, bufFrames)
+
+  // ---- impl  ----
+
+  private final val useDirect = sys.props.getOrElse("de.sciss.synth.io.AudioFile.DirectMemory", "false").toBoolean
+
+  private[io] def createBuffer(afh: AudioFileHeader): ByteBuffer = {
+    val spec      = afh.spec
+    val frameSize = (spec.sampleFormat.bitsPerSample >> 3) * spec.numChannels
+    val bufFrames = max(1, 65536 / max(1, frameSize))
+    val bufSize   = bufFrames * frameSize
+    val byteBuf   = if (useDirect) ByteBuffer.allocateDirect(bufSize) else ByteBuffer.allocate(bufSize)
+    byteBuf.order(afh.byteOrder)
+  }
+
+  private[io] def noDecoder(msg: AnyRef) = throw noDecoderE(msg)
+  private[io] def noEncoder(msg: AnyRef) = throw noEncoderE(msg)
+
+  private[io] def noDecoderE(msg: AnyRef) = new IOException(s"No decoder for $msg")
+  private[io] def noEncoderE(msg: AnyRef) = new IOException(s"No encoder for $msg")
+
+  // ---- synchronous impl  ----
 
   private[io] def openStreamWithReader(is: InputStream, reader: AudioFileType.CanRead): AudioFile = {
     val dis = dataInput(is)
@@ -77,65 +152,13 @@ object AudioFile extends ReaderFactory with AudioFilePlatform {
     }
   }
 
-  private final val useDirect = sys.props.getOrElse("de.sciss.synth.io.AudioFile.DirectMemory", "false").toBoolean
-
-  private[io] def createBuffer(afh: AudioFileHeader): ByteBuffer = {
-    val spec      = afh.spec
-    val frameSize = (spec.sampleFormat.bitsPerSample >> 3) * spec.numChannels
-    val bufFrames = max(1, 65536 / max(1, frameSize))
-    val bufSize   = bufFrames * frameSize
-    val byteBuf   = if (useDirect) ByteBuffer.allocateDirect(bufSize) else ByteBuffer.allocate(bufSize)
-    byteBuf.order(afh.byteOrder)
-  }
-
   private def dataInput (is: InputStream ) = new DataInputStream (is)
   private def dataOutput(os: OutputStream) = new DataOutputStream(new BufferedOutputStream(os, 1024))
-
-  private[io] def noDecoder(msg: AnyRef) = throw new IOException(s"No decoder for $msg")
-  private[io] def noEncoder(msg: AnyRef) = throw new IOException(s"No encoder for $msg")
-
-  @throws(classOf[IOException])
-  def openWrite(os: OutputStream, spec: AudioFileSpec): AudioFile = {
-    val hw  = createHeaderWriter(spec)
-    val dos = dataOutput(os)
-    val afh = hw.write(dos, spec)
-    val buf = createBuffer(afh)
-    val sf  = spec.sampleFormat
-    val bw  = sf.writerFactory.map(_.apply(Channels.newChannel(dos), buf, spec.numChannels))
-      .getOrElse(noEncoder(sf))
-    new WritableStreamImpl(dos, afh, bw)
-  }
 
   private[io] def createHeaderWriter(spec: AudioFileSpec): AudioFileType.CanWrite =
     spec.fileType match {
       case cw: AudioFileType.CanWrite => cw
       case other                      => noEncoder(other)
-    }
-
-  def buffer(numChannels: Int, bufFrames: Int = 8192): Frames =
-    Array.ofDim[Float](numChannels, bufFrames)
-
-  /** Note that this method advances in
-    * the provided input stream, its
-    * previous position is not reset.
-    */
-  @throws(classOf[IOException])
-  def readSpec(dis: DataInputStream): AudioFileSpec = {
-    val hr = createHeaderReader(dis)
-    hr.read(dis).spec
-  }
-
-  @throws(classOf[IOException])
-  def identify(dis: DataInputStream): Option[AudioFileType.CanIdentify] =
-    AudioFileType.known.find { f =>
-      dis.mark(1024)
-      try {
-        f.identify(dis)
-      } catch {
-        case _: IOException => false
-      } finally {
-        dis.reset()
-      }
     }
 
   private[io] trait Basic extends AudioFile {
@@ -300,17 +323,99 @@ object AudioFile extends ReaderFactory with AudioFilePlatform {
                                         )
     extends WriteOnlyStreamLike
 
+
+  // ---- asynchronous impl ----
+
+  private[io] def createHeaderReaderAsync(ch: AsyncReadableByteChannel)
+                                         (implicit ec: ExecutionContext): Future[AudioFileType.CanRead] = {
+    val mark  = ch.position
+    val arr   = new Array[Byte](1024)
+    val bb    = ByteBuffer.wrap(arr)
+    val fut0  = ch.read(bb)
+    val fut   = fut0.andThen { case _ => ch.position = mark }
+    fut.map { len =>
+      val dis   = new DataInputStream(new ByteArrayInputStream(arr, 0, len))
+      val fileType = identify(dis).getOrElse(throw new IOException("Unrecognized audio file format"))
+      fileType match {
+        case cr: AudioFileType.CanRead  => cr
+        case _                          => noDecoder(fileType)
+      }
+    }
+  }
+
+  private[io] def finishOpenStreamReadAsync(ch: AsyncReadableByteChannel, hr: AudioFileType.CanRead,
+                                            sourceString: String)
+                                           (implicit ec: ExecutionContext): Future[AsyncAudioFile] = {
+    val afhFut = hr.readAsync(ch)
+    afhFut.map { afh =>
+      val buf   = createBuffer(afh)
+      val spec  = afh.spec
+      // println(spec)
+      val sf    = spec.sampleFormat
+      val br    = sf.asyncReaderFactory.map(_.apply(ch, buf, spec.numChannels))
+        .getOrElse(noDecoder(sf))
+      new AsyncReadableImpl(ch, afh, br, sourceString)
+    }
+  }
+
+  private[io] trait AsyncBasic extends AsyncAudioFile {
+    protected final val framePositionRef = new AtomicLong(0L)
+
+    protected def afh: AudioFileHeader
+    protected def bh : AsyncBufferHandler
+    protected def ch : AsynchronousChannel
+
+    final def position: Long = framePositionRef.get()
+
+    def spec: AudioFileSpec = afh.spec
+
+    override def toString: String = {
+      val s           = spec.toString
+      val specString  = s.substring(14)
+      s"AudioFile@$accessString($sourceString,$specString)"
+    }
+
+    protected def accessString: String
+    protected def sourceString: String
+
+    final def isOpen: Boolean = ch.isOpen
+
+    def close(): Unit = ch.close()
+
+    final def cleanUp(): Unit =
+      try {
+        close()
+      } catch {
+        case _: IOException =>
+      }
+  }
+
+  private final class AsyncReadableImpl(protected val ch  : AsyncReadableByteChannel,
+                                        protected val afh : AudioFileHeader,
+                                        protected val bh  : AsyncBufferReader,
+                                        protected val sourceString: String,
+                                       )
+    extends AsyncBasic {
+
+    final def isReadable = true
+    final def isWritable = false
+
+    override def numFrames: Long = spec.numFrames
+
+    protected final def accessString = "r-async"
+
+    @throws(classOf[IOException])
+    final def read(data: Frames, off: Int, len: Int): Future[Unit] = {
+      import bh.reader.executionContext
+      bh.read(data, off, len).andThen { case _ =>
+        framePositionRef.addAndGet(len)
+        ()
+      }
+    }
+  }
 }
 
-trait AudioFile extends NIOChannel {
-  //-------- public methods --------
-
-  /** Returns a description of the audio file's specification. */
-  def spec: AudioFileSpec
-
-  def isReadable: Boolean
-  def isWritable: Boolean
-
+trait AudioFile extends AudioFileBase {
   /** Reads sample frames from the current position
     *
     * @param  data	buffer to hold the frames reader from hard-disc.
@@ -345,9 +450,6 @@ trait AudioFile extends NIOChannel {
     }
     read(data, 0, num)
   }
-
-  def buffer(bufFrames: Int = 8192): Frames =
-    AudioFile.buffer(numChannels, bufFrames)
 
   /** Moves the file pointer to a specific
     * frame.
@@ -428,19 +530,6 @@ trait AudioFile extends NIOChannel {
     */
   def numFrames: Long
 
-  /** Convenience method: Returns the number of channels
-    * in the file. Same as <code>spec.numChannels</code>.
-    *
-    * @return	the number of channels
-    */
-  final def numChannels: Int            = spec.numChannels
-
-  final def sampleRate : Double         = spec.sampleRate
-
-  final def sampleFormat: SampleFormat  = spec.sampleFormat
-
-  final def fileType    : AudioFileType = spec.fileType
-
   /** Copies sample frames from a source sound file
     * to a target file (either another sound file
     * or any other class implementing the
@@ -456,20 +545,4 @@ trait AudioFile extends NIOChannel {
     */
   @throws(classOf[IOException])
   def copyTo(target: AudioFile, numFrames: Long): AudioFile
-
-  /** Flushes and closes the file
-    *
-    * @throws java.io.IOException if an error occurs during buffer flush
-    *                     or closing the file.
-    */
-  @throws(classOf[IOException])
-  def close(): Unit
-
-  /** Flushes and closes the file. As opposed
-    * to <code>close()</code>, this does not
-    * throw any exceptions but simply ignores any errors.
-    *
-    * @see	#close()
-    */
-  def cleanUp(): Unit
 }

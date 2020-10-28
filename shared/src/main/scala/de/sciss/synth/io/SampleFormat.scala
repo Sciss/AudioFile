@@ -19,6 +19,8 @@ abstract class SampleFormat(val id: String, val bitsPerSample: Int) {
   private[io] def readerFactory: Option[BufferReaderFactory]
   private[io] def writerFactory: Option[BufferWriterFactory]
   private[io] def bidiFactory  : Option[BufferBidiFactory  ]
+
+  private[io] def asyncReaderFactory: Option[AsyncBufferReaderFactory]
 }
 
 object SampleFormat {
@@ -30,42 +32,56 @@ object SampleFormat {
     private[io] def readerFactory = Some(BufferReader.Byte)
     private[io] def writerFactory = Some(BufferWriter.Byte)
     private[io] def bidiFactory   = Some(BufferBidi  .Byte)
+
+    private[io] def asyncReaderFactory: Option[AsyncBufferReaderFactory] = Some(AsyncBufferReader.Byte)
   }
 
   case object Int8 extends SampleFormat("int8", 8) {
     private[io] def readerFactory = Some(BufferReader.UByte)
     private[io] def writerFactory = Some(BufferWriter.UByte)
     private[io] def bidiFactory   = Some(BufferBidi  .UByte)
+
+    private[io] def asyncReaderFactory: Option[AsyncBufferReaderFactory] = Some(AsyncBufferReader.UByte)
   }
 
   case object Int16 extends SampleFormat("int16", 16) {
     private[io] def readerFactory = Some(BufferReader.Short)
     private[io] def writerFactory = Some(BufferWriter.Short)
     private[io] def bidiFactory   = Some(BufferBidi.Short)
+
+    private[io] def asyncReaderFactory: Option[AsyncBufferReaderFactory] = Some(AsyncBufferReader.Short)
   }
 
   case object Int24 extends SampleFormat("int24", 24) {
     private[io] def readerFactory = Some(BufferReader.ThreeBytes)
     private[io] def writerFactory = Some(BufferWriter.ThreeBytes)
     private[io] def bidiFactory   = Some(BufferBidi.ThreeBytes)
+
+    private[io] def asyncReaderFactory: Option[AsyncBufferReaderFactory] = Some(AsyncBufferReader.ThreeBytes)
   }
 
   case object Int32 extends SampleFormat("int32", 32) {
     private[io] def readerFactory = Some(BufferReader.Int)
     private[io] def writerFactory = Some(BufferWriter.Int)
     private[io] def bidiFactory   = Some(BufferBidi  .Int)
+
+    private[io] def asyncReaderFactory: Option[AsyncBufferReaderFactory] = Some(AsyncBufferReader.Int)
   }
 
   case object Float extends SampleFormat("float", 32) {
     private[io] def readerFactory = Some(BufferReader.Float)
     private[io] def writerFactory = Some(BufferWriter.Float)
     private[io] def bidiFactory   = Some(BufferBidi  .Float)
+
+    private[io] def asyncReaderFactory: Option[AsyncBufferReaderFactory] = Some(AsyncBufferReader.Float)
   }
 
   case object Double extends SampleFormat("double", 64) {
     private[io] def readerFactory = Some(BufferReader.Double)
     private[io] def writerFactory = Some(BufferWriter.Double)
     private[io] def bidiFactory   = Some(BufferBidi  .Double)
+
+    private[io] def asyncReaderFactory: Option[AsyncBufferReaderFactory] = Some(AsyncBufferReader.Double)
   }
 
   // case object MuLaw  extends SampleFormat( "mulaw" )
