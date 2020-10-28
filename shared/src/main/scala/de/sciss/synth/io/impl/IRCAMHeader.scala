@@ -19,7 +19,7 @@ import java.nio.ByteOrder
 
 import scala.annotation.switch
 
-/** IRCAM or BICSF format.
+/** IRCAM or BICSF (Berkeley/IRCAM/Carl) sound format.
   *
   * Info: http://www-mmsp.ece.mcgill.ca/documents/audioformats/IRCAM/IRCAM.html
   */
@@ -97,8 +97,8 @@ private[io] object IRCAMHeader {
       pos += 4 + sz
     }
 
-    val dataOffset  = (pos + 1023L) & ~1023L // skip to next full kilobyte
-    val skp         = (dataOffset - pos).toInt // skip to next full kilobyte
+    val dataOffset  = (pos + 1023L) & ~1023L    // skip to next full kilobyte
+    val skp         = (dataOffset - pos).toInt  // skip to next full kilobyte
     if (skp > 0) din.skipBytes(skp)
     val frameSize   = ((sampleFormat.bitsPerSample + 7) >> 3) * numChannels
     val numFrames   = math.max(0L, fileLen - dataOffset) / frameSize

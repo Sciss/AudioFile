@@ -143,6 +143,26 @@ trait AudioFilePlatform {
 //    }
   }
 
+  @throws(classOf[IOException])
+  def openWriteAsync(uri: URI, spec: AudioFileSpec): Future[AsyncAudioFile] = {
+    val hw  = createHeaderWriter(spec)
+    ???
+//    if (f.exists) f.delete()
+//    val raf = new RandomAccessFile(f, "rw")
+//    val afh = hw.write(raf, spec)
+//    val buf = createBuffer(afh)
+//    val sf  = spec.sampleFormat
+//    val ch  = raf.getChannel
+//    sf.bidiFactory match {
+//      case Some(bbf) =>
+//        val bb = bbf(ch, ch, buf, spec.numChannels)
+//        new BidiFileImpl(f, raf, afh, bb)
+//      case None =>
+//        val bw = sf.writerFactory.map(_.apply(ch, buf, spec.numChannels)).getOrElse(noEncoder(sf))
+//        new WritableFileImpl(f, raf, afh, bw)
+//    }
+  }
+
   // ---- synchronous impl ----
 
   private[io] def openFileWithReader(f: File, reader: AudioFileType.CanRead): AudioFile.HasFile = {
@@ -170,7 +190,7 @@ trait AudioFilePlatform {
 
     protected final def sourceString: String = file.toString
 
-    final def seek(frame: Long): AudioFile = {
+    final def seek(frame: Long): this.type = {
       val physical = sampleDataOffset + frame * bh.frameSize
       raf.seek(physical)
       framePositionVar = frame

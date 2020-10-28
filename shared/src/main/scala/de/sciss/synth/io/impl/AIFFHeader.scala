@@ -15,12 +15,12 @@ package de.sciss.synth.io
 package impl
 
 import java.io.{DataInput, DataInputStream, DataOutput, DataOutputStream, EOFException, IOException, RandomAccessFile}
+import java.nio.ByteOrder
 import java.nio.ByteOrder.{BIG_ENDIAN, LITTLE_ENDIAN}
-import java.nio.{Buffer, BufferOverflowException, ByteBuffer, ByteOrder}
 
 import scala.annotation.switch
 import scala.concurrent.Future
-import scala.math.{min, pow, signum}
+import scala.math.{pow, signum}
 
 private[io] object AIFFHeader extends BasicHeader {
   private final val FORM_MAGIC = 0x464F524D     // 'FORM'
@@ -176,65 +176,10 @@ private[io] object AIFFHeader extends BasicHeader {
   }
 
   def readAsync(ch: AsyncReadableByteChannel): Future[AudioFileHeader] = {
-    val cap     = 128
-    var fileRem = ch.size - ch.position
-    val arr     = new Array[Byte](cap)
-//    val ais     = new ByteArrayInputStream(arr) // note: _our_ version that has `position` method but no 'mark' support
-//    val din     = new DataInputStream(ais)
-    val bb      = ByteBuffer.wrap(arr)
-    (bb: Buffer).limit(0) // initially 'empty'
+    val ab = new AsyncReadableByteBuffer(ch)
+    import ab._
 
-    import ch.executionContext
-
-    def ensureBuffer(n: Int): Future[Unit] = {
-      val lim = bb.limit()
-      val pos = bb.position()
-      val rem = lim - pos
-      if (rem >= n) Future.successful(())
-      else {
-        val stop = rem + n
-        if (stop > cap) throw new BufferOverflowException()
-        // move remaining content to the beginning
-        System.arraycopy(arr, pos, arr, 0, rem)
-        val capM = min(cap, fileRem - rem).toInt
-        (bb: Buffer).position(rem).limit(capM)
-//        ais.position = 0
-        val futRead = ch.read(bb)
-        futRead.map { m =>
-          if (m < n) throw new EOFException()
-          (bb: Buffer).position(0)
-          fileRem -= m
-          ()
-        }
-      }
-    }
-
-    def skipBuffer(n: Int): Unit = {
-      val lim = bb.limit()
-      val pos = bb.position()
-      val rem = lim - pos
-      if (n <= rem) {
-        (bb: Buffer).position(pos + n)
-      } else {
-        (bb: Buffer).position(0).limit(0)
-        val skipCh = n - rem
-        ch.skip(skipCh)
-      }
-    }
-
-    // synchronizes channel position with
-    // current buffer position (and sets buffer limit)
-    def purgeBuffer(): Unit = {
-      val lim = bb.limit()
-      val pos = bb.position()
-      val rem = lim - pos
-      if (rem > 0) {
-        (bb: Buffer).position(0).limit(0)
-        ch.skip(-rem)
-      }
-    }
-
-    ensureBuffer(12).flatMap { _ =>
+    ensure(12).flatMap { _ =>
       if (bb.getInt() != FORM_MAGIC) formatError() // FORM
       // trust the file len more than 32 bit form field which
       // breaks for > 2 GB (> 1 GB if using signed ints)
@@ -248,13 +193,13 @@ private[io] object AIFFHeader extends BasicHeader {
       }
 
       def readChunk(afh: AudioFileHeader): Future[AudioFileHeader] = {
-        ensureBuffer(8).flatMap { _ =>
+        ensure(8).flatMap { _ =>
           val magic     = bb.getInt()
           var chunkLen  = (bb.getInt() + 1) & 0xFFFFFFFE
 
           magic match {
             case COMM_MAGIC =>
-              ensureBuffer(if (isAIFC) 22 else 18).flatMap { _ =>
+              ensure(if (isAIFC) 22 else 18).flatMap { _ =>
                 // reveals spec
                 val numChannels   = bb.getShort()                       // 2
                 val numFrames     = bb.getInt().toLong & 0xFFFFFFFFL    // 6
@@ -288,21 +233,21 @@ private[io] object AIFFHeader extends BasicHeader {
                 val spec  = AudioFileSpec(fileType = AudioFileType.AIFF, sampleFormat = sampleFormat,
                   numChannels = numChannels, sampleRate = sampleRate, byteOrder = Some(byteOrder), numFrames = numFrames)
                 val _afh = ReadableAudioFileHeader(spec, byteOrder)
-                skipBuffer(chunkLen)
+                skip(chunkLen)
                 readChunk(_afh)
               }
 
             case SSND_MAGIC =>
-              ensureBuffer(4).map { _ =>
+              ensure(4).map { _ =>
                 val i1 = bb.getInt() // sample data off
                 bb.getInt()
-                skipBuffer(i1)
-                purgeBuffer()
+                skip(i1)
+                purge()
                 if (afh != null) afh else throw new IOException("AIFF header misses COMM chunk")
               }
 
             case _ => // ignore unknown chunks
-              skipBuffer(chunkLen)
+              skip(chunkLen)
               readChunk(afh)
           }
         }
@@ -335,6 +280,13 @@ private[io] object AIFFHeader extends BasicHeader {
   def write(dos: DataOutputStream, spec: AudioFileSpec): WritableAudioFileHeader = {
     val writeRes = writeDataOutput(dos, spec, writeSize = true)
     new NonUpdatingWritableHeader(writeRes.spec1)
+  }
+
+  def writeAsync(ch: AsyncWritableByteChannel, spec: AudioFileSpec): Future[AsyncWritableAudioFileHeader] = {
+    ???
+//    val writeRes = writeDataOutput(raf, spec, writeSize = false)
+//    import writeRes._
+//    new WritableFileHeader(raf, spec1, otherLen = otherLen, commLen = commLen)
   }
 
   @throws(classOf[IOException])

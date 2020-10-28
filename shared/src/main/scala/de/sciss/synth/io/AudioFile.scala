@@ -18,6 +18,7 @@ import java.nio.ByteBuffer
 import java.nio.channels.{AsynchronousChannel, Channels}
 import java.util.concurrent.atomic.AtomicLong
 
+import de.sciss.synth.io.AudioFile.Frames
 import de.sciss.synth.io.AudioFileHeader.opNotSupported
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -102,7 +103,15 @@ object AudioFile extends ReaderFactory with AudioFilePlatform {
     }
   }
 
+  @throws(classOf[IOException])
+  def openWriteAsync(ch: AsyncReadableByteChannel, spec: AudioFileSpec)
+                    (implicit ec: ExecutionContext): Future[AsyncAudioFile] = {
+    ???
+  }
+
   // ---- generic ----
+
+  type Frames = Array[Array[Float]]
 
   def buffer(numChannels: Int, bufFrames: Int = 8192): Frames =
     Array.ofDim[Float](numChannels, bufFrames)
@@ -172,7 +181,7 @@ object AudioFile extends ReaderFactory with AudioFilePlatform {
     def spec: AudioFileSpec = afh.spec
 
     @throws(classOf[IOException])
-    final def copyTo(target: AudioFile, len: Long): AudioFile = {
+    final def copyTo(target: AudioFile, len: Long): this.type = {
       val tempBufSize = min(len, 8192).toInt
       val tempBuf     = Array.ofDim[Float](spec.numChannels, tempBufSize)
       var remaining   = len
@@ -211,7 +220,7 @@ object AudioFile extends ReaderFactory with AudioFilePlatform {
     override def numFrames: Long = spec.numFrames
 
     @throws(classOf[IOException])
-    final def read(data: Frames, off: Int, len: Int): AudioFile = {
+    final def read(data: Frames, off: Int, len: Int): this.type = {
       bh.read(data, off, len)
       framePositionVar += len
       this
@@ -222,10 +231,10 @@ object AudioFile extends ReaderFactory with AudioFilePlatform {
     final def isWritable = false
 
     @throws(classOf[IOException])
-    final def flush(): AudioFile = opNotSupported
+    final def flush(): this.type = opNotSupported
 
     @throws(classOf[IOException])
-    final def write(data: Frames, off: Int, len: Int): AudioFile = opNotSupported
+    final def write(data: Frames, off: Int, len: Int): this.type = opNotSupported
 
     protected final def accessString = "r"
   }
@@ -243,7 +252,7 @@ object AudioFile extends ReaderFactory with AudioFilePlatform {
     override final def spec: AudioFileSpec = afh.spec.copy(numFrames = numFramesVar)
 
     @throws(classOf[IOException])
-    final def write(data: Frames, off: Int, len: Int): AudioFile = {
+    final def write(data: Frames, off: Int, len: Int): this.type = {
       bh.write(data, off, len)
       framePositionVar += len
       if (framePositionVar > numFramesVar) numFramesVar = framePositionVar
@@ -251,7 +260,7 @@ object AudioFile extends ReaderFactory with AudioFilePlatform {
     }
 
     @throws(classOf[IOException])
-    final def flush(): AudioFile = {
+    final def flush(): this.type = {
       afh.update(numFrames)
       this
     }
@@ -269,12 +278,12 @@ object AudioFile extends ReaderFactory with AudioFilePlatform {
     protected final def accessString = "w"
 
     @throws(classOf[IOException])
-    final def read(data: Frames, off: Int, len: Int): AudioFile = opNotSupported
+    final def read(data: Frames, off: Int, len: Int): this.type = opNotSupported
   }
 
   private[io] trait StreamLike extends Basic {
     @throws(classOf[IOException])
-    final def seek(frame: Long): AudioFile = opNotSupported
+    final def seek(frame: Long): this.type = opNotSupported
 
     protected final def sourceString = "<stream>"
   }
@@ -397,12 +406,21 @@ object AudioFile extends ReaderFactory with AudioFilePlatform {
                                        )
     extends AsyncBasic {
 
+    private[this] val sampleDataOffset = ch.position
+
     final def isReadable = true
     final def isWritable = false
 
     override def numFrames: Long = spec.numFrames
 
     protected final def accessString = "r-async"
+
+    def seek(frame: Long): this.type = {
+      val physical = sampleDataOffset + frame * bh.frameSize
+      ch.position  = physical
+      framePositionRef.set(frame)
+      this
+    }
 
     @throws(classOf[IOException])
     final def read(data: Frames, off: Int, len: Int): Future[Unit] = {
@@ -412,6 +430,8 @@ object AudioFile extends ReaderFactory with AudioFilePlatform {
         ()
       }
     }
+
+    def write(data: Frames, off: Int, len: Int): Future[Unit] = ???
   }
 }
 
@@ -433,10 +453,10 @@ trait AudioFile extends AudioFileBase {
     * @throws java.io.IOException if a reader error or end-of-file occurs.
     */
   @throws(classOf[IOException])
-  def read(data: Frames, off: Int, len: Int): AudioFile
+  def read(data: Frames, off: Int, len: Int): this.type
 
   @throws(classOf[IOException])
-  final def read(data: Frames): AudioFile = {
+  final def read(data: Frames): this.type = {
     var ch  = 0
     var num = 0
     while (ch < data.length) {
@@ -451,18 +471,6 @@ trait AudioFile extends AudioFileBase {
     read(data, 0, num)
   }
 
-  /** Moves the file pointer to a specific
-    * frame.
-    *
-    * @param  frame the sample frame which should be
-    *               the new file position. this is really
-    *               the sample index and not the physical file pointer.
-    * @throws java.io.IOException when a seek error occurs or you try to
-    *                     seek past the file's end.
-    */
-  @throws(classOf[IOException])
-  def seek(frame: Long): AudioFile
-
   /** Flushes pending buffer content, and
     * updates the sound file header information
     * (i.e. numFrames fields). Usually you
@@ -471,19 +479,7 @@ trait AudioFile extends AudioFileBase {
     * and want the file information to appear
     * as accurate as possible.
     */
-  def flush(): AudioFile
-
-  /** Returns the current file pointer in sample frames
-    *
-    * @return		the sample frame index which is the off
-    *            for the next reader or writer operation.
-    *
-    * @throws java.io.IOException		when the position cannot be queried
-    */
-  def position: Long
-
-  @throws(classOf[IOException])
-  final def position_=(frame: Long): Unit = seek(frame)
+  def flush(): this.type
 
   /** Writes sample frames to the file starting at the current position.
     *
@@ -499,10 +495,10 @@ trait AudioFile extends AudioFileBase {
     * @throws java.io.IOException if a writer error occurs.
     */
   @throws(classOf[IOException])
-  def write(data: Frames, off: Int, len: Int): AudioFile
+  def write(data: Frames, off: Int, len: Int): this.type
 
   @throws(classOf[IOException])
-  final def write(data: Frames): AudioFile = {
+  final def write(data: Frames): this.type = {
     var ch  = 0
     var num = 0
     while (ch < data.length) {
@@ -516,19 +512,6 @@ trait AudioFile extends AudioFileBase {
     }
     write(data, 0, num)
   }
-
-  /** Returns the number of frames
-    * in the file.
-    *
-    * @return	the number of sample frames
-    *          in the file. includes pending
-    *          buffer content
-    *
-    * @throws	java.io.IOException	this is never thrown
-    *                       but declared as of the <code>InterleavedStreamFile</code>
-    *                       interface
-    */
-  def numFrames: Long
 
   /** Copies sample frames from a source sound file
     * to a target file (either another sound file
@@ -544,5 +527,5 @@ trait AudioFile extends AudioFileBase {
     * @throws	java.io.IOException	if a read or writer error occurs
     */
   @throws(classOf[IOException])
-  def copyTo(target: AudioFile, numFrames: Long): AudioFile
+  def copyTo(target: AudioFile, numFrames: Long): this.type
 }

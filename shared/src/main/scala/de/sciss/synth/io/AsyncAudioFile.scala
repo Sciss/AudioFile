@@ -15,6 +15,8 @@ package de.sciss.synth.io
 
 import java.nio.channels.AsynchronousChannel
 
+import de.sciss.synth.io.AudioFile.Frames
+
 import scala.concurrent.Future
 
 trait AsyncAudioFile extends AudioFileBase with AsynchronousChannel {
@@ -32,7 +34,52 @@ trait AsyncAudioFile extends AudioFileBase with AsynchronousChannel {
     *              be placed in data[0][off] etc.
     * @param  len  number of continuous frames to reader.
     *
-    * @throws java.io.IOException if a reader error or end-of-file occurs.
+    * @return either a success, or a failure with java.io.IOException if a read error or end-of-file occurred.
     */
   def read(data: Frames, off: Int, len: Int): Future[Unit]
+
+  final def read(data: Frames): Future[Unit] = {
+    var ch  = 0
+    var num = 0
+    while (ch < data.length) {
+      val cd = data(ch)
+      if (cd != null) {
+        num = cd.length
+        ch  = data.length
+      } else {
+        ch += 1
+      }
+    }
+    read(data, 0, num)
+  }
+
+  /** Writes sample frames to the file starting at the current position.
+    *
+    * @param  data	buffer holding the frames to writer to hard-disc.
+    *               the samples must be de-interleaved such that
+    *               data[0][] holds the first channel, data[1][]
+    *               holds the second channel etc.
+    * @param  off  off in the buffer in sample frames, such
+    *              that he first frame of the first channel will
+    *              be reader from data[0][off] etc.
+    * @param  len  number of continuous frames to writer.
+    *
+    * @return either a success, or a failure with java.io.IOException if a write error occurred.
+    */
+  def write(data: Frames, off: Int, len: Int): Future[Unit]
+
+  final def write(data: Frames): Future[Unit] = {
+    var ch  = 0
+    var num = 0
+    while (ch < data.length) {
+      val cd = data(ch)
+      if (cd != null) {
+        num = cd.length
+        ch  = data.length
+      } else {
+        ch += 1
+      }
+    }
+    write(data, 0, num)
+  }
 }

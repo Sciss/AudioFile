@@ -16,6 +16,8 @@ package de.sciss.synth.io
 import java.io.IOException
 import java.nio.{Buffer, ByteBuffer, ByteOrder}
 
+import de.sciss.synth.io.AudioFile.Frames
+
 import scala.concurrent.{ExecutionContext, Future}
 import scala.{Int => SInt}
 import scala.math.min

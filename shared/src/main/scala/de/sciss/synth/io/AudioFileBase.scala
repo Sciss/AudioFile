@@ -16,6 +16,8 @@ package de.sciss.synth.io
 import java.io.IOException
 import java.nio.channels.Channel
 
+import de.sciss.synth.io.AudioFile.Frames
+
 trait AudioFileBase extends Channel {
   /** Returns a description of the audio file's specification. */
   def spec: AudioFileSpec
@@ -51,6 +53,30 @@ trait AudioFileBase extends Channel {
   final def sampleFormat: SampleFormat  = spec.sampleFormat
 
   final def fileType    : AudioFileType = spec.fileType
+
+  /** Moves the file pointer to a specific
+    * frame.
+    *
+    * @param  frame the sample frame which should be
+    *               the new file position. this is really
+    *               the sample index and not the physical file pointer.
+    * @throws java.io.IOException when a seek error occurs or you try to
+    *                     seek past the file's end.
+    */
+  @throws(classOf[IOException])
+  def seek(frame: Long): this.type
+
+  /** Returns the current file pointer in sample frames
+    *
+    * @return		the sample frame index which is the off
+    *            for the next reader or writer operation.
+    *
+    * @throws java.io.IOException		when the position cannot be queried
+    */
+  def position: Long
+
+  @throws(classOf[IOException])
+  final def position_=(frame: Long): Unit = seek(frame)
 
   /** Flushes and closes the file
     *

@@ -16,6 +16,8 @@ package de.sciss.synth.io
 import java.io.{DataInput, DataInputStream, DataOutput, DataOutputStream, IOException, RandomAccessFile}
 import java.nio.ByteOrder
 
+import scala.concurrent.Future
+
 private[io] object AudioFileHeader {
   def opNotSupported = throw new IOException("Operation not supported")
 
@@ -171,6 +173,10 @@ private[io] case class ReadableAudioFileHeader(spec: AudioFileSpec, byteOrder: B
 private[io] trait WritableAudioFileHeader extends AudioFileHeader {
   @throws(classOf[IOException])
   def update(numFrames: Long): Unit
+}
+
+private[io] trait AsyncWritableAudioFileHeader extends AudioFileHeader {
+  def update(numFrames: Long): Future[Unit]
 }
 
 private[io] trait AudioFileHeaderReader {

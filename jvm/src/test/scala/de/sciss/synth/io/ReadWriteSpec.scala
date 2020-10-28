@@ -1,5 +1,7 @@
 package de.sciss.synth.io
 
+import de.sciss.synth.io.AudioFile.Frames
+
 import scala.collection.immutable.{IndexedSeq => Vec}
 
 /*

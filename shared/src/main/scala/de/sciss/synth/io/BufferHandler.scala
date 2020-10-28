@@ -17,6 +17,8 @@ import java.io.IOException
 import java.nio.channels.{ReadableByteChannel, WritableByteChannel}
 import java.nio.{Buffer, ByteBuffer, ByteOrder}
 
+import de.sciss.synth.io.AudioFile.Frames
+
 import scala.{Byte => SByte, Double => SDouble, Float => SFloat, Int => SInt, Short => SShort}
 
 private[io] trait BufferHandler {
