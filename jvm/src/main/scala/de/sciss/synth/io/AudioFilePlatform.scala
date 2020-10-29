@@ -3,11 +3,11 @@ package de.sciss.synth.io
 import java.io.{BufferedInputStream, DataInputStream, File, FileInputStream, IOException, InputStream, RandomAccessFile}
 import java.net.URI
 import java.nio.ByteBuffer
-import java.nio.channels.{AsynchronousFileChannel, Channels, CompletionHandler, ReadPendingException}
+import java.nio.channels.{AsynchronousFileChannel, Channels, CompletionHandler, ReadPendingException, WritePendingException}
 import java.nio.file.{Path, StandardOpenOption}
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
 
-import de.sciss.synth.io.AudioFile.{Basic, Bidi, ReadOnly, Writable, WriteOnly, createBuffer, createHeaderReader, finishOpenStreamWriteAsync, createHeaderReaderAsync, createHeaderWriter, finishOpenStreamReadAsync, noDecoder, noEncoder}
+import de.sciss.synth.io.AudioFile.{Basic, Bidi, ReadOnly, Writable, WriteOnly, createBuffer, createHeaderReader, createHeaderReaderAsync, createHeaderWriter, finishOpenStreamReadAsync, finishOpenStreamWriteAsync, noDecoder, noEncoder}
 
 import scala.concurrent.{ExecutionContext, Future, Promise}
 
@@ -249,7 +249,7 @@ trait AudioFilePlatform {
 //      require (Thread.currentThread() == reqThread)
 
 //      println(" ==> ")
-      if (!pendingRef.compareAndSet(false, true)) throw new ReadPendingException()
+      if (!pendingRef.compareAndSet(false, true)) throw new ReadPendingException()  // XXX TODO should distinguish read/write
 
       val pos = posRef.get()
       val pr  = Promise[Int]()
@@ -258,7 +258,14 @@ trait AudioFilePlatform {
       pr.future
     }
 
-    def write(src: ByteBuffer): Future[Int] = ???
+    def write(src: ByteBuffer): Future[Int] = {
+      if (!pendingRef.compareAndSet(false, true)) throw new WritePendingException() // XXX TODO should distinguish read/write
+
+      val pos = posRef.get()
+      val pr  = Promise[Int]()
+      peer.write(src, pos, pr, this)
+      pr.future
+    }
 
     def size: Long = peer.size()
 

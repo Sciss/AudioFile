@@ -15,8 +15,11 @@ package de.sciss.synth.io
 package impl
 
 import java.io.{DataInput, DataInputStream, DataOutput, DataOutputStream, EOFException, IOException, RandomAccessFile}
-import java.nio.ByteOrder
+import java.nio.{Buffer, ByteBuffer, ByteOrder}
 import java.nio.ByteOrder.{BIG_ENDIAN, LITTLE_ENDIAN}
+import java.util.concurrent.atomic.AtomicLong
+
+import de.sciss.serial.impl.ByteArrayOutputStream
 
 import scala.annotation.switch
 import scala.concurrent.Future
@@ -283,10 +286,16 @@ private[io] object AIFFHeader extends BasicHeader {
   }
 
   def writeAsync(ch: AsyncWritableByteChannel, spec: AudioFileSpec): Future[AsyncWritableAudioFileHeader] = {
-    ???
-//    val writeRes = writeDataOutput(raf, spec, writeSize = false)
-//    import writeRes._
-//    new WritableFileHeader(raf, spec1, otherLen = otherLen, commLen = commLen)
+    val bs        = new ByteArrayOutputStream()
+    val dout      = new DataOutputStream(bs)
+    val writeRes  = writeDataOutput(dout, spec, writeSize = false)
+    val dst       = ByteBuffer.wrap(bs.buffer, 0, bs.size)
+    val fut       = ch.write(dst)
+    import ch.executionContext
+    fut.map { _ =>
+      import writeRes._
+      new AsyncWritableFileHeader(ch, spec1, otherLen = otherLen, commLen = commLen)
+    }
   }
 
   @throws(classOf[IOException])
@@ -398,6 +407,50 @@ private[io] object AIFFHeader extends BasicHeader {
       raf.seek(oldPos)
       //         spec = spec.copy( numFrames = numFrames )
       numFrames0 = numFrames
+    }
+
+    def byteOrder: ByteOrder = spec.byteOrder.get
+  }
+
+  final private class AsyncWritableFileHeader(ch: AsyncWritableByteChannel, val spec: AudioFileSpec,
+                                              otherLen: Int, commLen: Int)
+    extends AsyncWritableAudioFileHeader {
+
+    private[this] val numFrames0 = new AtomicLong(0L) // spec0.numFrames
+    private[this] val bb = ByteBuffer.allocate(4)
+
+    def update(numFrames: Long): Future[Unit] = {
+      if (numFrames == numFrames0.get()) return Future.unit
+
+      val ssndLen = numFrames * ((spec.sampleFormat.bitsPerSample >> 3) * spec.numChannels) + 16
+      val oldPos  = ch.position
+
+      import ch.executionContext
+
+      // FORM Chunk len
+      ch.position_=(4L)
+      val fileLen = otherLen + commLen + ssndLen
+      (bb: Buffer).reset()
+      bb.putInt((fileLen - 8).toInt)
+      ch.write(bb).flatMap { _ =>
+
+        // COMM: numFrames
+        ch.position_=(otherLen + 10)
+        (bb: Buffer).reset()
+        bb.putInt(numFrames.toInt)
+        ch.write(bb).flatMap { _ =>
+
+          // SSND Chunk len
+          ch.position_=(otherLen + commLen + 4)
+          (bb: Buffer).reset()
+          bb.putInt((ssndLen - 8).toInt)
+          ch.write(bb).map { _ =>
+            ch.position_=(oldPos)
+            numFrames0.set(numFrames)
+            ()
+          }
+        }
+      }
     }
 
     def byteOrder: ByteOrder = spec.byteOrder.get

@@ -380,7 +380,10 @@ object AudioFile extends ReaderFactory with AudioFilePlatform {
       sf.asyncBidiFactory match {
         case Some(bbf) =>
           val bb = bbf(ch, buf, spec.numChannels)
-          ??? // new AsyncBidiImpl     (ch, afh, bb, sourceString = uri.toString)
+           // new AsyncBidiImpl     (ch, afh, bb, sourceString = uri.toString)
+          println("TODO: AsyncBidiImpl")
+          new AsyncWritableImpl (ch, afh, bb, sourceString = sourceString)
+
         case None =>
           val bw = sf.asyncWriterFactory.map(_.apply(ch, buf, spec.numChannels))
             .getOrElse(noEncoder(sf))
