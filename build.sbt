@@ -35,7 +35,9 @@ lazy val root = crossProject(JSPlatform, JVMPlatform).in(file("."))
       "de.sciss"      %%% "serial"    % deps.main.serial,
       "org.scalatest" %%% "scalatest" % deps.test.scalaTest % Test,
 ),
-    scalacOptions ++= Seq("-deprecation", "-unchecked", "-feature", "-encoding", "utf8", "-Xlint", "-Xsource:2.13"),
+    scalacOptions ++= Seq(
+      "-deprecation", "-unchecked", "-feature", "-encoding", "utf8", "-Xlint", "-Xsource:2.13", "-Wvalue-discard",
+    ),
     scalacOptions in (Compile, compile) ++= {
       val jdkGt8  = scala.util.Properties.isJavaAtLeast("9")
       val isDotty = scalaVersion.value.startsWith("0.") // https://github.com/lampepfl/dotty/issues/8634

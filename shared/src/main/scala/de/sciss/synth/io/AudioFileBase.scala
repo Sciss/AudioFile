@@ -76,7 +76,10 @@ trait AudioFileBase extends Channel {
   def position: Long
 
   @throws(classOf[IOException])
-  final def position_=(frame: Long): Unit = seek(frame)
+  final def position_=(frame: Long): Unit = {
+    seek(frame)
+    ()
+  }
 
   /** Flushes and closes the file
     *

@@ -4,7 +4,7 @@ import java.io.{BufferedInputStream, DataInputStream, File, FileInputStream, IOE
 import java.net.URI
 import java.nio.ByteBuffer
 import java.nio.channels.{AsynchronousFileChannel, Channels, CompletionHandler, ReadPendingException, WritePendingException}
-import java.nio.file.{Path, StandardOpenOption}
+import java.nio.file.{Paths, StandardOpenOption}
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
 
 import de.sciss.synth.io.AudioFile.{Basic, Bidi, ReadOnly, Writable, WriteOnly, createBuffer, createHeaderReader, createHeaderReaderAsync, createHeaderWriter, finishOpenStreamReadAsync, finishOpenStreamWriteAsync, noDecoder, noEncoder}
@@ -132,7 +132,8 @@ trait AudioFilePlatform {
     */
   @throws(classOf[IOException])
   def openReadAsync(uri: URI)(implicit executionContext: ExecutionContext): Future[AsyncAudioFile] = {
-    val jch   = AsynchronousFileChannel.open(Path.of(uri),
+    val path  = Paths.get(uri)
+    val jch   = AsynchronousFileChannel.open(path,
       StandardOpenOption.READ,
     )
     val ch    = new WrapAsyncFileChannel(jch)
@@ -145,7 +146,7 @@ trait AudioFilePlatform {
   @throws(classOf[IOException])
   def openWriteAsync(uri: URI, spec: AudioFileSpec)
                     (implicit executionContext: ExecutionContext): Future[AsyncAudioFile] = {
-    val path  = Path.of(uri)
+    val path  = Paths.get(uri)
     // there is a very weird thing: if the file already
     // exists, although `TRUNCATE_EXISTING` is set and works,
     // flushing and closing the file takes _a lot_ (>5 times) longer
@@ -206,6 +207,7 @@ trait AudioFilePlatform {
     final def close(): Unit =
       try {
         flush()
+        ()
       } finally {
         raf.close()
       }
@@ -249,7 +251,10 @@ trait AudioFilePlatform {
     def position        : Long        = posRef.get()
     def position_=(value: Long): Unit = posRef.set(value)
 
-    def skip(len: Long): Unit = posRef.addAndGet(len)
+    def skip(len: Long): Unit = {
+      posRef.addAndGet(len)
+      ()
+    }
 
     def read(dst: ByteBuffer): Future[Int] = {
 //      require (Thread.currentThread() == reqThread)
