@@ -60,6 +60,7 @@ final class AsyncReadableByteBuffer(ch: AsyncReadableByteChannel, capacity: Int 
     val rem = lim - pos
     if (n <= rem) {
       (bb: Buffer).position(pos + n)
+      ()
     } else {
       (bb: Buffer).position(0).limit(0)
       val skipCh = n - rem

@@ -196,6 +196,8 @@ trait AudioFilePlatform {
       this
     }
 
+    final def canSeek = true
+
     final def isOpen: Boolean = raf.getChannel.isOpen
   }
 

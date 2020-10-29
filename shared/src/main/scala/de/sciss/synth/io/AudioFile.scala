@@ -286,6 +286,8 @@ object AudioFile extends ReaderFactory with AudioFilePlatform {
     @throws(classOf[IOException])
     final def seek(frame: Long): this.type = opNotSupported
 
+    final def canSeek = false
+
     protected final def sourceString = "<stream>"
   }
 
@@ -313,6 +315,7 @@ object AudioFile extends ReaderFactory with AudioFilePlatform {
       closed = true
       try {
         flush()
+        ()
       } finally {
         dos.close()
       }
@@ -432,6 +435,8 @@ object AudioFile extends ReaderFactory with AudioFilePlatform {
       }
       this
     }
+
+    final def canSeek = true
   }
 
   private trait AsyncBasicReadable extends AsyncBasic {

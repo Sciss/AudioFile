@@ -22,8 +22,23 @@ trait AudioFileBase extends Channel {
   /** Returns a description of the audio file's specification. */
   def spec: AudioFileSpec
 
+  /** Whether it is possible to call the `read` method.
+    * In general, all files opened via `openRead` or `openWrite`
+    * will be readable, but external codecs may in theory be
+    * writable only.
+    */
   def isReadable: Boolean
+
+  /** Whether it is possible to call the `write` method.
+    * This is the case if the file was opened via `openWrite`.
+    */
   def isWritable: Boolean
+
+  /** Whether it is possible to call the `seek` method.
+    * This is the case if the file was opened directly with
+    * a file-based method instead of `InputStream` or `OutputStream` only.
+    */
+  def canSeek: Boolean
 
   def buffer(bufFrames: Int = 8192): Frames =
     AudioFile.buffer(numChannels, bufFrames)
