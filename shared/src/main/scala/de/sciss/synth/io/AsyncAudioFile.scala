@@ -82,4 +82,10 @@ trait AsyncAudioFile extends AudioFileBase with AsynchronousChannel {
     }
     write(data, 0, num)
   }
+
+  /** Flushes pending buffer content, and
+    * updates the sound file header information
+    * (i.e. numFrames fields).
+    */
+  def flush(): Future[Unit]
 }

@@ -305,23 +305,21 @@ private[io] object AsyncBufferReader {
   trait FloatLike extends AsyncBufferReader {
     me: BufferHandler.Float =>
 
+    private final val sync = new AnyRef
+
     final def read(frames: Frames, off: SInt, len: SInt): Future[Unit] =
-      if (len <= 0) Future.successful(()) else {
+      if (len <= 0) Future.unit /*successful(())*/ else {
         val chunkLen   = min(bufFrames, len)
         val m          = chunkLen * numChannels
-        val fut = byteBuf.synchronized {
+        val fut = sync.synchronized {
           (byteBuf: Buffer).rewind().limit(chunkLen * frameSize)
-          // println(s"READ [1]: off = $off, len = $len, byteBuf.limit = ${byteBuf.limit()}")
-//          println(" ---> ")
           channel.read(byteBuf)
         }
         fut.flatMap { _ =>
-//          println(" <--- ")
-
           // N.B.: "Buffers are not safe for use by multiple concurrent threads.
           // If a buffer is to be used by more than one thread then access to the buffer
           // should be controlled by appropriate synchronization."
-          viewBuf.synchronized {
+          sync.synchronized {
             (viewBuf: Buffer).clear()
             // println(s"READ [2]: m = $m, viewBuf.limit = ${viewBuf.limit()}, _.position = ${viewBuf.position()}, _.remaining ${viewBuf.remaining()}")
             viewBuf.get(arrayBuf, 0, m)
@@ -625,29 +623,33 @@ private[io] object AsyncBufferWriter {
   trait FloatLike extends AsyncBufferWriter {
     me: BufferHandler.Float =>
 
-    final def write(frames: Frames, off: SInt, len: SInt): Future[Unit] = {
-      var remaining = len
-      var position  = off
-      while (remaining > 0) {
-        val chunkLen  = math.min(bufFrames, remaining)
+    private final val sync = new AnyRef
+
+    final def write(frames: Frames, off: SInt, len: SInt): Future[Unit] =
+      if (len <= 0) Future.unit /*successful(())*/ else {
+        val chunkLen  = min(bufFrames, len)
         val m			    = chunkLen * numChannels
         var ch = 0; while (ch < numChannels) {
           val b = frames(ch)
-          var i = ch; var j = position; while (i < m) {
+          var i = ch; var j = off; while (i < m) {
             arrayBuf(i) = b(j)
             i += numChannels; j += 1
           }
           ch += 1
         }
-        (viewBuf: Buffer).clear()
-        viewBuf.put(arrayBuf, 0, m)
-        (byteBuf: Buffer).rewind().limit(chunkLen * frameSize)
-        channel.write(byteBuf)
-        remaining -= chunkLen
-        position  += chunkLen
+        // N.B.: "Buffers are not safe for use by multiple concurrent threads.
+        // If a buffer is to be used by more than one thread then access to the buffer
+        // should be controlled by appropriate synchronization."
+        val fut = sync.synchronized {
+          (viewBuf: Buffer).clear()
+          viewBuf.put(arrayBuf, 0, m)
+          (byteBuf: Buffer).rewind().limit(chunkLen * frameSize)
+          channel.write(byteBuf)
+        }
+        fut.flatMap { _ =>
+          write(frames, off = off + chunkLen, len = len - chunkLen)
+        }
       }
-      ???
-    }
   }
 
   trait DoubleLike extends AsyncBufferWriter {

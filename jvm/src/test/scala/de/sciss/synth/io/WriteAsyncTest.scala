@@ -44,7 +44,7 @@ object WriteAsyncTest {
           if (off >= N) Future.successful(())
           else {
             val len = math.min(bsz, N - off).toInt
-            println(s"off = $off, len = $len, thread = ${Thread.currentThread().hashCode().toHexString}")
+//            println(s"off = $off, len = $len, thread = ${Thread.currentThread().hashCode().toHexString}")
             for {
               _ <- afIn .read (buf, 0, len)
               _ <- afOut.write(buf, 0, len)
@@ -52,15 +52,18 @@ object WriteAsyncTest {
             } yield ()
           }
 
-        loop(0L).andThen { case tr =>
-          println(s"Closing (success? ${tr.isSuccess})")
-          afIn  .close()
-          afOut .close()
-        } .map { _ =>
-          val t2 = System.currentTimeMillis()
-          println(f"Copied file, took ${(t2 - t1).toDouble / 1000}%1.1f s.")
-        }
+        loop(0L)
       }
-    } yield ()
+      _ <- afOut.flush().andThen { case tr =>
+        println(s"Closing (success? ${tr.isSuccess})")
+        afIn  .close()
+        afOut .close()
+      }
+
+    } yield {
+      val t2 = System.currentTimeMillis()
+      println(f"Copied file, took ${(t2 - t1).toDouble / 1000}%1.1f s.")
+      ()
+    }
   }
 }

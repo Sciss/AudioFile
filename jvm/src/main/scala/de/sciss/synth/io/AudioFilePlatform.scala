@@ -145,7 +145,13 @@ trait AudioFilePlatform {
   @throws(classOf[IOException])
   def openWriteAsync(uri: URI, spec: AudioFileSpec)
                     (implicit executionContext: ExecutionContext): Future[AsyncAudioFile] = {
-    val jch   = AsynchronousFileChannel.open(Path.of(uri),
+    val path  = Path.of(uri)
+    // there is a very weird thing: if the file already
+    // exists, although `TRUNCATE_EXISTING` is set and works,
+    // flushing and closing the file takes _a lot_ (>5 times) longer
+    // than preemptively deleting the file before re-open.
+    path.toFile.delete()
+    val jch   = AsynchronousFileChannel.open(path,
       StandardOpenOption.WRITE,
       StandardOpenOption.CREATE,
       StandardOpenOption.TRUNCATE_EXISTING,

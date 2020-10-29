@@ -15,9 +15,9 @@ package de.sciss.synth.io
 package impl
 
 import java.io.{DataInput, DataInputStream, DataOutput, DataOutputStream, EOFException, IOException, RandomAccessFile}
-import java.nio.{Buffer, ByteBuffer, ByteOrder}
 import java.nio.ByteOrder.{BIG_ENDIAN, LITTLE_ENDIAN}
-import java.util.concurrent.atomic.AtomicLong
+import java.nio.{Buffer, ByteBuffer, ByteOrder}
+import java.util.ConcurrentModificationException
 
 import de.sciss.serial.impl.ByteArrayOutputStream
 
@@ -416,11 +416,13 @@ private[io] object AIFFHeader extends BasicHeader {
                                               otherLen: Int, commLen: Int)
     extends AsyncWritableAudioFileHeader {
 
-    private[this] val numFrames0 = new AtomicLong(0L) // spec0.numFrames
-    private[this] val bb = ByteBuffer.allocate(4)
+    private[this] val sync          = new AnyRef
+    private[this] var numFramesRef  = 0L
+    private[this] val bb            = ByteBuffer.allocate(4).order(byteOrder)
 
     def update(numFrames: Long): Future[Unit] = {
-      if (numFrames == numFrames0.get()) return Future.unit
+      val oldNumFr = sync.synchronized { numFramesRef }
+      if (numFrames == oldNumFr) return Future.unit
 
       val ssndLen = numFrames * ((spec.sampleFormat.bitsPerSample >> 3) * spec.numChannels) + 16
       val oldPos  = ch.position
@@ -430,23 +432,28 @@ private[io] object AIFFHeader extends BasicHeader {
       // FORM Chunk len
       ch.position_=(4L)
       val fileLen = otherLen + commLen + ssndLen
-      (bb: Buffer).reset()
-      bb.putInt((fileLen - 8).toInt)
+      (bb: Buffer).clear()
+      bb.putInt(0, (fileLen - 8).toInt)
+      // println(s"bb.pos ${bb.position()}, rem ${bb.remaining()}")
       ch.write(bb).flatMap { _ =>
 
         // COMM: numFrames
         ch.position_=(otherLen + 10)
-        (bb: Buffer).reset()
-        bb.putInt(numFrames.toInt)
+        (bb: Buffer).clear()
+        bb.putInt(0, numFrames.toInt)
         ch.write(bb).flatMap { _ =>
 
           // SSND Chunk len
           ch.position_=(otherLen + commLen + 4)
-          (bb: Buffer).reset()
-          bb.putInt((ssndLen - 8).toInt)
+          (bb: Buffer).clear()
+          bb.putInt(0, (ssndLen - 8).toInt)
           ch.write(bb).map { _ =>
             ch.position_=(oldPos)
-            numFrames0.set(numFrames)
+            sync.synchronized {
+              if (numFramesRef != oldNumFr) throw new ConcurrentModificationException
+//              println(s"updated to $numFrames")
+              numFramesRef = numFrames
+            }
             ()
           }
         }
