@@ -105,6 +105,10 @@ object IndexedDBAsyncChannel {
 
     pr.future
   }
+
+  def openWrite(path: String, append: Boolean = false): Future[IndexedDBAsyncChannel] = {
+    ???
+  }
 }
 trait IndexedDBAsyncChannel extends AsyncReadableByteChannel {
 
