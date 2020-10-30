@@ -155,7 +155,11 @@ private[audiofile] final class IndexedDBFileImpl(db: IDBDatabase, path: String, 
       log(s"updateSlice($idx, $start, $stop)")
       val reqRead = store.get(key(idx))
       val futArr  = reqToFuture(reqRead) { _ =>
-        val arrOld    = reqRead.result.asInstanceOf[Int8Array]
+//        val arrOld    = reqRead.result.asInstanceOf[Int8Array]
+        val arrOld    = {
+          val b = reqRead.result.asInstanceOf[jsta.ArrayBuffer]
+          new Int8Array(b)
+        }
         val arrNew    = if (arrOld.length >= stop) arrOld else {
           val bufNew  = new jsta.ArrayBuffer(stop)
           val a       = new Int8Array(bufNew)
@@ -167,7 +171,7 @@ private[audiofile] final class IndexedDBFileImpl(db: IDBDatabase, path: String, 
         arrNew
       }
       futArr.flatMap { arrNew =>
-        val reqWrite = store.put(key = key(idx), value = arrNew)
+        val reqWrite = store.put(key = key(idx), value = arrNew.buffer)
         reqToFuture(reqWrite)(_ => ())
       }
     }
@@ -187,7 +191,7 @@ private[audiofile] final class IndexedDBFileImpl(db: IDBDatabase, path: String, 
     // "middle" blocks are put directly
     while (bIdx < bIdxStop) {
       val arrNew    = nextSlice(pos = srcPos, n = blockSize, copy = true)
-      val reqWrite  = store.put(key = key(bIdx), value = arrNew)
+      val reqWrite  = store.put(key = key(bIdx), value = arrNew.buffer)
       val futMid    = reqToFuture(reqWrite)(_ => ())
       // according to spec, it is allowed to send multiple write requests at once
       txn          ::= futMid
@@ -202,7 +206,7 @@ private[audiofile] final class IndexedDBFileImpl(db: IDBDatabase, path: String, 
         updateSlice(idx = bIdxStop, pos = srcPos, start = 0, stop = lastStop)
       } else {
         val arrNew    = nextSlice(srcPos, lastStop, copy = true)
-        val reqWrite  = store.put(key = key(bIdxStop), value = arrNew)
+        val reqWrite  = store.put(key = key(bIdxStop), value = arrNew.buffer)
         reqToFuture(reqWrite)(_ => ())
       }
       txn       ::= futLast
