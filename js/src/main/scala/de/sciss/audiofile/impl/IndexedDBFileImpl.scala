@@ -3,9 +3,9 @@ package de.sciss.audiofile.impl
 import java.io.IOException
 import java.nio.{Buffer, ByteBuffer}
 
-import de.sciss.audiofile.IndexedDBFile.{Meta, mkStoreName, reqToFuture, writeMeta}
+import de.sciss.audiofile.IndexedDBFile.{Meta, READ_ONLY, READ_WRITE, STORES_FILES, STORE_FILES, log, reqToFuture, writeMeta}
 import de.sciss.audiofile.IndexedDWritableBFile
-import org.scalajs.dom.raw.{IDBDatabase, IDBKeyRange, IDBObjectStore, IDBTransaction}
+import org.scalajs.dom.raw.{IDBDatabase, IDBKeyRange, IDBObjectStore}
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.math.min
@@ -17,8 +17,6 @@ private[audiofile] final class IndexedDBFileImpl(db: IDBDatabase, path: String, 
                                                  readOnly: Boolean)
   extends IndexedDWritableBFile {
 
-  private[this] val storeName       = mkStoreName(path)
-  private[this] val storeNames      = js.Array(storeName)
   private[this] var cachedBlockIdx  = -1
   private[this] var _open           = true
   private[this] var cacheBlock: Array[Byte] = _
@@ -30,6 +28,12 @@ private[audiofile] final class IndexedDBFileImpl(db: IDBDatabase, path: String, 
   def size      : Long = _size
   def position  : Long = _position
   def remaining : Long = _size - _position
+
+  private def key(idx: Int): js.Any =
+    js.Array[Any](path, idx)
+
+  private def keyRange(from: Int, until: Int): IDBKeyRange =
+    IDBKeyRange.bound(js.Array(path, from), js.Array(path, until))
 
   def position_=(value: Long): Unit = {
     if (value < 0L || value > _size) throw new IOException(s"Illegal seek position $value (file size is $size)")
@@ -75,14 +79,14 @@ private[audiofile] final class IndexedDBFileImpl(db: IDBDatabase, path: String, 
         bOffStart  = 0
       }
 
-      val tx        = db.transaction(storeNames, mode = IDBTransaction.READ_ONLY)
-      val store     = tx.objectStore(storeName)
-      val keyRange  = if (bIdxStart == bIdxStop) {
-        IDBKeyRange.only(bIdxStart)
+      val tx        = db.transaction(STORES_FILES, mode = READ_ONLY)
+      val store     = tx.objectStore(STORE_FILES)
+      val kr        = if (bIdxStart == bIdxStop) {
+        key(bIdxStart)
       } else {
-        IDBKeyRange.bound(bIdxStart, bIdxStop)
+        keyRange(bIdxStart, bIdxStop)
       }
-      val req       = store.get(keyRange)
+      val req       = store.get(kr)
       val fut       = reqToFuture(req) { _ =>
         println(s"GET returned: ${req.result}")
         // TODO: copy data; update `cacheBlock`
@@ -106,24 +110,28 @@ private[audiofile] final class IndexedDBFileImpl(db: IDBDatabase, path: String, 
     val bOffStart = blockOffset (posStart )
     val bIdxStop  = blockIndex  (posStop  )
     val bOffStop  = blockOffset (posStop  )
-    var bIdx      = bIdxStart
-    var srcPos    = src.position()
-    val firstLen  = if (bOffStart == 0) 0 else if (bIdxStop > bIdxStart) blockSize else bOffStop
-    val lastLen   = if (bIdxStop > bIdxStart) bOffStop else 0
+    val firstStop = if (bOffStart == 0) 0 else if (bIdxStop > bIdxStart) blockSize else bOffStop
+    val lastStop  = if (firstStop == 0 || bIdxStop > bIdxStart) bOffStop else 0
 
-    val tx        = db.transaction(storeNames, mode = IDBTransaction.READ_WRITE)
-    implicit val store: IDBObjectStore = tx.objectStore(storeName)
+    log(s"write([pos ${src.position()}, rem ${src.remaining()}])")
+    log(s"  posStart $posStart; posStop $posStop; bIdxStart $bIdxStart; bOffStart $bOffStart; bIdxStop $bIdxStop bOffStop $bOffStop")
+
+    val tx        = db.transaction(STORES_FILES, mode = READ_WRITE)
+    implicit val store: IDBObjectStore = tx.objectStore(STORE_FILES)
 
     var txn       = List.empty[Future[Unit]]
 
-    def nextSlice(n: Int, copy: Boolean): Int8Array = {
+    // N.B. do not use outer variables here as this runs in
+    // a future callback
+    def nextSlice(pos: Int, n: Int, copy: Boolean): Int8Array = {
+      log(s"nextSlice($n); pos = $pos")
       import jsta.TypedArrayBufferOps._
       if (src.hasTypedArray()) { // most efficient
         val srcBack = src.typedArray()
-        srcBack.subarray(srcPos, srcPos + n)
+        srcBack.subarray(pos, pos + n)
       } else {
         var i = 0
-        var j = srcPos
+        var j = pos
         val _swap = swapTArray
         while (i < n) {
           _swap(i) = src.get(j) // XXX TODO is there no better way?
@@ -143,8 +151,9 @@ private[audiofile] final class IndexedDBFileImpl(db: IDBDatabase, path: String, 
 
     // XXX TODO: the reqRead should set the cacheBlock
 
-    def updateSlice(idx: Int, start: Int, stop: Int): Future[Unit] = {
-      val reqRead = store.get(idx)
+    def updateSlice(idx: Int, pos: Int, start: Int, stop: Int): Future[Unit] = {
+      log(s"updateSlice($idx, $start, $stop)")
+      val reqRead = store.get(key(idx))
       val futArr  = reqToFuture(reqRead) { _ =>
         val arrOld    = reqRead.result.asInstanceOf[Int8Array]
         val arrNew    = if (arrOld.length >= stop) arrOld else {
@@ -153,29 +162,32 @@ private[audiofile] final class IndexedDBFileImpl(db: IDBDatabase, path: String, 
           a.set(arrOld, 0)
           a
         }
-        val arrSrc = nextSlice(stop - start, copy = false)
+        val arrSrc = nextSlice(pos = pos, n = stop - start, copy = false)
         arrNew.set(arrSrc, start)
         arrNew
       }
       futArr.flatMap { arrNew =>
-        val reqWrite = store.put(key = idx, value = arrNew)
+        val reqWrite = store.put(key = key(idx), value = arrNew)
         reqToFuture(reqWrite)(_ => ())
       }
     }
 
+    var bIdx      = bIdxStart
+    var srcPos    = src.position()
+
     // first block needs to update existing data
-    if (firstLen > 0) {
+    if (firstStop > 0) {
       // be definition (non-block aligned offset), there must be an old block
-      val futFirst = updateSlice(idx = bIdxStart, start = bOffStart, stop = firstLen)
+      val futFirst = updateSlice(idx = bIdxStart, pos = srcPos, start = bOffStart, stop = firstStop)
       txn        ::= futFirst
       bIdx        += 1
-      srcPos      += firstLen
+      srcPos      += firstStop - bOffStart
     }
 
     // "middle" blocks are put directly
     while (bIdx < bIdxStop) {
-      val arrNew    = nextSlice(blockSize, copy = true)
-      val reqWrite  = store.put(key = bIdx, value = arrNew)
+      val arrNew    = nextSlice(pos = srcPos, n = blockSize, copy = true)
+      val reqWrite  = store.put(key = key(bIdx), value = arrNew)
       val futMid    = reqToFuture(reqWrite)(_ => ())
       // according to spec, it is allowed to send multiple write requests at once
       txn          ::= futMid
@@ -184,17 +196,17 @@ private[audiofile] final class IndexedDBFileImpl(db: IDBDatabase, path: String, 
     }
 
     // last block
-    if (lastLen > 0) {
-      val hasOld  = _size > posStop - lastLen
+    if (lastStop > 0) {
+      val hasOld  = _size > posStop - lastStop
       val futLast = if (hasOld) {
-        updateSlice(idx = bIdxStop, start = 0, stop = lastLen)
+        updateSlice(idx = bIdxStop, pos = srcPos, start = 0, stop = lastStop)
       } else {
-        val arrNew    = nextSlice(lastLen, copy = true)
-        val reqWrite  = store.put(key = bIdxStop, value = arrNew)
+        val arrNew    = nextSlice(srcPos, lastStop, copy = true)
+        val reqWrite  = store.put(key = key(bIdxStop), value = arrNew)
         reqToFuture(reqWrite)(_ => ())
       }
       txn       ::= futLast
-      srcPos     += lastLen
+      srcPos     += lastStop
       bIdx       += 1
     }
 
@@ -204,11 +216,11 @@ private[audiofile] final class IndexedDBFileImpl(db: IDBDatabase, path: String, 
 
     val futCommit = allUpdates.flatMap { _ =>
       val now = System.currentTimeMillis()
-      writeMeta(Meta(blockSize = blockSize, length = newSize, lastModified = now))
+      writeMeta(path, Meta(blockSize = blockSize, length = newSize, lastModified = now))
     }
 
     futCommit.map { _ =>
-      assert (src.position() + writeLen == srcPos)
+      assert (src.position() + writeLen == srcPos, s"${src.position()} + $writeLen != $srcPos")
       (src: Buffer).position(srcPos)
       _position = posStop
       _size     = newSize

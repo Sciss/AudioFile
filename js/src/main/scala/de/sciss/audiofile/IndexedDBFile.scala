@@ -24,10 +24,17 @@ import scala.scalajs.js
 import scala.scalajs.js.{typedarray => jsta}
 
 object IndexedDBFile {
-  private val BLOCK_SIZE  = 8192
-  private val VERSION     = 1
-  private val META_COOKIE = 0x4d455441  // "META"
-  private val KEY_META    = "meta"
+  private val BLOCK_SIZE      = 8192
+  private val VERSION         = 1
+  private val META_COOKIE     = 0x4d455441  // "META"
+  private val KEY_META        = "meta"
+  private val DB_FILE_SYSTEM  = "fs"
+
+  private[audiofile] val STORE_FILES  = "files"
+  private[audiofile] val STORES_FILES = js.Array(STORE_FILES)
+
+  private[audiofile] val READ_ONLY    = "readonly"
+  private[audiofile] val READ_WRITE   = "readwrite"
 
   var showLog = true
 
@@ -71,7 +78,7 @@ object IndexedDBFile {
   private[audiofile] def mkException(e: dom.ErrorEvent): Exception =
     new IOException(mkExceptionMessage(e))
 
-  private[audiofile] def mkStoreName(path: String): String = s"fs:$path"
+//  private[audiofile] def mkStoreName(path: String): String = s"fs:$path"
 
   private[audiofile] def reqToFuture[A](req: IDBRequest, failure: dom.ErrorEvent => Throwable = mkException)
                                        (success: dom.Event => A): Future[A] = {
@@ -88,7 +95,7 @@ object IndexedDBFile {
   import ExecutionContext.Implicits.global
 
   private def openFileSystem(): Future[IDBDatabase] = {
-    val req = dom.window.indexedDB.open("fs", VERSION)
+    val req = dom.window.indexedDB.open(DB_FILE_SYSTEM, VERSION)
 
     req.onupgradeneeded = { e =>
       val db = req.result.asInstanceOf[IDBDatabase]
@@ -100,6 +107,7 @@ object IndexedDBFile {
         db.deleteObjectStore(storeName)
         i += 1
       }
+      db.createObjectStore(STORE_FILES)
     }
 
     reqToFuture(req) { _ =>
@@ -111,11 +119,9 @@ object IndexedDBFile {
   def openRead(path: String): Future[IndexedDBFile] = {
     val dbFut = openFileSystem()
     dbFut.flatMap { db =>
-      val storeName   = mkStoreName(path)
-      val storeNames  = js.Array(storeName)
-      val tx          = db.transaction(storeNames, mode = "readonly")
-      implicit val store: IDBObjectStore = tx.objectStore(storeName)
-      val futMeta     = readMeta()
+      val tx = db.transaction(STORES_FILES, mode = READ_ONLY)
+      implicit val store: IDBObjectStore = tx.objectStore(STORE_FILES)
+      val futMeta = readMeta(path)
       futMeta.map { meta =>
         val ch    = new IndexedDBFileImpl(
           db        = db,
@@ -129,8 +135,8 @@ object IndexedDBFile {
     }
   }
 
-  def readMeta()(implicit store: IDBObjectStore): Future[Meta] = {
-    val req = store.get(KEY_META)
+  def readMeta(path: String)(implicit store: IDBObjectStore): Future[Meta] = {
+    val req = store.get(js.Array(path, KEY_META))
     reqToFuture(req, e => mkException(e)) { _ =>
       val bMeta = req.result.asInstanceOf[jsta.ArrayBuffer]
       val meta  = Meta.fromArrayBuffer(bMeta)
@@ -138,15 +144,15 @@ object IndexedDBFile {
     }
   }
 
-  def updateMeta()(meta: Meta => Meta)(implicit store: IDBObjectStore): Future[Unit] =
-    readMeta().flatMap { metaIn =>
+  def updateMeta(path: String)(meta: Meta => Meta)(implicit store: IDBObjectStore): Future[Unit] =
+    readMeta(path).flatMap { metaIn =>
       val metaOut = meta(metaIn)
-      writeMeta(metaOut)
+      writeMeta(path, metaOut)
     }
 
-  def writeMeta(meta: Meta)(implicit store: IDBObjectStore): Future[Unit] = {
+  def writeMeta(path: String, meta: Meta)(implicit store: IDBObjectStore): Future[Unit] = {
     val bMeta = meta.toArrayBuffer
-    val req   = store.put(key = KEY_META, value = bMeta)
+    val req   = store.put(key = js.Array(path, KEY_META), value = bMeta)
     reqToFuture(req)(_ => ())
   }
 
@@ -154,12 +160,9 @@ object IndexedDBFile {
     import ExecutionContext.Implicits.global
     val dbFut = openFileSystem()
     dbFut.flatMap { db =>
-      val storeName   = mkStoreName(path)
-      val storeNames  = js.Array(storeName)
-      db.createObjectStore(storeName)
-      val tx          = db.transaction(storeNames, mode = "readwrite")
+      val tx = db.transaction(STORES_FILES, mode = READ_WRITE)
       println(s"tx: $tx")
-      implicit val store: IDBObjectStore = tx.objectStore(storeName)
+      implicit val store: IDBObjectStore = tx.objectStore(STORE_FILES)
       log(s"opened object store for $path")
 
       def clear(): Future[Meta] = {
@@ -171,7 +174,7 @@ object IndexedDBFile {
       }
 
       val futMeta: Future[Meta] = if (append) {
-        readMeta().recoverWith { case _ => clear() }
+        readMeta(path).recoverWith { case _ => clear() }
       } else {
         clear()
       }
