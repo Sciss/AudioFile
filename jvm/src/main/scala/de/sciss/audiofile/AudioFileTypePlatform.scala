@@ -3,7 +3,6 @@ package de.sciss.audiofile
 import java.io.{File, IOException, RandomAccessFile}
 
 import de.sciss.audiofile.AudioFileType.CanRead
-import AudioFileType.CanRead
 
 /** The JVM platform supports File I/O, e.g. reading from and writing to `RandomAccessFile`. */
 trait AudioFileTypePlatform {

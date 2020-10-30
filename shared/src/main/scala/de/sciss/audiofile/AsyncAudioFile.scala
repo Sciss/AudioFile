@@ -13,13 +13,11 @@
 
 package de.sciss.audiofile
 
-import java.nio.channels.AsynchronousChannel
-
-import AudioFile.Frames
+import de.sciss.audiofile.AudioFile.Frames
 
 import scala.concurrent.Future
 
-trait AsyncAudioFile extends AudioFileBase with AsynchronousChannel {
+trait AsyncAudioFile extends AudioFileBase with AsyncChannel {
   /** Reads sample frames from the current position
     *
     * @param  data	buffer to hold the frames reader from hard-disc.

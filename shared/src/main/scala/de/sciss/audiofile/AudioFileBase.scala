@@ -14,9 +14,8 @@
 package de.sciss.audiofile
 
 import java.io.IOException
-import java.nio.channels.Channel
 
-import AudioFile.Frames
+import de.sciss.audiofile.AudioFile.Frames
 
 trait AudioFileBase extends Channel {
   /** Returns a description of the audio file's specification. */
@@ -95,6 +94,9 @@ trait AudioFileBase extends Channel {
     seek(frame)
     ()
   }
+
+  /** Whether or not this file is still open. */
+  def isOpen: Boolean
 
   /** Flushes and closes the file
     *

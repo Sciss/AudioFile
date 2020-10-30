@@ -14,7 +14,6 @@
 package de.sciss.audiofile
 
 import java.nio.ByteBuffer
-import java.nio.channels.AsynchronousChannel
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -24,7 +23,7 @@ import scala.concurrent.{ExecutionContext, Future}
   * at most one read operation can be submitted at a time (although this constraint
   * might be lifted in the future).
   */
-trait AsyncReadableByteChannel extends AsynchronousChannel {
+trait AsyncReadableByteChannel extends AsyncChannel {
   var position: Long
 
   def size: Long
@@ -39,4 +38,7 @@ trait AsyncReadableByteChannel extends AsynchronousChannel {
   implicit def executionContext: ExecutionContext
 
   def read(dst: ByteBuffer): Future[Int]
+
+  /** Closes the channel. All ongoing asynchronous I/O operations become invalid. */
+  def close(): Unit
 }
