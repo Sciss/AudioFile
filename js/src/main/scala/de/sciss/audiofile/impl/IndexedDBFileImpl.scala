@@ -24,6 +24,7 @@ private[audiofile] final class IndexedDBFileImpl(db: IDBDatabase, path: String, 
   private[this] var _size           = size0
   private[this] val swapBuf         = new jsta.ArrayBuffer(blockSize)
   private[this] val swapTArray      = new Int8Array(swapBuf)
+//  private[this] val swapBB          = AudioFile.allocByteBuffer(blockSize)
 
   def size      : Long = _size
   def position  : Long = _position
@@ -125,11 +126,23 @@ private[audiofile] final class IndexedDBFileImpl(db: IDBDatabase, path: String, 
     // a future callback
     def nextSlice(pos: Int, n: Int, copy: Boolean): Int8Array = {
       log(s"nextSlice($n); pos = $pos")
+
+      // Tests conducted show that using the typed-array
+      // has no performance advantage
       import jsta.TypedArrayBufferOps._
       if (src.hasTypedArray()) { // most efficient
         val srcBack = src.typedArray()
-        srcBack.subarray(pos, pos + n)
+        // N.B.: Chromium stores the entire buffer contents,
+        // irrespective of `subarray` usage. Therefore, we must
+        // always copy into a buffer to the exact size!
+        val bufNew = new jsta.ArrayBuffer(n)
+        val arrNew = new Int8Array(bufNew)
+        val srcSub = srcBack.subarray(pos, pos + n)
+        arrNew.set(srcSub)
+        arrNew
+
       } else {
+
         var i = 0
         var j = pos
         val _swap = swapTArray
@@ -137,15 +150,16 @@ private[audiofile] final class IndexedDBFileImpl(db: IDBDatabase, path: String, 
           _swap(i) = src.get(j) // XXX TODO is there no better way?
           i += 1; j += 1
         }
-        val swapSub = if (n == blockSize) _swap else _swap.subarray(0, n)
-        if (copy) {
-          val bufNew = new jsta.ArrayBuffer(n)
-          val arrNew = new Int8Array(bufNew)
+        if (copy || n < blockSize) {
+          val bufNew  = new jsta.ArrayBuffer(n)
+          val arrNew  = new Int8Array(bufNew)
+          val swapSub = if (n == blockSize) _swap else _swap.subarray(0, n)
           arrNew.set(swapSub)
           arrNew
         } else {
-          swapSub
+          _swap
         }
+
       }
     }
 

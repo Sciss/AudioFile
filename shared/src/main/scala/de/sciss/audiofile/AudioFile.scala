@@ -122,18 +122,21 @@ object AudioFile extends ReaderFactory with AudioFilePlatform {
     * When `true`, `ByteBuffer.allocateDirect` is used instead of `allocate`, possibly using faster
     * direct memory.
     */
-  val KEY_DIRECT_MEMORY = "de.sciss.audiofile.AudioFile.DirectMemory"
+  val KEY_DIRECT_MEMORY = "AudioFile.DirectMemory"
 
   // ---- impl  ----
 
-  private final val useDirect = sys.props.getOrElse(KEY_DIRECT_MEMORY, "false").toBoolean
+  private lazy val _useDirect = sys.props.getOrElse(KEY_DIRECT_MEMORY, "false").toBoolean
+
+  private[audiofile] def allocByteBuffer(size: Int): ByteBuffer =
+    if (_useDirect) ByteBuffer.allocateDirect(size) else ByteBuffer.allocate(size)
 
   private[audiofile] def createBuffer(afh: AudioFileHeader): ByteBuffer = {
     val spec      = afh.spec
     val frameSize = (spec.sampleFormat.bitsPerSample >> 3) * spec.numChannels
     val bufFrames = max(1, 65536 / max(1, frameSize))
     val bufSize   = bufFrames * frameSize
-    val byteBuf   = if (useDirect) ByteBuffer.allocateDirect(bufSize) else ByteBuffer.allocate(bufSize)
+    val byteBuf   = allocByteBuffer(bufSize)
     byteBuf.order(afh.byteOrder)
   }
 

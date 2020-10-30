@@ -130,7 +130,7 @@ files in a website's client side browser cache.
 
 ## properties
 
-There is a system property `de.sciss.audiofile.AudioFile.DirectMemory` whose value can be set to `true` in order 
+There is a system property `AudioFile.DirectMemory` whose value can be set to `true` in order 
 to use direct-memory buffers (`ByteBuffer.allocateDirect`). Reading in a 1.6 GB is around 18% faster with direct 
 memory. Direct memory can have the disadvantage that it requires an individual VM switch to adjust the maximum 
 available memory before throwing an out-of-memory error. The default is __false__.
