@@ -19,7 +19,7 @@ import java.nio.{Buffer, ByteBuffer, ByteOrder}
 import AudioFile.Frames
 
 import scala.concurrent.{ExecutionContext, Future}
-import scala.{Int => SInt}
+import scala.{Int => SInt, Float => SFloat}
 import scala.math.min
 
 private[audiofile] trait AsyncBufferHandler extends BufferHandler {
@@ -114,201 +114,16 @@ private[audiofile] object AsyncBufferReader {
                          (implicit val executionContext: ExecutionContext)
     extends BufferHandler.Double with DoubleLike
 
-  trait ByteLike extends AsyncBufferReader {
-    me: BufferHandler.Byte =>
-
-    final def read(frames: Frames, off: SInt, len: SInt): Future[Unit] = {
-      var remaining = len
-      var position   = off
-      while (remaining > 0) {
-        val chunkLen  = min(bufFrames, remaining)
-        val m			    = chunkLen * frameSize
-        (byteBuf: Buffer).rewind().limit(m)
-        val fut = channel.read(byteBuf)
-        fut.map { _ =>
-          byteBuf.flip()
-          byteBuf.get(arrayBuf, 0, m)
-          var ch = 0; while (ch < numChannels) {
-            val b = frames(ch)
-            if (b != null) {
-              var i = ch; var j = position; while (i < m) {
-                b(j) = arrayBuf(i).toFloat / 0x7F
-                i += numChannels; j += 1
-              }
-            }
-            ch += 1
-          }
-          remaining -= chunkLen
-          position  += chunkLen
-        }
-      }
-      ???
-    }
-  }
-
-  trait UByteLike extends AsyncBufferReader {
-    me: BufferHandler.UByte =>
-
-    final def read(frames: Frames, off: SInt, len: SInt): Future[Unit] = {
-      var remaining = len
-      var position  = off
-      while (remaining > 0) {
-        val chunkLen  = min(bufFrames, remaining)
-        val m         = chunkLen * frameSize
-        (byteBuf: Buffer).rewind().limit(m)
-        channel.read(byteBuf)
-        byteBuf.flip()
-        byteBuf.get(arrayBuf, 0, m)
-        var ch = 0; while (ch < numChannels) {
-          val b = frames(ch)
-          if (b != null) {
-            var i = ch; var j = position; while (i < m) {
-              val arr1 = arrayBuf(i)
-              // java can't handle unsigned bytes
-              b(j) = (if (arr1 < 0) 0x80 + arr1 else arr1 - 0x80).toFloat / 0x7F
-              i += numChannels; j += 1
-            }
-          }
-          ch += 1
-        }
-        remaining -= chunkLen
-        position  += chunkLen
-      }
-      ???
-    }
-  }
-
-  trait ShortLike extends AsyncBufferReader {
-    me: BufferHandler.Short =>
-
-    final def read(frames: Frames, off: SInt, len: SInt): Future[Unit] = {
-      var remaining = len
-      var position  = off
-      while (remaining > 0) {
-        val chunkLen  = min(bufFrames, remaining)
-        val m			    = chunkLen * numChannels
-        (byteBuf: Buffer).rewind().limit(chunkLen * frameSize)
-        channel.read(byteBuf)
-        (viewBuf: Buffer).clear()
-        viewBuf.get(arrayBuf, 0, m)
-        var ch = 0; while (ch < numChannels) {
-          val b = frames(ch)
-          if (b != null) {
-            var i = ch; var j = position; while (i < m) {
-              b(j) = arrayBuf(i).toFloat / 0x7FFF
-              i += numChannels; j += 1
-            }
-          }
-          ch += 1
-        }
-        remaining -= chunkLen
-        position  += chunkLen
-      }
-      ???
-    }
-  }
-
-  trait ThreeBytesBELike extends AsyncBufferReader {
-    me: BufferHandler.ThreeBytes =>
-
-    final def read(frames: Frames, off: SInt, len: SInt): Future[Unit] = {
-      var remaining = len
-      var position  = off
-      while (remaining > 0) {
-        val chunkLen  = min(bufFrames, remaining)
-        val m			    = chunkLen * frameSize
-        (byteBuf: Buffer).rewind().limit(m)
-        channel.read(byteBuf)
-        byteBuf.flip()
-        byteBuf.get(arrayBuf, 0, m)
-        var ch = 0; var p = 0; while (ch < numChannels) {
-          val b = frames(ch)
-          if (b != null) {
-            var i = p; var j = position; while (i < m) {
-              b(j) = ((arrayBuf(i) << 16 ) |
-                ((arrayBuf(i + 1) & 0xFF) << 8) |
-                (arrayBuf(i + 2) & 0xFF)).toFloat / 0x7FFFFF
-              i += chStep; j += 1
-            }
-          }
-          ch += 1; p += 3
-        }
-        remaining -= chunkLen
-        position  += chunkLen
-      }
-      ???
-    }
-  }
-
-  trait ThreeBytesLELike extends AsyncBufferReader {
-    me: BufferHandler.ThreeBytes =>
-
-    final def read(frames: Frames, off: SInt, len: SInt): Future[Unit] = {
-      var remaining = len
-      var position  = off
-      while (remaining > 0) {
-        val chunkLen  = min(bufFrames, remaining)
-        val m			    = chunkLen * frameSize
-        (byteBuf: Buffer).rewind().limit(m)
-        channel.read(byteBuf)
-        byteBuf.flip()
-        byteBuf.get(arrayBuf, 0, m)
-        var ch = 0; var p = 0; while (ch < numChannels) {
-          val b = frames(ch)
-          if (b != null) {
-            var i = p; var j = position; while (i < m) {
-              b(j) = ((arrayBuf(i) & 0xFF)|
-                ((arrayBuf(i + 1) & 0xFF) << 8) |
-                (arrayBuf(i + 2) << 16 )).toFloat / 0x7FFFFF
-              i += chStep; j += 1
-            }
-          }
-          ch += 1; p += 3
-        }
-        remaining -= chunkLen
-        position  += chunkLen
-      }
-      ???
-    }
-  }
-
-  trait IntLike extends AsyncBufferReader {
-    me: BufferHandler.Int =>
-
-    final def read(frames: Frames, off: SInt, len: SInt): Future[Unit] = {
-      var remaining = len
-      var position  = off
-      while (remaining > 0) {
-        val chunkLen   = min(bufFrames, remaining)
-        val m			   = chunkLen * numChannels
-        (byteBuf: Buffer).rewind().limit(chunkLen * frameSize)
-        channel.read(byteBuf)
-        (viewBuf: Buffer).clear()
-        viewBuf.get(arrayBuf, 0, m)
-        var ch = 0; while (ch < numChannels) {
-          val b = frames(ch)
-          if (b != null) {
-            var i = ch; var j = position; while (i < m) {
-              b(j) = arrayBuf(i).toFloat / 0x7FFFFFFF
-              i += numChannels; j += 1
-            }
-          }
-          ch += 1
-        }
-        remaining -= chunkLen
-        position  += chunkLen
-      }
-      ???
-    }
-  }
-
-  trait FloatLike extends AsyncBufferReader {
-    me: BufferHandler.Float =>
+  trait Base extends AsyncBufferReader {
 
     private final val sync = new AnyRef
 
+    protected def arrayToSamples(smp: Array[SFloat], smpOff: SInt, arrOff: SInt, arrStep: SInt, arrStop: SInt): Unit
+
+    protected def bufferToArray(numSmp: SInt): Unit
+
     final def read(frames: Frames, off: SInt, len: SInt): Future[Unit] =
-      if (len <= 0) Future.unit /*successful(())*/ else {
+      if (len <= 0) Future.unit else {
         val chunkLen   = min(bufFrames, len)
         val m          = chunkLen * numChannels
         val fut = sync.synchronized {
@@ -320,18 +135,13 @@ private[audiofile] object AsyncBufferReader {
           // If a buffer is to be used by more than one thread then access to the buffer
           // should be controlled by appropriate synchronization."
           sync.synchronized {
-            (viewBuf: Buffer).clear()
-            // println(s"READ [2]: m = $m, viewBuf.limit = ${viewBuf.limit()}, _.position = ${viewBuf.position()}, _.remaining ${viewBuf.remaining()}")
-            viewBuf.get(arrayBuf, 0, m)
+            bufferToArray(m)
           }
           var ch = 0
           while (ch < numChannels) {
             val b = frames(ch)
             if (b != null) {
-              var i = ch; var j = off; while (i < m) {
-                b(j) = arrayBuf(i)
-                i += numChannels; j += 1
-              }
+              arrayToSamples(smp = b, smpOff = off, arrOff = ch, arrStep = numChannels, arrStop = m)
             }
             ch += 1
           }
@@ -340,33 +150,157 @@ private[audiofile] object AsyncBufferReader {
       }
   }
 
-  trait DoubleLike extends AsyncBufferReader {
+  trait ByteLike extends Base with AsyncBufferReader {
+    me: BufferHandler.Byte =>
+
+    protected def arrayToSamples(smp: Array[SFloat], smpOff: SInt,
+                                 arrOff: SInt, arrStep: SInt, arrStop: SInt): Unit = {
+      var i = arrOff; var j = smpOff; while (i < arrStop) {
+        smp(j) = arrayBuf(i).toFloat / 0x7F
+        i += arrStep; j += 1
+      }
+    }
+
+    protected def bufferToArray(numSmp: SInt): Unit = {
+      (byteBuf: Buffer).clear()
+      byteBuf.get(arrayBuf, 0, numSmp)
+      ()
+    }
+  }
+
+  trait UByteLike extends Base with AsyncBufferReader {
+    me: BufferHandler.UByte =>
+
+    protected def arrayToSamples(smp: Array[SFloat], smpOff: SInt,
+                                 arrOff: SInt, arrStep: SInt, arrStop: SInt): Unit = {
+      var i = arrOff; var j = smpOff; while (i < arrStop) {
+        val arr1 = arrayBuf(i)
+        // java can't handle unsigned bytes
+        smp(j) = (if (arr1 < 0) 0x80 + arr1 else arr1 - 0x80).toFloat / 0x7F
+        i += arrStep; j += 1
+      }
+    }
+
+    protected def bufferToArray(numSmp: SInt): Unit = {
+      (byteBuf: Buffer).clear()
+      byteBuf.get(arrayBuf, 0, numSmp)
+      ()
+    }
+  }
+
+  trait ShortLike extends Base with AsyncBufferReader {
+    me: BufferHandler.Short =>
+
+    protected def arrayToSamples(smp: Array[SFloat], smpOff: SInt,
+                                 arrOff: SInt, arrStep: SInt, arrStop: SInt): Unit = {
+      var i = arrOff; var j = smpOff; while (i < arrStop) {
+        smp(j) = arrayBuf(i).toFloat / 0x7FFF
+        i += arrStep; j += 1
+      }
+    }
+
+    protected def bufferToArray(numSmp: SInt): Unit = {
+      (viewBuf: Buffer).clear()
+      viewBuf.get(arrayBuf, 0, numSmp)
+      ()
+    }
+  }
+
+  trait ThreeBytesBELike extends Base with AsyncBufferReader {
+    me: BufferHandler.ThreeBytes =>
+
+    protected def arrayToSamples(smp: Array[SFloat], smpOff: SInt,
+                                 arrOff: SInt, arrStep: SInt, arrStop: SInt): Unit = {
+      var i = arrOff * 3; val iStep = arrStep * 3; var j = smpOff; while (i < arrStop) {
+        smp(j) = (
+           (arrayBuf(i)             << 16) |
+          ((arrayBuf(i + 1) & 0xFF) <<  8) |
+           (arrayBuf(i + 2) & 0xFF)
+          ).toFloat / 0x7FFFFF
+        i += iStep; j += 1
+      }
+    }
+
+    protected def bufferToArray(numSmp: SInt): Unit = {
+      (byteBuf: Buffer).clear()
+      byteBuf.get(arrayBuf, 0, numSmp * 3)
+      ()
+    }
+  }
+
+  trait ThreeBytesLELike extends Base with AsyncBufferReader {
+    me: BufferHandler.ThreeBytes =>
+
+    protected def arrayToSamples(smp: Array[SFloat], smpOff: SInt,
+                                 arrOff: SInt, arrStep: SInt, arrStop: SInt): Unit = {
+      var i = arrOff * 3; val iStep = arrStep * 3; var j = smpOff; while (i < arrStop) {
+        smp(j) = (
+             (arrayBuf(i)     & 0xFF)        |
+            ((arrayBuf(i + 1) & 0xFF) <<  8) |
+             (arrayBuf(i + 2)         << 16)
+          ).toFloat / 0x7FFFFF
+        i += iStep; j += 1
+      }
+    }
+
+    protected def bufferToArray(numSmp: SInt): Unit = {
+      (byteBuf: Buffer).clear()
+      byteBuf.get(arrayBuf, 0, numSmp * 3)
+      ()
+    }
+  }
+
+  trait IntLike extends Base with AsyncBufferReader {
+    me: BufferHandler.Int =>
+
+    protected def arrayToSamples(smp: Array[SFloat], smpOff: SInt,
+                                 arrOff: SInt, arrStep: SInt, arrStop: SInt): Unit = {
+      var i = arrOff; var j = smpOff; while (i < arrStop) {
+        smp(j) = arrayBuf(i).toFloat / 0x7FFFFFFF
+        i += arrStep; j += 1
+      }
+    }
+
+    protected def bufferToArray(numSmp: SInt): Unit = {
+      (viewBuf: Buffer).clear()
+      viewBuf.get(arrayBuf, 0, numSmp)
+      ()
+    }
+  }
+
+  trait FloatLike extends Base with AsyncBufferReader {
+    me: BufferHandler.Float =>
+
+    protected def arrayToSamples(smp: Array[SFloat], smpOff: SInt,
+                                 arrOff: SInt, arrStep: SInt, arrStop: SInt): Unit = {
+      var i = arrOff; var j = smpOff; while (i < arrStop) {
+        smp(j) = arrayBuf(i)
+        i += arrStep; j += 1
+      }
+    }
+
+    protected def bufferToArray(numSmp: SInt): Unit = {
+      (viewBuf: Buffer).clear()
+      viewBuf.get(arrayBuf, 0, numSmp)
+      ()
+    }
+  }
+
+  trait DoubleLike extends Base with AsyncBufferReader {
     me: BufferHandler.Double =>
 
-    final def read(frames: Frames, off: SInt, len: SInt): Future[Unit] = {
-      var remaining = len
-      var position  = off
-      while (remaining > 0) {
-        val chunkLen   = math.min(bufFrames, remaining)
-        val m			   = chunkLen * numChannels
-        (byteBuf: Buffer).rewind().limit(chunkLen * frameSize)
-        channel.read(byteBuf)
-        (viewBuf: Buffer).clear()
-        viewBuf.get(arrayBuf, 0, m)
-        var ch = 0; while (ch < numChannels) {
-          val b = frames(ch)
-          if (b != null) {
-            var i = ch; var j = position; while (i < m) {
-              b(j) = arrayBuf(i).toFloat
-              i += numChannels; j += 1
-            }
-          }
-          ch += 1
-        }
-        remaining -= chunkLen
-        position  += chunkLen
+    protected def arrayToSamples(smp: Array[SFloat], smpOff: SInt,
+                                 arrOff: SInt, arrStep: SInt, arrStop: SInt): Unit = {
+      var i = arrOff; var j = smpOff; while (i < arrStop) {
+        smp(j) = arrayBuf(i).toFloat
+        i += arrStep; j += 1
       }
-      ???
+    }
+
+    protected def bufferToArray(numSmp: SInt): Unit = {
+      (viewBuf: Buffer).clear()
+      viewBuf.get(arrayBuf, 0, numSmp)
+      ()
     }
   }
 }
@@ -440,209 +374,27 @@ private[audiofile] object AsyncBufferWriter {
                          (implicit val executionContext: ExecutionContext)
     extends BufferHandler.Double with DoubleLike
 
-  trait ByteLike extends AsyncBufferWriter {
-    me: BufferHandler.Byte =>
-
-    final def write(frames: Frames, off: SInt, len: SInt): Future[Unit] = {
-      var remaining = len
-      var position = off
-      while (remaining > 0) {
-        val chunkLen  = math.min(bufFrames, remaining)
-        val m			    = chunkLen * frameSize
-        var ch = 0; while(ch < numChannels) {
-          val b = frames(ch)
-          var i = ch; var j = position; while (i < m) {
-            arrayBuf(i) = (b(j) * 0x7F).toByte
-            i += numChannels; j += 1
-          }
-          ch += 1
-        }
-        (byteBuf: Buffer).clear()
-        byteBuf.put(arrayBuf, 0, m)
-        byteBuf.flip()
-        channel.write(byteBuf)
-        remaining -= chunkLen
-        position  += chunkLen
-      }
-      ???
-    }
-  }
-
-  trait UByteLike extends AsyncBufferWriter {
-    me: BufferHandler.UByte =>
-
-    final def write(frames: Frames, off: SInt, len: SInt): Future[Unit] = {
-      var remaining = len
-      var position = off
-      while (remaining > 0) {
-        val chunkLen  = math.min(bufFrames, remaining)
-        val m			    = chunkLen * frameSize
-        var ch = 0; while (ch < numChannels) {
-          val b = frames(ch)
-          var i = ch; var j = position; while (i < m) {
-            arrayBuf(i) = (b(j) * 0x7F + 0x80).toByte
-            i += numChannels; j += 1
-          }
-          ch += 1
-        }
-        (byteBuf: Buffer).clear()
-        byteBuf.put(arrayBuf, 0, m)
-        byteBuf.flip()
-        channel.write(byteBuf)
-        remaining -= chunkLen
-        position  += chunkLen
-      }
-      ???
-    }
-  }
-
-  trait ShortLike extends AsyncBufferWriter {
-    me: BufferHandler.Short =>
-
-    final def write(frames: Frames, off: SInt, len: SInt): Future[Unit] = {
-      var remaining = len
-      var position = off
-      while (remaining > 0) {
-        val chunkLen  = math.min(bufFrames, remaining)
-        val m			    = chunkLen * numChannels
-        var ch = 0; while (ch < numChannels) {
-          val b = frames(ch)
-          if (b != null) {
-            var i = ch; var j = position; while (i < m) {
-              arrayBuf(i) = (b(j) * 0x7FFF).toShort
-              i += numChannels; j += 1
-            }
-          }
-          ch += 1
-        }
-        (viewBuf: Buffer).clear()
-        viewBuf.put(arrayBuf, 0, m)
-        (byteBuf: Buffer).rewind().limit(chunkLen * frameSize)
-        channel.write(byteBuf)
-        remaining -= chunkLen
-        position  += chunkLen
-      }
-      ???
-    }
-  }
-
-  trait ThreeBytesBELike extends AsyncBufferWriter {
-    me: BufferHandler.ThreeBytes =>
-
-    final def write(frames: Frames, off: SInt, len: SInt): Future[Unit] = {
-      var remaining = len
-      var position = off
-      while (remaining > 0) {
-        val chunkLen  = math.min(bufFrames, remaining)
-        val m			    = chunkLen * frameSize
-        var ch = 0; var p = 0; while (ch < numChannels) {
-          val b = frames(ch)
-          var i = p; var j = position; while (i < m) {
-            val k = (b(j) * 0x7FFFFF).toInt
-            arrayBuf(i)     = (k >> 16).toByte
-            arrayBuf(i + 1) = (k >> 8).toByte
-            arrayBuf(i + 2) = k.toByte
-            i += chStep; j += 1
-          }
-          ch += 1; p += 3
-        }
-        (byteBuf: Buffer).clear()
-        byteBuf.put(arrayBuf, 0, m)
-        byteBuf.flip()
-        channel.write(byteBuf)
-        remaining -= chunkLen
-        position  += chunkLen
-      }
-      ???
-    }
-  }
-
-  trait ThreeBytesLELike extends AsyncBufferWriter {
-    me: BufferHandler.ThreeBytes =>
-
-    final def write(frames: Frames, off: SInt, len: SInt): Future[Unit] = {
-      var remaining = len
-      var position  = off
-      while (remaining > 0) {
-        val chunkLen  = math.min(bufFrames, remaining)
-        val m			    = chunkLen * frameSize
-        var ch = 0; var p = 0; while (ch < numChannels) {
-          val b = frames(ch)
-          if (b != null) {
-            var i = p; var j = position; while (i < m) {
-              val k = (b(j) * 0x7FFFFF).toInt
-              arrayBuf(i)     = k.toByte
-              arrayBuf(i + 1) = (k >> 8).toByte
-              arrayBuf(i + 2) = (k >> 16).toByte
-              i += chStep; j += 1
-            }
-          }
-          ch += 1; p += 3
-        }
-        (byteBuf: Buffer).clear()
-        byteBuf.put(arrayBuf, 0, m)
-        byteBuf.flip()
-        channel.write(byteBuf)
-        remaining -= chunkLen
-        position  += chunkLen
-      }
-      ???
-    }
-  }
-
-  trait IntLike extends AsyncBufferWriter {
-    me: BufferHandler.Int =>
-
-    final def write(frames: Frames, off: SInt, len: SInt): Future[Unit] = {
-      var remaining = len
-      var position  = off
-      while (remaining > 0) {
-        val chunkLen   = math.min(bufFrames, remaining)
-        val m	         = chunkLen * numChannels
-        var ch = 0; while (ch < numChannels) {
-          val b = frames(ch)
-          if (b != null) {
-            var i = ch; var j = position; while (i < m) {
-              arrayBuf(i) = (b(j) * 0x7FFFFFFF).toInt
-              i += numChannels; j += 1
-            }
-          }
-          ch += 1
-        }
-        (viewBuf: Buffer).clear()
-        viewBuf.put(arrayBuf, 0, m)
-        (byteBuf: Buffer).rewind().limit(chunkLen * frameSize)
-        channel.write(byteBuf)
-        remaining -= chunkLen
-        position  += chunkLen
-      }
-      ???
-    }
-  }
-
-  trait FloatLike extends AsyncBufferWriter {
-    me: BufferHandler.Float =>
-
+  trait Base extends AsyncBufferWriter {
     private final val sync = new AnyRef
 
+    protected def samplesToArray(smp: Array[SFloat], smpOff: SInt, arrOff: SInt, arrStep: SInt, arrStop: SInt): Unit
+
+    protected def arrayToBuffer(numSmp: SInt): Unit
+
     final def write(frames: Frames, off: SInt, len: SInt): Future[Unit] =
-      if (len <= 0) Future.unit /*successful(())*/ else {
+      if (len <= 0) Future.unit else {
         val chunkLen  = min(bufFrames, len)
         val m			    = chunkLen * numChannels
         var ch = 0; while (ch < numChannels) {
           val b = frames(ch)
-          var i = ch; var j = off; while (i < m) {
-            arrayBuf(i) = b(j)
-            i += numChannels; j += 1
-          }
+          samplesToArray(smp = b, smpOff = off, arrOff = ch, arrStep = numChannels, arrStop = m)
           ch += 1
         }
         // N.B.: "Buffers are not safe for use by multiple concurrent threads.
         // If a buffer is to be used by more than one thread then access to the buffer
         // should be controlled by appropriate synchronization."
         val fut = sync.synchronized {
-          (viewBuf: Buffer).clear()
-          viewBuf.put(arrayBuf, 0, m)
+          arrayToBuffer(m)
           (byteBuf: Buffer).rewind().limit(chunkLen * frameSize)
           channel.write(byteBuf)
         }
@@ -652,33 +404,153 @@ private[audiofile] object AsyncBufferWriter {
       }
   }
 
-  trait DoubleLike extends AsyncBufferWriter {
+  trait ByteLike extends Base with AsyncBufferWriter {
+    me: BufferHandler.Byte =>
+
+    protected final def samplesToArray(smp: Array[SFloat], smpOff: SInt,
+                                       arrOff: SInt, arrStep: SInt, arrStop: SInt): Unit = {
+      var i = arrOff; var j = smpOff; while (i < arrStop) {
+        arrayBuf(i) = (smp(j) * 0x7F).toByte
+        i += arrStep; j += 1
+      }
+    }
+
+    protected final def arrayToBuffer(numSmp: SInt): Unit = {
+      (byteBuf: Buffer).clear()
+      byteBuf.put(arrayBuf, 0, numSmp)
+      ()
+    }
+  }
+
+  trait UByteLike extends Base with AsyncBufferWriter {
+    me: BufferHandler.UByte =>
+
+    protected final def samplesToArray(smp: Array[SFloat], smpOff: SInt,
+                                       arrOff: SInt, arrStep: SInt, arrStop: SInt): Unit = {
+      var i = arrOff; var j = smpOff; while (i < arrStop) {
+        arrayBuf(i) = (smp(j) * 0x7F + 0x80).toByte
+        i += arrStep; j += 1
+      }
+    }
+
+    protected final def arrayToBuffer(numSmp: SInt): Unit = {
+      (byteBuf: Buffer).clear()
+      byteBuf.put(arrayBuf, 0, numSmp)
+      ()
+    }
+  }
+
+  trait ShortLike extends Base with AsyncBufferWriter {
+    me: BufferHandler.Short =>
+
+    protected final def samplesToArray(smp: Array[SFloat], smpOff: SInt,
+                                       arrOff: SInt, arrStep: SInt, arrStop: SInt): Unit = {
+      var i = arrOff; var j = smpOff; while (i < arrStop) {
+        arrayBuf(i) = (smp(j) * 0x7FFF).toShort
+        i += arrStep; j += 1
+      }
+    }
+
+    protected final def arrayToBuffer(numSmp: SInt): Unit = {
+      (viewBuf: Buffer).clear()
+      viewBuf.put(arrayBuf, 0, numSmp)
+      ()
+    }
+  }
+
+  trait ThreeBytesBELike extends Base with AsyncBufferWriter {
+    me: BufferHandler.ThreeBytes =>
+
+    protected final def samplesToArray(smp: Array[SFloat], smpOff: SInt,
+                                       arrOff: SInt, arrStep: SInt, arrStop: SInt): Unit = {
+      var i = arrOff * 3; val iStep = arrStep * 3; var j = smpOff; while (i < arrStop) {
+        val k = (smp(j) * 0x7FFFFF).toInt
+        arrayBuf(i)     = (k >> 16).toByte
+        arrayBuf(i + 1) = (k >> 8).toByte
+        arrayBuf(i + 2) = k.toByte
+        i += iStep; j += 1
+      }
+    }
+
+    protected final def arrayToBuffer(numSmp: SInt): Unit = {
+      (byteBuf: Buffer).clear()
+      byteBuf.put(arrayBuf, 0, numSmp * 3)
+      ()
+    }
+  }
+
+  trait ThreeBytesLELike extends Base with AsyncBufferWriter {
+    me: BufferHandler.ThreeBytes =>
+
+    protected final def samplesToArray(smp: Array[SFloat], smpOff: SInt,
+                                       arrOff: SInt, arrStep: SInt, arrStop: SInt): Unit = {
+      var i = arrOff * 3; val iStep = arrStep * 3; var j = smpOff; while (i < arrStop) {
+        val k = (smp(j) * 0x7FFFFF).toInt
+        arrayBuf(i)     = k.toByte
+        arrayBuf(i + 1) = (k >> 8).toByte
+        arrayBuf(i + 2) = (k >> 16).toByte
+        i += iStep; j += 1
+      }
+    }
+
+    protected final def arrayToBuffer(numSmp: SInt): Unit = {
+      (byteBuf: Buffer).clear()
+      byteBuf.put(arrayBuf, 0, numSmp * 3)
+      ()
+    }
+  }
+
+  trait IntLike extends Base with AsyncBufferWriter {
+    me: BufferHandler.Int =>
+
+    protected final def samplesToArray(smp: Array[SFloat], smpOff: SInt,
+                                       arrOff: SInt, arrStep: SInt, arrStop: SInt): Unit = {
+      var i = arrOff; var j = smpOff; while (i < arrStop) {
+        arrayBuf(i) = (smp(j) * 0x7FFFFFFF).toInt
+        i += arrStep; j += 1
+      }
+    }
+
+    protected final def arrayToBuffer(numSmp: SInt): Unit = {
+      (viewBuf: Buffer).clear()
+      viewBuf.put(arrayBuf, 0, numSmp)
+      ()
+    }
+  }
+
+  trait FloatLike extends Base with AsyncBufferWriter {
+    me: BufferHandler.Float =>
+
+    protected final def samplesToArray(smp: Array[SFloat], smpOff: SInt,
+                                       arrOff: SInt, arrStep: SInt, arrStop: SInt): Unit = {
+      var i = arrOff; var j = smpOff; while (i < arrStop) {
+        arrayBuf(i) = smp(j)
+        i += arrStep; j += 1
+      }
+    }
+
+    protected final def arrayToBuffer(numSmp: SInt): Unit = {
+      (viewBuf: Buffer).clear()
+      viewBuf.put(arrayBuf, 0, numSmp)
+      ()
+    }
+  }
+
+  trait DoubleLike extends Base with AsyncBufferWriter {
     me: BufferHandler.Double =>
 
-    final def write(frames: Frames, off: SInt, len: SInt): Future[Unit] = {
-      var remaining = len
-      var position  = off
-      while (remaining > 0) {
-        val chunkLen  = math.min(bufFrames, remaining)
-        val m			    = chunkLen * numChannels
-        var ch = 0; while (ch < numChannels) {
-          val b = frames(ch)
-          if (b != null) {
-            var i = ch; var j = position; while (i < m) {
-              arrayBuf(i) = b(j)
-              i += numChannels; j += 1
-            }
-          }
-          ch += 1
-        }
-        (viewBuf: Buffer).clear()
-        viewBuf.put(arrayBuf, 0, m)
-        (byteBuf: Buffer).rewind().limit(chunkLen * frameSize)
-        channel.write(byteBuf)
-        remaining -= chunkLen
-        position  += chunkLen
+    protected final def samplesToArray(smp: Array[SFloat], smpOff: SInt,
+                                       arrOff: SInt, arrStep: SInt, arrStop: SInt): Unit = {
+      var i = arrOff; var j = smpOff; while (i < arrStop) {
+        arrayBuf(i) = smp(j).toDouble
+        i += arrStep; j += 1
       }
-      ???
+    }
+
+    protected final def arrayToBuffer(numSmp: SInt): Unit = {
+      (viewBuf: Buffer).clear()
+      viewBuf.put(arrayBuf, 0, numSmp)
+      ()
     }
   }
 }

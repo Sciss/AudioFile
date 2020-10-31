@@ -31,16 +31,6 @@ object SampleFormat {
   val all       : Vec[SampleFormat] = UInt8 +: allSigned
 
   case object UInt8 extends SampleFormat("uint8", 8) {
-    private[audiofile] def readerFactory = Some(BufferReader.Byte)
-    private[audiofile] def writerFactory = Some(BufferWriter.Byte)
-    private[audiofile] def bidiFactory   = Some(BufferBidi  .Byte)
-
-    private[audiofile] def asyncReaderFactory: Option[AsyncBufferReaderFactory] = Some(AsyncBufferReader .Byte)
-    private[audiofile] def asyncWriterFactory: Option[AsyncBufferWriterFactory] = Some(AsyncBufferWriter .Byte)
-    private[audiofile] def asyncBidiFactory  : Option[AsyncBufferBidiFactory  ] = Some(AsyncBufferBidi   .Byte)
-  }
-
-  case object Int8 extends SampleFormat("int8", 8) {
     private[audiofile] def readerFactory = Some(BufferReader.UByte)
     private[audiofile] def writerFactory = Some(BufferWriter.UByte)
     private[audiofile] def bidiFactory   = Some(BufferBidi  .UByte)
@@ -48,6 +38,16 @@ object SampleFormat {
     private[audiofile] def asyncReaderFactory: Option[AsyncBufferReaderFactory] = Some(AsyncBufferReader .UByte)
     private[audiofile] def asyncWriterFactory: Option[AsyncBufferWriterFactory] = Some(AsyncBufferWriter .UByte)
     private[audiofile] def asyncBidiFactory  : Option[AsyncBufferBidiFactory  ] = Some(AsyncBufferBidi   .UByte)
+  }
+
+  case object Int8 extends SampleFormat("int8", 8) {
+    private[audiofile] def readerFactory = Some(BufferReader.Byte)
+    private[audiofile] def writerFactory = Some(BufferWriter.Byte)
+    private[audiofile] def bidiFactory   = Some(BufferBidi  .Byte)
+
+    private[audiofile] def asyncReaderFactory: Option[AsyncBufferReaderFactory] = Some(AsyncBufferReader .Byte)
+    private[audiofile] def asyncWriterFactory: Option[AsyncBufferWriterFactory] = Some(AsyncBufferWriter .Byte)
+    private[audiofile] def asyncBidiFactory  : Option[AsyncBufferBidiFactory  ] = Some(AsyncBufferBidi   .Byte)
   }
 
   case object Int16 extends SampleFormat("int16", 16) {
@@ -63,7 +63,7 @@ object SampleFormat {
   case object Int24 extends SampleFormat("int24", 24) {
     private[audiofile] def readerFactory = Some(BufferReader.ThreeBytes)
     private[audiofile] def writerFactory = Some(BufferWriter.ThreeBytes)
-    private[audiofile] def bidiFactory   = Some(BufferBidi.ThreeBytes)
+    private[audiofile] def bidiFactory   = Some(BufferBidi  .ThreeBytes)
 
     private[audiofile] def asyncReaderFactory: Option[AsyncBufferReaderFactory] = Some(AsyncBufferReader .ThreeBytes)
     private[audiofile] def asyncWriterFactory: Option[AsyncBufferWriterFactory] = Some(AsyncBufferWriter .ThreeBytes)

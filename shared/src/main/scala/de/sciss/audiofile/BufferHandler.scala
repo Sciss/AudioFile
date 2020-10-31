@@ -80,7 +80,7 @@ private[audiofile] object BufferHandler {
     // and ByteBuffer.array() than this implementation
     // (using ByteBuffer.allocateDirect() and bulk get into a separate arrayBuf)
     protected final val arrayBuf  = new Array[SByte](byteBuf.capacity())
-    protected final val chStep    = numChannels * 3
+//    protected final val chStep    = numChannels * 3
   }
 
   abstract class Int extends BufferHandler {
@@ -274,14 +274,14 @@ private[audiofile] object BufferReader {
         reader.read(byteBuf)
         (byteBuf: Buffer).flip()
         byteBuf.get(arrayBuf, 0, m)
-        var ch = 0; var p = 0; while (ch < numChannels) {
+        var ch = 0; val iStep = numChannels * 3; var p = 0; while (ch < numChannels) {
           val b = frames(ch)
           if (b != null) {
             var i = p; var j = position; while (i < m) {
               b(j) = ((arrayBuf(i) << 16 ) |
                      ((arrayBuf(i + 1) & 0xFF) << 8) |
                       (arrayBuf(i + 2) & 0xFF)).toFloat / 0x7FFFFF
-              i += chStep; j += 1
+              i += iStep; j += 1
             }
           }
           ch += 1; p += 3
@@ -305,14 +305,14 @@ private[audiofile] object BufferReader {
         reader.read(byteBuf)
         (byteBuf: Buffer).flip()
         byteBuf.get(arrayBuf, 0, m)
-        var ch = 0; var p = 0; while (ch < numChannels) {
+        var ch = 0; val iStep = numChannels * 3; var p = 0; while (ch < numChannels) {
           val b = frames(ch)
           if (b != null) {
             var i = p; var j = position; while (i < m) {
               b(j) = ((arrayBuf(i) & 0xFF)|
                      ((arrayBuf(i + 1) & 0xFF) << 8) |
                       (arrayBuf(i + 2) << 16 )).toFloat / 0x7FFFFF
-              i += chStep; j += 1
+              i += iStep; j += 1
             }
           }
           ch += 1; p += 3
@@ -562,14 +562,14 @@ private[audiofile] object BufferWriter {
       while (remaining > 0) {
         val chunkLen  = math.min(bufFrames, remaining)
         val m			    = chunkLen * frameSize
-        var ch = 0; var p = 0; while (ch < numChannels) {
+        var ch = 0; val iStep = numChannels * 3; var p = 0; while (ch < numChannels) {
           val b = frames(ch)
           var i = p; var j = position; while (i < m) {
             val k = (b(j) * 0x7FFFFF).toInt
             arrayBuf(i)     = (k >> 16).toByte
             arrayBuf(i + 1) = (k >> 8).toByte
             arrayBuf(i + 2) = k.toByte
-            i += chStep; j += 1
+            i += iStep; j += 1
           }
           ch += 1; p += 3
         }
@@ -592,7 +592,7 @@ private[audiofile] object BufferWriter {
       while (remaining > 0) {
         val chunkLen  = math.min(bufFrames, remaining)
         val m			    = chunkLen * frameSize
-        var ch = 0; var p = 0; while (ch < numChannels) {
+        var ch = 0; val iStep = numChannels * 3; var p = 0; while (ch < numChannels) {
           val b = frames(ch)
           if (b != null) {
             var i = p; var j = position; while (i < m) {
@@ -600,7 +600,7 @@ private[audiofile] object BufferWriter {
               arrayBuf(i)     = k.toByte
               arrayBuf(i + 1) = (k >> 8).toByte
               arrayBuf(i + 2) = (k >> 16).toByte
-              i += chStep; j += 1
+              i += iStep; j += 1
             }
           }
           ch += 1; p += 3
