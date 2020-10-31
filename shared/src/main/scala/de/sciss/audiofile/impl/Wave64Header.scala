@@ -55,9 +55,17 @@ private[audiofile] object Wave64Header extends AbstractRIFFHeader {
 
   @throws(classOf[IOException])
   protected def readDataInput(din: DataInput): AudioFileHeader = {
-    if (din.readLong() != RIFF_MAGIC1 || din.readLong() != RIFF_MAGIC2) formatError() // RIFF
+    val riffMagic1 = din.readLong()
+    val riffMagic2 = din.readLong()
+    if (riffMagic1 != RIFF_MAGIC1 || riffMagic2 != RIFF_MAGIC2) {
+      formatError(s"Not RIFF magic: 0x${riffMagic1.toHexString}, 0x${riffMagic2.toHexString}")
+    }
     din.skipBytes(8) // len = readLittleLong
-    if (din.readLong() != WAVE_MAGIC1 || din.readLong() != WAVE_MAGIC2) formatError() // WAVE
+    val waveMagic1 = din.readLong()
+    val waveMagic2 = din.readLong()
+    if (waveMagic1 != WAVE_MAGIC1 || waveMagic2 != WAVE_MAGIC2) {
+      formatError(s"Not WAVE magic: 0x${waveMagic1.toHexString}, 0x${waveMagic2.toHexString}")
+    }
 
     var chunkRem = 0L
     var fc: FormatChunk = null

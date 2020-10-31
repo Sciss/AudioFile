@@ -26,6 +26,7 @@ final class AsyncReadableByteBuffer(ch: AsyncReadableByteChannel, capacity: Int 
   private[this] var fileRem = ch.size - ch.position
   private[this] val arr     = new Array[Byte](cap)
 
+  /** byte order is big endian */
   val bb: ByteBuffer = ByteBuffer.wrap(arr)
   (bb: Buffer).limit(0) // initially 'empty'
 

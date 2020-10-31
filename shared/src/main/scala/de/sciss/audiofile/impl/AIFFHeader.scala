@@ -90,7 +90,8 @@ private[audiofile] object AIFFHeader extends BasicHeader {
 
   @throws(classOf[IOException])
   protected def readDataInput(din: DataInput): AudioFileHeader = {
-    if (din.readInt() != FORM_MAGIC) formatError() // FORM
+    val formMagic = din.readInt()
+    if (formMagic != FORM_MAGIC) formatError(s"Not FORM magic: 0x${formMagic.toHexString}") // FORM
     // trust the file len more than 32 bit form field which
     // breaks for > 2 GB (> 1 GB if using signed ints)
     din.readInt()
@@ -99,7 +100,7 @@ private[audiofile] object AIFFHeader extends BasicHeader {
     val isAIFC = (din.readInt(): @switch) match {
       case AIFC_MAGIC => true
       case AIFF_MAGIC => false
-      case _          => formatError()
+      case magic      => formatError(s"Not AIFF or AIFC magic: 0x${magic.toHexString}")
     }
     //         len	           -= 4
     var chunkLen = 0 // updated per chunk; after each chunk we skip the remaining bytes
@@ -184,7 +185,8 @@ private[audiofile] object AIFFHeader extends BasicHeader {
     import ab._
 
     ensure(12).flatMap { _ =>
-      if (bb.getInt() != FORM_MAGIC) formatError() // FORM
+      val formMagic = bb.getInt()
+      if (formMagic != FORM_MAGIC) formatError(s"Not FORM magic: 0x${formMagic.toHexString}") // FORM
       // trust the file len more than 32 bit form field which
       // breaks for > 2 GB (> 1 GB if using signed ints)
       bb.getInt()
@@ -193,7 +195,7 @@ private[audiofile] object AIFFHeader extends BasicHeader {
       val isAIFC = (bb.getInt(): @switch) match {
         case AIFC_MAGIC => true
         case AIFF_MAGIC => false
-        case _          => formatError()
+        case magic      => formatError(s"Not AIFF or AIFC magic: 0x${magic.toHexString}")
       }
 
       def readChunk(afh: AudioFileHeader): Future[AudioFileHeader] = {

@@ -15,6 +15,7 @@ package de.sciss.audiofile
 
 import java.io.IOException
 
+import de.sciss.audiofile.AudioFile.log
 import de.sciss.audiofile.impl.IndexedDBFileImpl
 import org.scalajs.dom
 import org.scalajs.dom.raw.{IDBDatabase, IDBObjectStore, IDBRequest}
@@ -35,11 +36,6 @@ object IndexedDBFile {
 
   private[audiofile] val READ_ONLY    = "readonly"
   private[audiofile] val READ_WRITE   = "readwrite"
-
-  var showLog = true
-
-  private[audiofile] def log(what: => String): Unit =
-    if (showLog) println(s"[AudioFile IDB] [${new js.Date}] $what")
 
   object Meta {
     def fromArrayBuffer(b: js.typedarray.ArrayBuffer): Meta = {

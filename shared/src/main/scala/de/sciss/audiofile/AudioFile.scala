@@ -16,11 +16,14 @@ package de.sciss.audiofile
 import java.io.{BufferedOutputStream, ByteArrayInputStream, DataInputStream, DataOutputStream, IOException, InputStream, OutputStream}
 import java.nio.ByteBuffer
 import java.nio.channels.Channels
-import java.util.ConcurrentModificationException
+import java.text.SimpleDateFormat
+import java.util.{ConcurrentModificationException, Date, Locale}
 
 import AudioFile.Frames
 import AudioFileHeader.opNotSupported
 
+import scala.annotation.elidable
+import scala.annotation.elidable.CONFIG
 import scala.concurrent.{ExecutionContext, Future}
 import scala.math.{max, min}
 
@@ -123,6 +126,14 @@ object AudioFile extends ReaderFactory with AudioFilePlatform {
     * direct memory.
     */
   val KEY_DIRECT_MEMORY = "AudioFile.DirectMemory"
+
+  var showLog = true
+
+  // N.B. sjs does not supported single quote escaped fragments
+  private lazy val logHeader = new SimpleDateFormat("d MMM yyyy, HH:mm''ss.SSS", Locale.US)
+
+  @elidable(CONFIG) private[audiofile] def log(what: => String): Unit =
+    if (showLog) println(s"[${logHeader.format(new Date())}] 'AudioFile' $what")
 
   // ---- impl  ----
 
@@ -352,10 +363,12 @@ object AudioFile extends ReaderFactory with AudioFilePlatform {
   private[audiofile] def createHeaderReaderAsync(ch: AsyncReadableByteChannel)
                                          (implicit ec: ExecutionContext): Future[AudioFileType.CanRead] = {
     val mark  = ch.position
-    val arr   = new Array[Byte](1024)
+    val arr   = new Array[Byte](128)  // XXX TODO arbitrary size; is there a format that needs more than this to identify?
     val bb    = ByteBuffer.wrap(arr)
     val fut0  = ch.read(bb)
-    val fut   = fut0.andThen { case _ => ch.position = mark }
+    val fut   = fut0.andThen { case _ =>
+      ch.position = mark
+    }
     fut.map { len =>
       val dis   = new DataInputStream(new ByteArrayInputStream(arr, 0, len))
       val fileType = identify(dis).getOrElse(throw new IOException("Unrecognized audio file format"))

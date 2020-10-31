@@ -8,6 +8,7 @@ lazy val deps = new {
   val main = new {
     val dom       = "1.1.0"
     val serial    = "2.0.0"
+    val sjLocales = "1.0.0"
   }
   val test = new {
     val scalaTest = "3.2.2"
@@ -54,7 +55,9 @@ lazy val root = crossProject(JSPlatform, JVMPlatform).in(file("."))
   )
   .jsSettings(
     libraryDependencies ++= Seq(
-      "org.scala-js" %%% "scalajs-dom" % deps.main.dom,
+      "org.scala-js"      %%% "scalajs-dom"         % deps.main.dom,
+      // XXX TODO: this library is not meant for production; remove and change logging
+      "io.github.cquiroz" %%% "scala-java-locales"  % deps.main.sjLocales,  // SimpleDateFormat
     ),
   )
   .settings(publishSettings)

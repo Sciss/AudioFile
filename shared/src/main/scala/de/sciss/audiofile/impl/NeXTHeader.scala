@@ -40,7 +40,8 @@ private[audiofile] object NeXTHeader {
 
   @throws(classOf[IOException])
   private def readDataInput(din: DataInput, fileLen: Long): AudioFileHeader = {
-    if (din.readInt() != SND_MAGIC) formatError()
+    val sndMagic = din.readInt()
+    if (din.readInt() != SND_MAGIC) formatError(s"Not NeXT magic: 0x${sndMagic.toHexString}")
 
     val dataOffset    = din.readInt() // offset in bytes
     val dataSize_?    = din.readInt()

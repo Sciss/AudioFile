@@ -90,7 +90,8 @@ private[audiofile] object AudioFileHeader {
     buf.toString
   }
 
-  def formatError     () = throw new IOException("A header format error occurred")
+  def formatError(detail: String) = throw new IOException(s"A header format error occurred: $detail")
+
   def encodingError   () = throw new IOException("File has unsupported encoding")
   def incompleteError () = throw new IOException("Header data is incomplete")
 

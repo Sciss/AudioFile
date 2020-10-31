@@ -60,12 +60,12 @@ private[audiofile] object IRCAMHeader {
 
   @throws(classOf[IOException])
   private def readDataInput(din: DataInput, fileLen: Long): AudioFileHeader = {
-    val magic   = din.readInt()
-    val reader  = if (magic == IRCAM_VAXLE_MAGIC || magic == IRCAM_SUNLE_MAGIC || magic == IRCAM_MIPSLE_MAGIC) {
+    val ircamMagic = din.readInt()
+    val reader  = if (ircamMagic == IRCAM_VAXLE_MAGIC || ircamMagic == IRCAM_SUNLE_MAGIC || ircamMagic == IRCAM_MIPSLE_MAGIC) {
       new LittleDataInputReader(din)
-    } else if (magic == IRCAM_VAXBE_MAGIC || magic == IRCAM_SUNBE_MAGIC || magic == IRCAM_MIPSBE_MAGIC || magic == IRCAM_NEXTBE_MAGIC) {
+    } else if (ircamMagic == IRCAM_VAXBE_MAGIC || ircamMagic == IRCAM_SUNBE_MAGIC || ircamMagic == IRCAM_MIPSBE_MAGIC || ircamMagic == IRCAM_NEXTBE_MAGIC) {
       new BigDataInputReader(din)
-    } else formatError()
+    } else formatError(s"Not IRCAM magic: 0x${ircamMagic.toHexString}")
 
     val sampleRate    = reader.readFloat()
     val numChannels   = reader.readInt()

@@ -238,9 +238,10 @@ private[audiofile] object WaveHeader extends AbstractRIFFHeader {
 
   @throws(classOf[IOException])
   protected def readDataInput(din: DataInput): AudioFileHeader = {
-    if (din.readInt() != RIFF_MAGIC) formatError() // RIFF
-    din.readInt()
-    if (din.readInt() != WAVE_MAGIC) formatError() // WAVE
+    val riffMagic = din.readInt()
+    if (riffMagic != RIFF_MAGIC) formatError(s"Not RIFF magic: 0x${riffMagic.toHexString}")
+    val waveMagic = din.readInt()
+    if (waveMagic != WAVE_MAGIC) formatError(s"Not WAVE magic: 0x${waveMagic.toHexString}")
 
     var chunkRem = 0
     var fc: FormatChunk = null
