@@ -101,7 +101,7 @@ private[audiofile] final class IndexedDBFileImpl(db: IDBDatabase, path: String, 
         val buf = req.result.asInstanceOf[jsta.ArrayBuffer]
         val arr = new Int8Array(buf)
         var i   = start
-        var j   = dst.position()
+        var j   = pos
         while (i < stop) {
           dst.put(j, arr(i))
           i += 1; j += 1
