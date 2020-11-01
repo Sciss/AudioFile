@@ -240,6 +240,7 @@ private[audiofile] object WaveHeader extends AbstractRIFFHeader {
   protected def readDataInput(din: DataInput): AudioFileHeader = {
     val riffMagic = din.readInt()
     if (riffMagic != RIFF_MAGIC) formatError(s"Not RIFF magic: 0x${riffMagic.toHexString}")
+    din.readInt()
     val waveMagic = din.readInt()
     if (waveMagic != WAVE_MAGIC) formatError(s"Not WAVE magic: 0x${waveMagic.toHexString}")
 
