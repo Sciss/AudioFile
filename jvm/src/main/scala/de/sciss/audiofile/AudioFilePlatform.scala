@@ -2,24 +2,12 @@ package de.sciss.audiofile
 
 import java.io.{BufferedInputStream, DataInputStream, File, FileInputStream, IOException, InputStream, RandomAccessFile}
 import java.net.URI
-import java.nio.ByteBuffer
-import java.nio.channels.{AsynchronousFileChannel, Channels, CompletionHandler, ReadPendingException, WritePendingException}
-import java.nio.file.{Paths, StandardOpenOption}
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
+import java.nio.channels.Channels
 
-import AudioFile.{Basic, Bidi, ReadOnly, Writable, WriteOnly, createBuffer, createHeaderReader, createHeaderReaderAsync, createHeaderWriter, finishOpenStreamReadAsync, finishOpenStreamWriteAsync, noDecoder, noEncoder}
-
-import scala.concurrent.{ExecutionContext, Future, Promise}
+import de.sciss.audiofile.AudioFile.{Basic, Bidi, ReadOnly, Writable, WriteOnly, createBuffer, createHeaderReader, createHeaderWriter, noDecoder, noEncoder}
 
 /** The JVM platform supports File I/O, e.g. opening an audio file using `openRead(f: File)`. */
 trait AudioFilePlatform {
-  /** Returns the underlying <code>File</code>
-    * provided to the <code>AudioFile</code> constructor.
-    */
-  trait HasFile extends AudioFile {
-    def file: File
-  }
-
   // ---- synchronous ----
   
   /** Opens an audio file for reading.
@@ -33,7 +21,7 @@ trait AudioFilePlatform {
     *                     or has an unknown or unsupported format
     */
   @throws(classOf[IOException])
-  def openRead(f: File): AudioFile.HasFile = {
+  def openRead(f: File): AudioFile = {
     val raf   = new RandomAccessFile(f, "r")
     val dis   = bufferedDataInput(Channels.newInputStream(raf.getChannel))
     val hr    = createHeaderReader(dis)
@@ -59,7 +47,7 @@ trait AudioFilePlatform {
     *                     format is unsupported
     */
   @throws(classOf[IOException])
-  def openWrite(f: File, spec: AudioFileSpec): AudioFile.HasFile = {
+  def openWrite(f: File, spec: AudioFileSpec): AudioFile = {
     val hw  = createHeaderWriter(spec)
     if (f.exists) f.delete()
     val raf = new RandomAccessFile(f, "rw")
@@ -78,7 +66,7 @@ trait AudioFilePlatform {
   }
 
   @throws(classOf[IOException])
-  def openWrite(path: String, spec: AudioFileSpec): AudioFile.HasFile = openWrite(new File(path), spec)
+  def openWrite(path: String, spec: AudioFileSpec): AudioFile = openWrite(new File(path), spec)
 
   @throws(classOf[IOException])
   def readSpec(f: File): AudioFileSpec = {
@@ -118,58 +106,14 @@ trait AudioFilePlatform {
   @throws(classOf[IOException])
   def identify(path: String): Option[AudioFileType] = identify(new File(path))
 
-  // ---- asynchronous ----
-
-  /** Opens an audio file for asynchronous reading.
-    *
-    * @param  f  the path name of the file
-    * @return a future  <code>AsyncAudioFile</code> object
-    *         whose header is already parsed when the future completes, and
-    *         that can be obtained through the <code>spec</code> method.
-    *
-    * @throws java.io.IOException if the file was not found, could not be reader
-    *                     or has an unknown or unsupported format
-    */
-  @throws(classOf[IOException])
-  def openReadAsync(uri: URI)(implicit executionContext: ExecutionContext): Future[AsyncAudioFile] = {
-    val path  = Paths.get(uri)
-    val jch   = AsynchronousFileChannel.open(path,
-      StandardOpenOption.READ,
-    )
-    val ch    = new WrapAsyncFileChannel(jch)
-    val hrFut = createHeaderReaderAsync(ch)
-    hrFut.flatMap { hr =>
-      finishOpenStreamReadAsync(ch, hr, sourceString = uri.toString)
-    }
-  }
-
-  @throws(classOf[IOException])
-  def openWriteAsync(uri: URI, spec: AudioFileSpec)
-                    (implicit executionContext: ExecutionContext): Future[AsyncAudioFile] = {
-    val path  = Paths.get(uri)
-    // there is a very weird thing: if the file already
-    // exists, although `TRUNCATE_EXISTING` is set and works,
-    // flushing and closing the file takes _a lot_ (>5 times) longer
-    // than preemptively deleting the file before re-open.
-    path.toFile.delete()
-    val jch   = AsynchronousFileChannel.open(path,
-      StandardOpenOption.WRITE,
-      StandardOpenOption.CREATE,
-      StandardOpenOption.TRUNCATE_EXISTING,
-    )
-    val ch    = new WrapAsyncFileChannel(jch)
-    val hw    = createHeaderWriter(spec)
-    finishOpenStreamWriteAsync(ch, hw, spec, sourceString = uri.toString)
-  }
-
   // ---- synchronous impl ----
 
-  private[audiofile] def openFileWithReader(f: File, reader: AudioFileType.CanRead): AudioFile.HasFile = {
+  private[audiofile] def openFileWithReader(f: File, reader: AudioFileType.CanRead): AudioFile = {
     val raf = new RandomAccessFile(f, "r")
     finishOpenFileRead(f, raf, reader)
   }
 
-  private def finishOpenFileRead(f: File, raf: RandomAccessFile, hr: AudioFileType.CanRead): AudioFile.HasFile = {
+  private def finishOpenFileRead(f: File, raf: RandomAccessFile, hr: AudioFileType.CanRead): AudioFile = {
     raf.seek(0L) // BufferedInputStream did advance the position!
     val afh   = hr.read(raf)
     val buf   = createBuffer(afh)
@@ -182,10 +126,13 @@ trait AudioFilePlatform {
 
   private def bufferedDataInput(is: InputStream) = new DataInputStream(new BufferedInputStream(is, 1024))
 
-  private trait FileLike extends Basic with AudioFile.HasFile {
-    protected def raf: RandomAccessFile
+  private trait FileLike extends Basic with AudioFile {
+    protected def raf : RandomAccessFile
+    protected def file: File
 
     private val sampleDataOffset = raf.getFilePointer
+
+    final def uri: Option[URI] = Some(file.toURI)
 
     protected final def sourceString: String = file.toString
 
@@ -238,77 +185,4 @@ trait AudioFilePlatform {
                                    protected val bh : BufferBidi,
                                   )
     extends BidiFileLike
-
-  // ---- asynchronous impl ----
-
-  private final class WrapAsyncFileChannel(peer: AsynchronousFileChannel)
-                                          (implicit val executionContext: ExecutionContext)
-    extends AsyncWritableByteChannel with CompletionHandler[java.lang.Integer, Promise[Int]] {
-
-//    private[this] val reqThread   = Thread.currentThread()
-
-    private[this] val posRef      = new AtomicLong(0L)
-    private[this] val pendingRef  = new AtomicBoolean(false)
-
-    def position        : Long        = posRef.get()
-    def position_=(value: Long): Unit = posRef.set(value)
-
-    def skip(len: Long): Unit = {
-      posRef.addAndGet(len)
-      ()
-    }
-
-    def read(dst: ByteBuffer): Future[Int] = {
-//      require (Thread.currentThread() == reqThread)
-
-//      println(" ==> ")
-      if (!pendingRef.compareAndSet(false, true)) throw new ReadPendingException()  // XXX TODO should distinguish read/write
-
-      val pos = posRef.get()
-      val pr  = Promise[Int]()
-//      println(s"peer.read($dst, $pos, ...)")
-      peer.read(dst, pos, pr, this)
-      pr.future
-    }
-
-    def write(src: ByteBuffer): Future[Int] = {
-      if (!pendingRef.compareAndSet(false, true)) throw new WritePendingException() // XXX TODO should distinguish read/write
-
-      val pos = posRef.get()
-      val pr  = Promise[Int]()
-      peer.write(src, pos, pr, this)
-      pr.future
-    }
-
-    def size: Long = peer.size()
-
-    def remaining: Long = size - position
-
-    def close(): Unit = peer.close()
-
-    def isOpen: Boolean = peer.isOpen
-
-    // ---- CompletionHandler ----
-
-    def completed (res: Integer, pr: Promise[Int]): Unit = {
-//      println(s"completed ${Thread.currentThread().hashCode().toHexString}")
-      posRef.addAndGet(res.toLong)
-//      println(" <== ")
-      if (pendingRef.compareAndSet(true, false)) {
-        pr.success(res)
-      } else {
-        pr.failure(new AssertionError("No pending read"))
-      }
-    }
-
-    def failed(e: Throwable, pr: Promise[Int]): Unit = {
-//      println(s"failed ${Thread.currentThread().hashCode().toHexString}")
-//      println(" <== ")
-      if (pendingRef.compareAndSet(true, false)) {
-        pr.failure(e)
-      } else {
-        pr.failure(new AssertionError("No pending read"))
-      }
-    }
-  }
 }

@@ -16,6 +16,8 @@ package de.sciss.audiofile
 import java.io.{DataInputStream, DataOutputStream, IOException, InputStream}
 import java.nio.ByteOrder
 
+import de.sciss.asyncfile.{AsyncReadableByteChannel, AsyncWritableByteChannel}
+
 import scala.collection.immutable.{IndexedSeq => Vec}
 import scala.concurrent.Future
 

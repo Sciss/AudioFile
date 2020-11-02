@@ -18,8 +18,9 @@ import java.nio.ByteOrder.{BIG_ENDIAN, LITTLE_ENDIAN}
 import java.nio.{Buffer, ByteBuffer, ByteOrder}
 import java.util.ConcurrentModificationException
 
+import de.sciss.asyncfile.{AsyncReadableByteBuffer, AsyncReadableByteChannel, AsyncWritableByteChannel}
 import de.sciss.audiofile
-import de.sciss.audiofile.{AsyncReadableByteChannel, AsyncWritableAudioFileHeader, AsyncWritableByteChannel, AudioFileHeader, AudioFileSpec, AudioFileType, ReadableAudioFileHeader, SampleFormat, WritableAudioFileHeader}
+import de.sciss.audiofile.{AsyncWritableAudioFileHeader, AudioFileHeader, AudioFileSpec, AudioFileType, ReadableAudioFileHeader, SampleFormat, WritableAudioFileHeader}
 import de.sciss.serial.impl.ByteArrayOutputStream
 
 import scala.annotation.switch
@@ -185,14 +186,14 @@ private[audiofile] object AIFFHeader extends BasicHeader {
     import ab._
 
     ensure(12).flatMap { _ =>
-      val formMagic = bb.getInt()
+      val formMagic = buffer.getInt()
       if (formMagic != FORM_MAGIC) formatError(s"Not FORM magic: 0x${formMagic.toHexString}") // FORM
       // trust the file len more than 32 bit form field which
       // breaks for > 2 GB (> 1 GB if using signed ints)
-      bb.getInt()
+      buffer.getInt()
       //       var len           = dis.length() - 8
       //			var len           = (dis.readInt() + 1).toLong & 0xFFFFFFFEL // this gives 32 bit unsigned space (4 GB)
-      val isAIFC = (bb.getInt(): @switch) match {
+      val isAIFC = (buffer.getInt(): @switch) match {
         case AIFC_MAGIC => true
         case AIFF_MAGIC => false
         case magic      => formatError(s"Not AIFF or AIFC magic: 0x${magic.toHexString}")
@@ -200,20 +201,20 @@ private[audiofile] object AIFFHeader extends BasicHeader {
 
       def readChunk(afh: AudioFileHeader): Future[AudioFileHeader] = {
         ensure(8).flatMap { _ =>
-          val magic     = bb.getInt()
-          var chunkLen  = (bb.getInt() + 1) & 0xFFFFFFFE
+          val magic     = buffer.getInt()
+          var chunkLen  = (buffer.getInt() + 1) & 0xFFFFFFFE
 
           magic match {
             case COMM_MAGIC =>
               ensure(if (isAIFC) 22 else 18).flatMap { _ =>
                 // reveals spec
-                val numChannels   = bb.getShort()                       // 2
-                val numFrames     = bb.getInt().toLong & 0xFFFFFFFFL    // 6
-                val bitsPerSample = bb.getShort()                       // 8
+                val numChannels   = buffer.getShort()                       // 2
+                val numFrames     = buffer.getInt().toLong & 0xFFFFFFFFL    // 6
+                val bitsPerSample = buffer.getShort()                       // 8
 
                 // the most complicated data format to store a float:
-                val l1 = bb.getLong()                                   // 16
-                val l2 = bb.getShort() & 0xFFFF                         // 18
+                val l1 = buffer.getLong()                                   // 16
+                val l2 = buffer.getShort() & 0xFFFF                         // 18
                 val l3 = l1 & 0x0000FFFFFFFFFFFFL
                 val i1 = ((l1 >> 48).toInt & 0x7FFF) - 0x3FFE
                 val sampleRate = ((l3 * pow(2.0, i1 - 48)) +
@@ -222,7 +223,7 @@ private[audiofile] object AIFFHeader extends BasicHeader {
                 chunkLen -= 18
                 val (byteOrder, sampleFormat) = if (isAIFC) {
                   chunkLen -= 4
-                  (bb.getInt(): @switch) match {                        // 22
+                  (buffer.getInt(): @switch) match {                        // 22
                     case `NONE_MAGIC`   => (BIG_ENDIAN, intSampleFormat(bitsPerSample))
                     case `in16_MAGIC`   => (BIG_ENDIAN    , SampleFormat.Int16 )
                     case `in24_MAGIC`   => (BIG_ENDIAN    , SampleFormat.Int24 )
@@ -245,8 +246,8 @@ private[audiofile] object AIFFHeader extends BasicHeader {
 
             case SSND_MAGIC =>
               ensure(4).map { _ =>
-                val i1 = bb.getInt() // sample data off
-                bb.getInt()
+                val i1 = buffer.getInt() // sample data off
+                buffer.getInt()
                 skip(i1)
                 purge()
                 if (afh != null) afh else throw new IOException("AIFF header misses COMM chunk")
@@ -289,12 +290,12 @@ private[audiofile] object AIFFHeader extends BasicHeader {
   }
 
   def writeAsync(ch: AsyncWritableByteChannel, spec: AudioFileSpec): Future[AsyncWritableAudioFileHeader] = {
+    import ch.executionContext
     val bs        = new ByteArrayOutputStream()
     val dout      = new DataOutputStream(bs)
     val writeRes  = writeDataOutput(dout, spec, writeSize = false)
     val dst       = ByteBuffer.wrap(bs.buffer, 0, bs.size)
     val fut       = ch.write(dst)
-    import ch.executionContext
     fut.map { _ =>
       import writeRes._
       new AsyncWritableFileHeader(ch, spec1, otherLen = otherLen, commLen = commLen)
@@ -424,13 +425,13 @@ private[audiofile] object AIFFHeader extends BasicHeader {
     private[this] val bb            = ByteBuffer.allocate(4).order(byteOrder)
 
     def update(numFrames: Long): Future[Unit] = {
+      import ch.executionContext
+
       val oldNumFr = sync.synchronized { numFramesRef }
       if (numFrames == oldNumFr) return Future.unit
 
       val ssndLen = numFrames * ((spec.sampleFormat.bitsPerSample >> 3) * spec.numChannels) + 16
       val oldPos  = ch.position
-
-      import ch.executionContext
 
       // FORM Chunk len
       ch.position_=(4L)

@@ -53,7 +53,7 @@ trait AudioFileTypePlatform {
   trait ReadablePlatform extends CanRead {
     protected def reader(fileSize: Long): AudioFileHeader
 
-    def openRead(f: File): AudioFile.HasFile = AudioFile.openFileWithReader(f, this)
+    def openRead(f: File): AudioFile = AudioFile.openFileWithReader(f, this)
 
     def read(raf: RandomAccessFile): AudioFileHeader = reader(raf.length())
   }

@@ -17,9 +17,10 @@ import java.io.IOException
 import java.nio.{Buffer, ByteBuffer, ByteOrder}
 
 import AudioFile.Frames
+import de.sciss.asyncfile.{AsyncReadableByteChannel, AsyncWritableByteChannel}
 
 import scala.concurrent.{ExecutionContext, Future}
-import scala.{Int => SInt, Float => SFloat}
+import scala.{Float => SFloat, Int => SInt}
 import scala.math.min
 
 private[audiofile] trait AsyncBufferHandler extends BufferHandler {

@@ -62,6 +62,7 @@ class ReadWriteSpec extends TempFileSpec {
       chanNums.foreach { numCh =>
         val fileSpec = AudioFileSpec(typ, smpFmt, numCh, sr)
         "AudioFile" should ("write and read " + fileSpec) in { f =>
+          val uri   = f.toURI
           val afOut = AudioFile.openWrite( f, fileSpec )
           assert(afOut.isOpen)
           assert(afOut.isReadable)
@@ -89,7 +90,7 @@ class ReadWriteSpec extends TempFileSpec {
           assert(afIn.numChannels     === numCh)
           assert(afIn.sampleFormat    === smpFmt)
           assert(afIn.sampleRate      === sr)
-          assert(afIn.file            === f)
+          assert(afIn.uri.contains(uri))
           assert(afIn.fileType        === typ)
           afIn.read(bufIn)
           generate(bufOut, bufSize, 0L)

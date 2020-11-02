@@ -15,8 +15,8 @@ trait ReaderFactoryPlatform {
     *                     or has an unknown or unsupported format
     */
   @throws(classOf[IOException])
-  def openRead(f: File): AudioFile.HasFile
+  def openRead(f: File): AudioFile
 
   @throws(classOf[IOException])
-  final def openRead(path: String): AudioFile.HasFile = openRead(new File(path))
+  final def openRead(path: String): AudioFile = openRead(new File(path))
 }

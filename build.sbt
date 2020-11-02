@@ -6,9 +6,9 @@ lazy val mimaVersion    = "2.2.0"
 
 lazy val deps = new {
   val main = new {
+    val asyncFile = "0.1.0-SNAPSHOT"
     val dom       = "1.1.0"
     val serial    = "2.0.0"
-    val sjLocales = "1.0.0"
   }
   val test = new {
     val scalaTest = "3.2.2"
@@ -31,8 +31,9 @@ lazy val root = crossProject(JSPlatform, JVMPlatform).in(file("."))
     homepage           := Some(url(s"https://github.com/Sciss/${name.value}")),
     licenses           := Seq("LGPL v2.1+" -> url("http://www.gnu.org/licenses/lgpl-2.1.txt")),
     mimaPreviousArtifacts := Set("de.sciss" %% baseNameL % mimaVersion),
-    initialCommands in console := """import de.sciss.synth.io._""",
+    initialCommands in console := """import de.sciss.audiofile._""",
     libraryDependencies ++= Seq(
+      "de.sciss"      %%% "asyncfile" % deps.main.asyncFile,
       "de.sciss"      %%% "serial"    % deps.main.serial,
       "org.scalatest" %%% "scalatest" % deps.test.scalaTest % Test,
     ),
@@ -51,13 +52,11 @@ lazy val root = crossProject(JSPlatform, JVMPlatform).in(file("."))
       BuildInfoKey.map(homepage) { case (k, opt)           => k -> opt.get },
       BuildInfoKey.map(licenses) { case (_, Seq((lic, _))) => "license" -> lic }
     ),
-    buildInfoPackage := "de.sciss.synth.io"
+    buildInfoPackage := "de.sciss.audiofile"
   )
   .jsSettings(
     libraryDependencies ++= Seq(
-      "org.scala-js"      %%% "scalajs-dom"         % deps.main.dom,
-      // XXX TODO: this library is not meant for production; remove and change logging
-      "io.github.cquiroz" %%% "scala-java-locales"  % deps.main.sjLocales,  // SimpleDateFormat
+      "org.scala-js" %%% "scalajs-dom" % deps.main.dom,
     ),
   )
   .settings(publishSettings)
