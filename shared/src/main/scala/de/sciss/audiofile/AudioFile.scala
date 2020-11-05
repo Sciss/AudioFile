@@ -149,6 +149,16 @@ object AudioFile extends ReaderFactory with AudioFilePlatform {
     finishOpenStreamWriteAsync(ch, hw, spec, sourceString = "<stream>")
   }
 
+  @throws(classOf[IOException])
+  def readSpecAsync(uri: URI)(implicit executionContext: ExecutionContext): Future[AudioFileSpec] =
+    for {
+      ch  <- AsyncFile.openRead(uri)
+      hr  <- createHeaderReaderAsync(ch)
+      afh <- hr.readAsync(ch)
+    } yield {
+      afh.spec
+    }
+
   // ---- generic ----
 
   type Frames = Array[Array[Float]]
