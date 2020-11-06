@@ -16,13 +16,17 @@ package de.sciss.audiofile.impl
 import java.io.IOException
 import java.nio.ByteOrder
 
-import de.sciss.audiofile.{AudioFileSpec, WritableAudioFileHeader}
+import de.sciss.audiofile.{AsyncWritableAudioFileHeader, AudioFileSpec, WritableAudioFileHeader}
+
+import scala.concurrent.Future
 
 private[audiofile] final class NonUpdatingWritableHeader(val spec: AudioFileSpec)
-  extends WritableAudioFileHeader {
+  extends WritableAudioFileHeader with AsyncWritableAudioFileHeader {
 
   def byteOrder: ByteOrder = spec.byteOrder.get
 
   @throws(classOf[IOException])
   def update(numFrames: Long): Unit = ()
+
+  def updateAsync(numFrames: Long): Future[Unit] = Future.unit
 }

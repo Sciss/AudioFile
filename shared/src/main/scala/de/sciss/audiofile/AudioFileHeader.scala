@@ -177,7 +177,7 @@ private[audiofile] trait WritableAudioFileHeader extends AudioFileHeader {
 }
 
 private[audiofile] trait AsyncWritableAudioFileHeader extends AudioFileHeader {
-  def update(numFrames: Long): Future[Unit]
+  def updateAsync(numFrames: Long): Future[Unit]
 }
 
 private[audiofile] trait AudioFileHeaderReader {

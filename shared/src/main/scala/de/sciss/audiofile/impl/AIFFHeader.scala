@@ -199,7 +199,7 @@ private[audiofile] object AIFFHeader extends BasicHeader {
         case magic      => formatError(s"Not AIFF or AIFC magic: 0x${magic.toHexString}")
       }
 
-      def readChunk(afh: AudioFileHeader): Future[AudioFileHeader] = {
+      def readChunk(afh: AudioFileHeader): Future[AudioFileHeader] =
         ensure(8).flatMap { _ =>
           val magic     = buffer.getInt()
           var chunkLen  = (buffer.getInt() + 1) & 0xFFFFFFFE
@@ -258,7 +258,6 @@ private[audiofile] object AIFFHeader extends BasicHeader {
               readChunk(afh)
           }
         }
-      }
 
       readChunk(null)
     }
@@ -424,7 +423,7 @@ private[audiofile] object AIFFHeader extends BasicHeader {
     private[this] var numFramesRef  = 0L
     private[this] val bb            = ByteBuffer.allocate(4).order(byteOrder)
 
-    def update(numFrames: Long): Future[Unit] = {
+    def updateAsync(numFrames: Long): Future[Unit] = {
       import ch.executionContext
 
       val oldNumFr = sync.synchronized { numFramesRef }

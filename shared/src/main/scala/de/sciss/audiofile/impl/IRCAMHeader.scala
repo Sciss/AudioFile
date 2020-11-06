@@ -13,12 +13,15 @@
 
 package de.sciss.audiofile.impl
 
-import java.io._
-import java.nio.ByteOrder
+import java.io.{DataInput, DataInputStream, DataOutput, DataOutputStream, IOException, RandomAccessFile}
+import java.nio.{ByteBuffer, ByteOrder}
 
-import de.sciss.audiofile.{AudioFileHeader, AudioFileSpec, AudioFileType, ReadableAudioFileHeader, SampleFormat, WritableAudioFileHeader}
+import de.sciss.asyncfile.{AsyncReadableByteBuffer, AsyncReadableByteChannel, AsyncWritableByteChannel}
+import de.sciss.audiofile.{AsyncWritableAudioFileHeader, AudioFileHeader, AudioFileSpec, AudioFileType, ReadableAudioFileHeader, SampleFormat, WritableAudioFileHeader}
+import de.sciss.serial.impl.ByteArrayOutputStream
 
 import scala.annotation.switch
+import scala.concurrent.Future
 
 /** IRCAM or BICSF (Berkeley/IRCAM/Carl) sound format.
   *
@@ -110,6 +113,71 @@ private[audiofile] object IRCAMHeader {
     ReadableAudioFileHeader(spec, reader.byteOrder)
   }
 
+  def readAsync(ch: AsyncReadableByteChannel): Future[AudioFileHeader] = {
+    val ab = new AsyncReadableByteBuffer(ch)
+    import ab._
+
+    ensure(16).flatMap { _ =>
+      val ircamMagic = buffer.getInt()// 4
+      if (ircamMagic == IRCAM_VAXLE_MAGIC || ircamMagic == IRCAM_SUNLE_MAGIC || ircamMagic == IRCAM_MIPSLE_MAGIC) {
+        buffer.order(ByteOrder.LITTLE_ENDIAN)
+      } else if (ircamMagic == IRCAM_VAXBE_MAGIC || ircamMagic == IRCAM_SUNBE_MAGIC || ircamMagic == IRCAM_MIPSBE_MAGIC || ircamMagic == IRCAM_NEXTBE_MAGIC) {
+        () // ok
+      } else formatError(s"Not IRCAM magic: 0x${ircamMagic.toHexString}")
+
+      val sampleRate    = buffer.getFloat()  // 8
+      val numChannels   = buffer.getInt()    // 12
+      val sampleFormat  = (buffer.getInt(): @switch) match { // 16
+        case 1        => SampleFormat.Int8    // 8 bit linear
+        case 2        => SampleFormat.Int16   // 16 bit linear
+        case 3        => SampleFormat.Int24   // 24 bit linear; does this value exist officially?
+        case 0x40004  => SampleFormat.Int32   // 32 bit linear
+        case 4        => SampleFormat.Float   // 32 bit float
+        case 8        => SampleFormat.Double  // 64 bit float
+        case m        => throw new IOException(s"Unsupported IRCAM encoding ($m)")
+      }
+
+//      var done  = false
+//      var pos   = 16L
+
+      def readChunk(): Future[AudioFileHeader] =
+        ensure(4).flatMap { _ =>
+          val i   = buffer.getInt() // 4
+          val sz  = i & 0xFFFF  // last short = block size
+          val id  = i >> 16     // first short = code
+          if (id == BICSF_END) {
+            if (sz > 0) skip(sz) // din.skipBytes(sz)
+            purge()
+            val pos         = ch.position
+            val dataOffset  = (pos + 1023L) & ~1023L    // skip to next full kilobyte
+            val skp         = (dataOffset - pos).toInt  // skip to next full kilobyte
+            if (skp > 0) skip(skp) // din.skipBytes(skp)
+            purge()
+            val frameSize   = ((sampleFormat.bitsPerSample + 7) >> 3) * numChannels
+            val fileLen     = ch.size
+            val numFrames   = math.max(0L, fileLen - dataOffset) / frameSize
+
+            val spec = new AudioFileSpec(fileType = AudioFileType.IRCAM, sampleFormat = sampleFormat,
+              numChannels = numChannels, sampleRate = sampleRate, byteOrder = Some(buffer.order()),
+              numFrames = numFrames)
+            val afh = ReadableAudioFileHeader(spec, buffer.order)
+            Future.successful(afh)
+
+          } else if (id == BICSF_LINKCODE) {
+            throw new IOException("Unsupported IRCAM feature (LINKCODE)")
+          } else if (id == BICSF_VIRTUALCODE) {
+            throw new IOException("Unsupported IRCAM feature (VIRTUALCODE)")
+          } else {
+            if (sz > 0) skip(sz) // din.skipBytes(sz)
+            readChunk()
+          }
+  //        pos += 4 + sz
+        }
+
+      readChunk()
+    }
+  }
+
   @throws(classOf[IOException])
   def write(raf: RandomAccessFile, spec: AudioFileSpec): WritableAudioFileHeader = {
     val spec1 = writeDataOutput(raf, spec)
@@ -120,6 +188,18 @@ private[audiofile] object IRCAMHeader {
   def write(dos: DataOutputStream, spec: AudioFileSpec): WritableAudioFileHeader = {
     val spec1 = writeDataOutput(dos, spec)
     new NonUpdatingWritableHeader(spec1)
+  }
+
+  def writeAsync(ch: AsyncWritableByteChannel, spec: AudioFileSpec): Future[AsyncWritableAudioFileHeader] = {
+    import ch.executionContext
+    val bs        = new ByteArrayOutputStream()
+    val dout      = new DataOutputStream(bs)
+    val spec1     = writeDataOutput(dout, spec)
+    val dst       = ByteBuffer.wrap(bs.buffer, 0, bs.size)
+    val fut       = ch.write(dst)
+    fut.map { _ =>
+      new NonUpdatingWritableHeader(spec1)
+    }
   }
 
   @throws(classOf[IOException])

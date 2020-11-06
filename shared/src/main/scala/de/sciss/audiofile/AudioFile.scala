@@ -559,7 +559,7 @@ object AudioFile extends ReaderFactory with AudioFilePlatform {
     }
 
     final def flush(): Future[Unit] =
-      afh.update(numFrames)
+      afh.updateAsync(numFrames)
 
     //    final override def close(): Unit = {
 //      flush()

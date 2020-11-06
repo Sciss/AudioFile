@@ -144,10 +144,14 @@ object AudioFileType extends AudioFileTypePlatform {
 
     private[audiofile] def identify(dis: DataInputStream ): Boolean         = Impl.identify(dis)
     private[audiofile] def read    (dis: DataInputStream ): AudioFileHeader = Impl.read(dis)
-    private[audiofile] def write   (dos: DataOutputStream, spec: AudioFileSpec): WritableAudioFileHeader = Impl.write(dos, spec)
+
+    private[audiofile] def write   (dos: DataOutputStream, spec: AudioFileSpec): WritableAudioFileHeader =
+      Impl.write(dos, spec)
 
     private[audiofile] def readAsync (ch: AsyncReadableByteChannel): Future[AudioFileHeader] = ???
-    private[audiofile] def writeAsync(ch: AsyncWritableByteChannel, spec: AudioFileSpec): Future[AsyncWritableAudioFileHeader] = ???
+
+    private[audiofile] def writeAsync(ch: AsyncWritableByteChannel,
+                                      spec: AudioFileSpec): Future[AsyncWritableAudioFileHeader] = ???
   }
 
   /** Microsoft's Wave (RIFF) format. */
@@ -163,10 +167,14 @@ object AudioFileType extends AudioFileTypePlatform {
 
     private[audiofile] def identify(dis: DataInputStream ): Boolean         = Impl.identify(dis)
     private[audiofile] def read    (dis: DataInputStream ): AudioFileHeader = Impl.read(dis)
-    private[audiofile] def write   (dos: DataOutputStream, spec: AudioFileSpec): WritableAudioFileHeader = Impl.write(dos, spec)
+
+    private[audiofile] def write   (dos: DataOutputStream, spec: AudioFileSpec): WritableAudioFileHeader =
+      Impl.write(dos, spec)
 
     private[audiofile] def readAsync (ch: AsyncReadableByteChannel): Future[AudioFileHeader] = ???
-    private[audiofile] def writeAsync(ch: AsyncWritableByteChannel, spec: AudioFileSpec): Future[AsyncWritableAudioFileHeader] = ???
+
+    private[audiofile] def writeAsync(ch: AsyncWritableByteChannel,
+                                      spec: AudioFileSpec): Future[AsyncWritableAudioFileHeader] = ???
   }
 
   /** IRCAM, Berkeley or Carl sound format (BICSF). */
@@ -183,10 +191,16 @@ object AudioFileType extends AudioFileTypePlatform {
 
     private[audiofile] def identify(dis: DataInputStream ): Boolean         = Impl.identify(dis)
     private[audiofile] def read    (dis: DataInputStream ): AudioFileHeader = Impl.read(dis)
-    private[audiofile] def write   (dos: DataOutputStream, spec: AudioFileSpec): WritableAudioFileHeader = Impl.write(dos, spec)
 
-    private[audiofile] def readAsync (ch: AsyncReadableByteChannel): Future[AudioFileHeader] = ???
-    private[audiofile] def writeAsync(ch: AsyncWritableByteChannel, spec: AudioFileSpec): Future[AsyncWritableAudioFileHeader] = ???
+    private[audiofile] def write   (dos: DataOutputStream, spec: AudioFileSpec): WritableAudioFileHeader =
+      Impl.write(dos, spec)
+
+    private[audiofile] def readAsync (ch: AsyncReadableByteChannel): Future[AudioFileHeader] =
+      Impl.readAsync(ch)
+
+    private[audiofile] def writeAsync(ch: AsyncWritableByteChannel,
+                                      spec: AudioFileSpec): Future[AsyncWritableAudioFileHeader] =
+      Impl.writeAsync(ch, spec)
   }
 
   /** Raw (headerless) file type. */
