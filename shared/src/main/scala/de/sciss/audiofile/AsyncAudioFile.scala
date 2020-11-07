@@ -13,6 +13,7 @@
 
 package de.sciss.audiofile
 
+import de.sciss.asyncfile.AsyncChannel
 import de.sciss.audiofile.AudioFile.Frames
 
 import scala.concurrent.Future

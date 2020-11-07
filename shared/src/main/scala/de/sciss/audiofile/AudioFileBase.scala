@@ -17,7 +17,7 @@ import java.io.IOException
 
 import de.sciss.audiofile.AudioFile.Frames
 
-trait AudioFileBase extends Channel {
+trait AudioFileBase /*extends Channel*/ {
   /** Returns a description of the audio file's specification. */
   def spec: AudioFileSpec
 
@@ -98,13 +98,13 @@ trait AudioFileBase extends Channel {
   /** Whether or not this file is still open. */
   def isOpen: Boolean
 
-  /** Flushes and closes the file
-    *
-    * @throws java.io.IOException if an error occurs during buffer flush
-    *                     or closing the file.
-    */
-  @throws(classOf[IOException])
-  def close(): Unit
+//  /** Flushes and closes the file
+//    *
+//    * @throws java.io.IOException if an error occurs during buffer flush
+//    *                     or closing the file.
+//    */
+//  @throws(classOf[IOException])
+//  def close(): Unit
 
   /** Flushes and closes the file. As opposed
     * to <code>close()</code>, this does not

@@ -16,16 +16,14 @@ package de.sciss.audiofile
 import java.io.{BufferedOutputStream, ByteArrayInputStream, DataInputStream, DataOutputStream, IOException, InputStream, OutputStream}
 import java.net.URI
 import java.nio.ByteBuffer
-import java.nio.channels.Channels
-import java.text.SimpleDateFormat
-import java.util.{ConcurrentModificationException, Date, Locale}
+import java.nio.channels.{Channel, Channels}
+import java.util.ConcurrentModificationException
 
 import de.sciss.asyncfile.{AsyncFile, AsyncReadableByteChannel, AsyncWritableByteChannel}
 import de.sciss.audiofile.AudioFile.Frames
 import de.sciss.audiofile.AudioFileHeader.opNotSupported
+import de.sciss.log.Logger
 
-import scala.annotation.elidable
-import scala.annotation.elidable.CONFIG
 import scala.concurrent.{ExecutionContext, Future}
 import scala.math.{max, min}
 
@@ -173,13 +171,7 @@ object AudioFile extends ReaderFactory with AudioFilePlatform {
     */
   val KEY_DIRECT_MEMORY = "AudioFile.DirectMemory"
 
-  var showLog = true
-
-  // N.B. sjs does not supported single quote escaped fragments
-  private lazy val logHeader = new SimpleDateFormat("d MMM yyyy, HH:mm''ss.SSS", Locale.US)
-
-  @elidable(CONFIG) private[audiofile] def log(what: => String): Unit =
-    if (showLog) println(s"[${logHeader.format(new Date())}] 'AudioFile' $what")
+  val log: Logger = new Logger("AudioFile")
 
   // ---- impl  ----
 
@@ -474,7 +466,7 @@ object AudioFile extends ReaderFactory with AudioFilePlatform {
     protected final var framePositionRef = 0L
 
     protected def afh: AudioFileHeader
-    protected def bh : AsyncBufferHandler
+    protected val bh : AsyncBufferHandler
     protected def ch : AsyncReadableByteChannel
 
     protected def sampleDataOffset: Long
@@ -494,11 +486,15 @@ object AudioFile extends ReaderFactory with AudioFilePlatform {
 
     final def isOpen: Boolean = ch.isOpen
 
-    def close(): Unit = ch.close()
+    def close(): Future[Unit] = {
+      import bh.executionContext
+      flush().flatMap(_ => ch.close())
+    }
 
     final def cleanUp(): Unit =
       try {
         close()
+        ()
       } catch {
         case _: IOException =>
       }
@@ -616,7 +612,7 @@ object AudioFile extends ReaderFactory with AudioFilePlatform {
   }
 }
 
-trait AudioFile extends AudioFileBase {
+trait AudioFile extends AudioFileBase with Channel {
   def uri: Option[URI]
 
   /** Reads sample frames from the current position
@@ -711,4 +707,12 @@ trait AudioFile extends AudioFileBase {
     */
   @throws(classOf[IOException])
   def copyTo(target: AudioFile, numFrames: Long): this.type
+
+  /** Flushes and closes the file
+    *
+    * @throws java.io.IOException if an error occurs during buffer flush
+    *                     or closing the file.
+    */
+  @throws(classOf[IOException])
+  def close(): Unit
 }
