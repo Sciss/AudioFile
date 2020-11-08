@@ -15,6 +15,8 @@ class ReadWriteSpec extends TempFileSpec {
     case cw: AudioFileType.CanWrite => cw
   }
 
+//  val rwTypes: Vec[AudioFileType] = Vector(AudioFileType.AIFF)
+
   val chanNums: List[Int] = List(1, 2, 3)
 
   val bufSize    = 8192
@@ -57,13 +59,13 @@ class ReadWriteSpec extends TempFileSpec {
     }
   }
 
-  rwTypes.foreach { typ =>
-    typ.supportedFormats.foreach { smpFmt =>
+  rwTypes.foreach { tpe =>
+    tpe.supportedFormats.foreach { smpFmt =>
       chanNums.foreach { numCh =>
-        val fileSpec = AudioFileSpec(typ, smpFmt, numCh, sr)
-        "AudioFile" should ("write and read " + fileSpec) in { f =>
+        val fileSpec = AudioFileSpec(tpe, smpFmt, numCh, sr)
+        "AudioFile" should s"write and read $fileSpec" in { f =>
           val uri   = f.toURI
-          val afOut = AudioFile.openWrite( f, fileSpec )
+          val afOut = AudioFile.openWrite(f, fileSpec)
           assert(afOut.isOpen)
           assert(afOut.isReadable)
           assert(afOut.isWritable)
@@ -74,6 +76,7 @@ class ReadWriteSpec extends TempFileSpec {
           generate(bufOut, size2, 1L)
           afOut.write(bufOut, 0, size2)
           assert(afOut.position === totalSize.toLong)
+          // println(s"SPEC ${afOut.spec}")
           val framesWritten = afOut.numFrames
           assert(framesWritten === afOut.spec.numFrames)
           afOut.close()
@@ -91,7 +94,7 @@ class ReadWriteSpec extends TempFileSpec {
           assert(afIn.sampleFormat    === smpFmt)
           assert(afIn.sampleRate      === sr)
           assert(afIn.uri.contains(uri))
-          assert(afIn.fileType        === typ)
+          assert(afIn.fileType        === tpe)
           afIn.read(bufIn)
           generate(bufOut, bufSize, 0L)
           compare(bufIn, bufOut, bufSize, smpFmt)

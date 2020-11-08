@@ -4,7 +4,7 @@
  *
  *  Copyright (c) 2004-2020 Hanns Holger Rutz. All rights reserved.
  *
- *  This software is published under the GNU Lesser General Public License v2.1+
+ *  This software is published under the GNU Affero General Public License v3+
  *
  *
  *  For further information, please contact Hanns Holger Rutz at
@@ -14,11 +14,14 @@
 package de.sciss.audiofile.impl
 
 import java.io.{DataInput, DataInputStream, DataOutput, DataOutputStream, IOException, RandomAccessFile}
-import java.nio.ByteOrder
+import java.nio.{ByteBuffer, ByteOrder}
 
-import de.sciss.audiofile.{AudioFileHeader, AudioFileSpec, AudioFileType, ReadableAudioFileHeader, SampleFormat, WritableAudioFileHeader}
+import de.sciss.asyncfile.{AsyncReadableByteBuffer, AsyncReadableByteChannel, AsyncWritableByteChannel}
+import de.sciss.audiofile.{AsyncWritableAudioFileHeader, AudioFileHeader, AudioFileSpec, AudioFileType, ReadableAudioFileHeader, SampleFormat, WritableAudioFileHeader}
+import de.sciss.serial.impl.ByteArrayOutputStream
 
 import scala.annotation.switch
+import scala.concurrent.Future
 
 /** NeXT or SND format.
   *
@@ -40,12 +43,12 @@ private[audiofile] object NeXTHeader {
 
   @throws(classOf[IOException])
   private def readDataInput(din: DataInput, fileLen: Long): AudioFileHeader = {
-    val sndMagic = din.readInt()
+    val sndMagic = din.readInt()  // 4
     if (sndMagic != SND_MAGIC) formatError(s"Not NeXT magic: 0x${sndMagic.toHexString}")
 
-    val dataOffset    = din.readInt() // offset in bytes
-    val dataSize_?    = din.readInt()
-    val sampleFormat  = (din.readInt(): @switch) match {
+    val dataOffset    = din.readInt() // offset in bytes    // 8
+    val dataSize_?    = din.readInt() // 12
+    val sampleFormat  = (din.readInt(): @switch) match {  // 16
       case 2 => SampleFormat.Int8   // 8 bit linear
       case 3 => SampleFormat.Int16  // 16 bit linear
       case 4 => SampleFormat.Int24  // 24 bit linear
@@ -54,8 +57,8 @@ private[audiofile] object NeXTHeader {
       case 7 => SampleFormat.Double // 64 bit float
       case m => throw new IOException(s"Unsupported NeXT encoding ($m)")
     }
-    val sampleRate  = din.readInt().toDouble
-    val numChannels = din.readInt()
+    val sampleRate  = din.readInt().toDouble  // 20
+    val numChannels = din.readInt()           // 24
 
     val skp = dataOffset - 24 // current pos is 24
     if (skp > 0) din.skipBytes(skp)
@@ -70,6 +73,44 @@ private[audiofile] object NeXTHeader {
     ReadableAudioFileHeader(spec, ByteOrder.BIG_ENDIAN)
   }
 
+  def readAsync(ch: AsyncReadableByteChannel): Future[AudioFileHeader] = {
+    val ab = new AsyncReadableByteBuffer(ch)
+    import ab._
+
+    ensure(24).map { _ =>
+      val sndMagic = buffer.getInt() // 4
+      if (sndMagic != SND_MAGIC) formatError(s"Not NeXT magic: 0x${sndMagic.toHexString}")
+
+      val dataOffset    = buffer.getInt() // offset in bytes    // 8
+      val dataSize_?    = buffer.getInt() // 12
+      val sampleFormat  = (buffer.getInt(): @switch) match {  // 16
+        case 2 => SampleFormat.Int8   // 8 bit linear
+        case 3 => SampleFormat.Int16  // 16 bit linear
+        case 4 => SampleFormat.Int24  // 24 bit linear
+        case 5 => SampleFormat.Int32  // 32 bit linear
+        case 6 => SampleFormat.Float  // 32 bit float
+        case 7 => SampleFormat.Double // 64 bit float
+        case m => throw new IOException(s"Unsupported NeXT encoding ($m)")
+      }
+      val sampleRate  = buffer.getInt().toDouble  // 20
+      val numChannels = buffer.getInt()           // 24
+
+      val skp = dataOffset - 24 // current pos is 24
+      if (skp > 0) skip(skp) // buffer.skipBytes(skp)
+      val frameSize = ((sampleFormat.bitsPerSample + 7) >> 3) * numChannels
+      purge()
+
+      val fileLen   = ch.size
+      val dataSize  = if (dataSize_? == 0xFFFFFFFF) fileLen - dataOffset else dataSize_?.toLong
+      val numFrames = math.max(0L, dataSize) / frameSize
+
+      val spec = new AudioFileSpec(fileType = AudioFileType.NeXT, sampleFormat = sampleFormat,
+        numChannels = numChannels, sampleRate = sampleRate, byteOrder = Some(ByteOrder.BIG_ENDIAN),
+        numFrames = numFrames)
+      ReadableAudioFileHeader(spec, ByteOrder.BIG_ENDIAN)
+    }
+  }
+
   @throws(classOf[IOException])
   def write(raf: RandomAccessFile, spec: AudioFileSpec): WritableAudioFileHeader = {
     val spec1 = writeDataOutput(raf, spec, writeSize = false)
@@ -82,6 +123,18 @@ private[audiofile] object NeXTHeader {
     new NonUpdatingWritableHeader(spec1)
   }
 
+  // XXX TODO DRY with other types
+  def writeAsync(ch: AsyncWritableByteChannel, spec: AudioFileSpec): Future[AsyncWritableAudioFileHeader] = {
+    import ch.executionContext
+    val bs        = new ByteArrayOutputStream()
+    val dout      = new DataOutputStream(bs)
+    val spec1     = writeDataOutput(dout, spec, writeSize = false)
+    val dst       = ByteBuffer.wrap(bs.buffer, 0, bs.size)
+    val fut       = ch.write(dst)
+    fut.map { _ =>
+      new NonUpdatingWritableHeader(spec1)
+    }
+  }
   @throws(classOf[IOException])
   private def writeDataOutput(dout: DataOutput, spec: AudioFileSpec, writeSize: Boolean): AudioFileSpec = {
     val res = spec.byteOrder match {

@@ -1,7 +1,9 @@
-package de.sciss.audiofile
+package de.sciss.audiofile.tests
 
 import java.io.File
 import java.util.Locale
+
+import de.sciss.audiofile.AudioFile
 
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, ExecutionContext, Future}

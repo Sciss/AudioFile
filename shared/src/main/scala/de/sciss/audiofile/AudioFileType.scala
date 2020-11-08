@@ -4,7 +4,7 @@
  *
  *  Copyright (c) 2004-2020 Hanns Holger Rutz. All rights reserved.
  *
- *  This software is published under the GNU Lesser General Public License v2.1+
+ *  This software is published under the GNU Affero General Public License v3+
  *
  *
  *  For further information, please contact Hanns Holger Rutz at
@@ -148,10 +148,12 @@ object AudioFileType extends AudioFileTypePlatform {
     private[audiofile] def write   (dos: DataOutputStream, spec: AudioFileSpec): WritableAudioFileHeader =
       Impl.write(dos, spec)
 
-    private[audiofile] def readAsync (ch: AsyncReadableByteChannel): Future[AudioFileHeader] = ???
+    private[audiofile] def readAsync (ch: AsyncReadableByteChannel): Future[AudioFileHeader] =
+      Impl.readAsync(ch)
 
     private[audiofile] def writeAsync(ch: AsyncWritableByteChannel,
-                                      spec: AudioFileSpec): Future[AsyncWritableAudioFileHeader] = ???
+                                      spec: AudioFileSpec): Future[AsyncWritableAudioFileHeader] =
+      Impl.writeAsync(ch, spec)
   }
 
   /** Microsoft's Wave (RIFF) format. */

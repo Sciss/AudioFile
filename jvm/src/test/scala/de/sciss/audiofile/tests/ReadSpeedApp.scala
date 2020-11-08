@@ -1,4 +1,6 @@
-package de.sciss.audiofile
+package de.sciss.audiofile.tests
+
+import de.sciss.audiofile.AudioFile
 
 object ReadSpeedApp extends App {
   val DirectMemory = args.headOption.contains("--direct")

@@ -4,7 +4,7 @@
  *
  *  Copyright (c) 2004-2020 Hanns Holger Rutz. All rights reserved.
  *
- *  This software is published under the GNU Lesser General Public License v2.1+
+ *  This software is published under the GNU Affero General Public License v3+
  *
  *
  *  For further information, please contact Hanns Holger Rutz at
@@ -99,7 +99,7 @@ object AudioFile extends ReaderFactory with AudioFilePlatform {
 
   /** Opens an audio file for asynchronous reading.
     *
-    * @param  f  the path name of the file
+    * @param  uri  the path name of the file
     * @return a future  <code>AsyncAudioFile</code> object
     *         whose header is already parsed when the future completes, and
     *         that can be obtained through the <code>spec</code> method.
@@ -112,7 +112,7 @@ object AudioFile extends ReaderFactory with AudioFilePlatform {
     for {
       ch  <- AsyncFile.openRead(uri)
       hr  <- createHeaderReaderAsync(ch)
-      aaf <- finishOpenStreamReadAsync(ch, hr, sourceString = uri.toString)
+      aaf <- finishOpenStreamReadAsync(Some(uri), ch, hr)
     } yield {
       aaf
     }
@@ -121,7 +121,7 @@ object AudioFile extends ReaderFactory with AudioFilePlatform {
   def openReadAsync(ch: AsyncReadableByteChannel)(implicit ec: ExecutionContext): Future[AsyncAudioFile] =
     for {
       hr  <- createHeaderReaderAsync(ch)
-      aaf <- finishOpenStreamReadAsync(ch, hr, sourceString = "<stream>")
+      aaf <- finishOpenStreamReadAsync(None, ch, hr)
     } yield {
       aaf
     }
@@ -131,20 +131,15 @@ object AudioFile extends ReaderFactory with AudioFilePlatform {
                     (implicit executionContext: ExecutionContext): Future[AsyncAudioFile] =
     for {
       ch  <- AsyncFile.openWrite(uri)
-      aaf <- {
-        val hw = createHeaderWriter(spec)
-        finishOpenStreamWriteAsync(ch, hw, spec, sourceString = uri.toString)
-      }
+      aaf <- finishOpenStreamWriteAsync(Some(uri), ch, spec)
     } yield {
       aaf
     }
 
   @throws(classOf[IOException])
   def openWriteAsync(ch: AsyncWritableByteChannel, spec: AudioFileSpec)
-                    (implicit ec: ExecutionContext): Future[AsyncAudioFile] = {
-    val hw = createHeaderWriter(spec)
-    finishOpenStreamWriteAsync(ch, hw, spec, sourceString = "<stream>")
-  }
+                    (implicit ec: ExecutionContext): Future[AsyncAudioFile] =
+    finishOpenStreamWriteAsync(None, ch, spec)
 
   @throws(classOf[IOException])
   def readSpecAsync(uri: URI)(implicit executionContext: ExecutionContext): Future[AudioFileSpec] =
@@ -423,9 +418,9 @@ object AudioFile extends ReaderFactory with AudioFilePlatform {
     }
   }
 
-  private[audiofile] def finishOpenStreamReadAsync(ch: AsyncReadableByteChannel, hr: AudioFileType.CanRead,
-                                            sourceString: String)
-                                           (implicit ec: ExecutionContext): Future[AsyncAudioFile] = {
+  private[audiofile] def finishOpenStreamReadAsync(uri: Option[URI], ch: AsyncReadableByteChannel,
+                                                   hr: AudioFileType.CanRead)
+                                                  (implicit ec: ExecutionContext): Future[AsyncAudioFile] = {
     val afhFut = hr.readAsync(ch)
     afhFut.map { afh =>
       val buf   = createBuffer(afh)
@@ -434,28 +429,27 @@ object AudioFile extends ReaderFactory with AudioFilePlatform {
       val sf    = spec.sampleFormat
       val br    = sf.asyncReaderFactory.map(_.apply(ch, buf, spec.numChannels))
         .getOrElse(noDecoder(sf))
-      new AsyncReadableImpl(ch, afh, br, sourceString)
+      new AsyncReadableImpl(uri, ch, afh, br)
     }
   }
 
-  private[audiofile] def finishOpenStreamWriteAsync(ch: AsyncWritableByteChannel, hr: AudioFileType.CanWrite,
-                                             spec: AudioFileSpec,
-                                            sourceString: String)
-                                           (implicit ec: ExecutionContext): Future[AsyncAudioFile] = {
-    val hw    = createHeaderWriter(spec)
-    val afhFut = hw.writeAsync(ch, spec)
+  private[audiofile] def finishOpenStreamWriteAsync(uri: Option[URI], ch: AsyncWritableByteChannel,
+                                                    spec: AudioFileSpec)
+                                                   (implicit ec: ExecutionContext): Future[AsyncAudioFile] = {
+    val hw      = createHeaderWriter(spec)
+    val afhFut  = hw.writeAsync(ch, spec)
     afhFut.map { afh =>
       val buf   = createBuffer(afh)
       val sf    = spec.sampleFormat
       sf.asyncBidiFactory match {
         case Some(bbf) =>
           val bb = bbf(ch, buf, spec.numChannels)
-          new AsyncBidiImpl(ch, afh, bb, sourceString = sourceString)
+          new AsyncBidiImpl(uri, ch, afh, bb)
 
         case None =>
           val bw = sf.asyncWriterFactory.map(_.apply(ch, buf, spec.numChannels))
             .getOrElse(noEncoder(sf))
-          new AsyncWritableImpl (ch, afh, bw, sourceString = sourceString)
+          new AsyncWritableImpl(uri, ch, afh, bw)
       }
     }
   }
@@ -473,6 +467,8 @@ object AudioFile extends ReaderFactory with AudioFilePlatform {
     protected def ch : AsyncReadableByteChannel
 
     protected def sampleDataOffset: Long
+
+    protected val sourceString: String = uri.fold("<stream>")(_.toString)
 
     final def position: Long = sync.synchronized { framePositionRef }
 
@@ -498,7 +494,6 @@ object AudioFile extends ReaderFactory with AudioFilePlatform {
     }
 
     protected def accessString: String
-    protected def sourceString: String
 
     final def isOpen: Boolean = sync.synchronized {
       !(_state == 3 || _shouldClose)
@@ -596,12 +591,14 @@ object AudioFile extends ReaderFactory with AudioFilePlatform {
 
     protected def afh: AsyncWritableAudioFileHeader
 
-    final protected var numFramesRef  : Long = 0L    // protected by `sync`
+    final protected var numFramesVar  : Long = 0L    // protected by `sync`
 //    final protected var flushFramesRef: Long = 0L    // protected by `sync`
 
     final def isWritable = true
 
-    override def numFrames: Long = sync.synchronized { numFramesRef }
+    override def numFrames: Long = sync.synchronized { numFramesVar }
+
+    override final def spec: AudioFileSpec = afh.spec.copy(numFrames = numFramesVar)
 
     final def write(data: Frames, off: Int, len: Int): Future[Unit] = sync.synchronized {
       if (len <= 0) return Future.unit
@@ -615,7 +612,7 @@ object AudioFile extends ReaderFactory with AudioFilePlatform {
       val _pending = bh.write(data, off, len).andThen { case _ =>
         sync.synchronized {
           framePositionRef = newPos
-          if (newPos > numFramesRef) numFramesRef = newPos
+          if (newPos > numFramesVar) numFramesVar = newPos
           reachedTarget()
         }
       }
@@ -629,7 +626,7 @@ object AudioFile extends ReaderFactory with AudioFilePlatform {
 
       _state = 2 // 'write'
       import bh.executionContext
-      val _pending = afh.updateAsync(numFramesRef).andThen { case _ =>
+      val _pending = afh.updateAsync(numFramesVar).andThen { case _ =>
         _dirty = false
         reachedTarget()
       }
@@ -637,18 +634,19 @@ object AudioFile extends ReaderFactory with AudioFilePlatform {
     }
   }
 
-  private final class AsyncReadableImpl(protected val ch  : AsyncReadableByteChannel,
-                                        protected val afh : AudioFileHeader,
-                                        protected val bh  : AsyncBufferReader,
-                                        protected val sourceString: String,
+  private final class AsyncReadableImpl(
+                                         val uri: Option[URI],
+                                         protected val ch  : AsyncReadableByteChannel,
+                                         protected val afh : AudioFileHeader,
+                                         protected val bh  : AsyncBufferReader,
                                        )
     extends AsyncBasicReadable {
 
     protected final val sampleDataOffset = ch.position
 
-    protected final def accessString = "r-async"
+    protected def accessString = "r-async"
 
-    final def isWritable = false
+    def isWritable = false
 
     override def numFrames: Long = spec.numFrames
 
@@ -657,38 +655,38 @@ object AudioFile extends ReaderFactory with AudioFilePlatform {
     def flush(): Future[Unit] = Future.unit
   }
 
-  private final class AsyncWritableImpl(protected val ch  : AsyncWritableByteChannel,
-                                        protected val afh : AsyncWritableAudioFileHeader,
-                                        protected val bh  : AsyncBufferWriter,
-                                        protected val sourceString: String,
+  private final class AsyncWritableImpl(
+                                         val uri: Option[URI],
+                                         protected val ch  : AsyncWritableByteChannel,
+                                         protected val afh : AsyncWritableAudioFileHeader,
+                                         protected val bh  : AsyncBufferWriter,
                                        )
     extends AsyncBasicWritable {
 
     protected final val sampleDataOffset = ch.position
 
-    protected final def accessString = "w-async"
+    protected def accessString = "w-async"
 
-    final def isReadable = false
+    def isReadable = false
 
     def read(data: Frames, off: Int, len: Int): Future[Unit] = opNotSupported
   }
 
-  private final class AsyncBidiImpl(protected val ch  : AsyncWritableByteChannel,
-                                    protected val afh : AsyncWritableAudioFileHeader,
-                                    protected val bh  : AsyncBufferBidi,
-                                    protected val sourceString: String,
+  private final class AsyncBidiImpl(
+                                     val uri: Option[URI],
+                                     protected val ch  : AsyncWritableByteChannel,
+                                     protected val afh : AsyncWritableAudioFileHeader,
+                                     protected val bh  : AsyncBufferBidi,
                                    )
     extends AsyncBasicReadable with AsyncBasicWritable {
 
     protected final val sampleDataOffset = ch.position
 
-    protected final def accessString = "rw-async"
+    protected def accessString = "rw-async"
   }
 }
 
 trait AudioFile extends AudioFileBase with Channel {
-  def uri: Option[URI]
-
   /** Reads sample frames from the current position
     *
     * @param  data	buffer to hold the frames reader from hard-disc.
