@@ -14,7 +14,8 @@
 package de.sciss.audiofile.impl
 
 import java.io.{DataInput, DataInputStream, DataOutput, DataOutputStream, IOException, RandomAccessFile}
-import java.nio.{ByteBuffer, ByteOrder}
+import java.nio.{Buffer, ByteBuffer, ByteOrder}
+import java.util.ConcurrentModificationException
 
 import de.sciss.asyncfile.{AsyncReadableByteBuffer, AsyncReadableByteChannel, AsyncWritableByteChannel}
 import de.sciss.audiofile.{AsyncWritableAudioFileHeader, AudioFileHeader, AudioFileSpec, AudioFileType, ReadableAudioFileHeader, SampleFormat, WritableAudioFileHeader}
@@ -132,7 +133,7 @@ private[audiofile] object NeXTHeader {
     val dst       = ByteBuffer.wrap(bs.buffer, 0, bs.size)
     val fut       = ch.write(dst)
     fut.map { _ =>
-      new NonUpdatingWritableHeader(spec1)
+      new AsyncWritableFileHeader(ch, spec1)
     }
   }
   @throws(classOf[IOException])
@@ -187,6 +188,37 @@ private[audiofile] object NeXTHeader {
       raf.writeInt(dataSize.toInt)
       raf.seek(oldPos)
       numFrames0 = numFrames
+    }
+
+    def byteOrder: ByteOrder = spec.byteOrder.get
+  }
+
+  final private class AsyncWritableFileHeader(ch: AsyncWritableByteChannel, val spec: AudioFileSpec)
+    extends AsyncWritableAudioFileHeader {
+
+    private[this] val sync          = new AnyRef
+    private[this] var numFramesRef  = 0L
+    private[this] val bb            = ByteBuffer.allocate(4).order(byteOrder)
+
+    def updateAsync(numFrames: Long): Future[Unit] = {
+      import ch.executionContext
+
+      val oldNumFr = sync.synchronized { numFramesRef }
+      if (numFrames == oldNumFr) return Future.unit
+
+      val dataSize  = numFrames * ((spec.sampleFormat.bitsPerSample >> 3) * spec.numChannels)
+      val oldPos    = ch.position
+      ch.position_=(8L)
+      (bb: Buffer).clear()
+      bb.putInt(0, dataSize.toInt)
+      ch.write(bb).map { _ =>
+        ch.position_=(oldPos)
+        sync.synchronized {
+          if (numFramesRef != oldNumFr) throw new ConcurrentModificationException
+          numFramesRef = numFrames
+        }
+        ()
+      }
     }
 
     def byteOrder: ByteOrder = spec.byteOrder.get
