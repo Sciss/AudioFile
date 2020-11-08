@@ -212,7 +212,7 @@ private[audiofile] object AsyncBufferReader {
 
     protected def arrayToSamples(smp: Array[SFloat], smpOff: SInt,
                                  arrOff: SInt, arrStep: SInt, arrStop: SInt): Unit = {
-      var i = arrOff * 3; val iStep = arrStep * 3; var j = smpOff; while (i < arrStop) {
+      var i = arrOff * 3; val iStep = arrStep * 3; val iStop = arrStop * 3; var j = smpOff; while (i < iStop) {
         smp(j) = (
            (arrayBuf(i)             << 16) |
           ((arrayBuf(i + 1) & 0xFF) <<  8) |
@@ -234,7 +234,7 @@ private[audiofile] object AsyncBufferReader {
 
     protected def arrayToSamples(smp: Array[SFloat], smpOff: SInt,
                                  arrOff: SInt, arrStep: SInt, arrStop: SInt): Unit = {
-      var i = arrOff * 3; val iStep = arrStep * 3; var j = smpOff; while (i < arrStop) {
+      var i = arrOff * 3; val iStep = arrStep * 3; val iStop = arrStop * 3; var j = smpOff; while (i < iStop) {
         smp(j) = (
              (arrayBuf(i)     & 0xFF)        |
             ((arrayBuf(i + 1) & 0xFF) <<  8) |
@@ -464,10 +464,10 @@ private[audiofile] object AsyncBufferWriter {
 
     protected final def samplesToArray(smp: Array[SFloat], smpOff: SInt,
                                        arrOff: SInt, arrStep: SInt, arrStop: SInt): Unit = {
-      var i = arrOff * 3; val iStep = arrStep * 3; var j = smpOff; while (i < arrStop) {
+      var i = arrOff * 3; val iStep = arrStep * 3; val iStop = arrStop * 3; var j = smpOff; while (i < iStop) {
         val k = (smp(j) * 0x7FFFFF).toInt
         arrayBuf(i)     = (k >> 16).toByte
-        arrayBuf(i + 1) = (k >> 8).toByte
+        arrayBuf(i + 1) = (k >>  8).toByte
         arrayBuf(i + 2) = k.toByte
         i += iStep; j += 1
       }
@@ -485,10 +485,10 @@ private[audiofile] object AsyncBufferWriter {
 
     protected final def samplesToArray(smp: Array[SFloat], smpOff: SInt,
                                        arrOff: SInt, arrStep: SInt, arrStop: SInt): Unit = {
-      var i = arrOff * 3; val iStep = arrStep * 3; var j = smpOff; while (i < arrStop) {
+      var i = arrOff * 3; val iStep = arrStep * 3; val iStop = arrStop * 3; var j = smpOff; while (i < iStop) {
         val k = (smp(j) * 0x7FFFFF).toInt
         arrayBuf(i)     = k.toByte
-        arrayBuf(i + 1) = (k >> 8).toByte
+        arrayBuf(i + 1) = (k >>  8).toByte
         arrayBuf(i + 2) = (k >> 16).toByte
         i += iStep; j += 1
       }

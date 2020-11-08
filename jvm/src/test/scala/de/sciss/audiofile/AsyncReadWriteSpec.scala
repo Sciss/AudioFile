@@ -18,11 +18,11 @@ import scala.concurrent.Future
 class AsyncReadWriteSpec extends FixtureAsyncFlatSpec {
   final type FixtureParam = File
 
-  val rwTypes: Vec[AudioFileType] = AudioFileType.readable.collect {
-    case cw: AudioFileType.CanWrite => cw
-  }
+//  val rwTypes: Vec[AudioFileType] = AudioFileType.readable.collect {
+//    case cw: AudioFileType.CanWrite => cw
+//  }
 
-//  val rwTypes: Vec[AudioFileType] = Vector(AudioFileType.AIFF)
+  val rwTypes: Vec[AudioFileType] = Vector(AudioFileType.AIFF)
 
   val chanNums: List[Int] = List(1, 2, 3)
 
