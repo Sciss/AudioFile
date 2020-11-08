@@ -17,14 +17,13 @@ import java.io.{BufferedOutputStream, ByteArrayInputStream, DataInputStream, Dat
 import java.net.URI
 import java.nio.ByteBuffer
 import java.nio.channels.{Channel, Channels}
-import java.util.ConcurrentModificationException
 
 import de.sciss.asyncfile.{AsyncFile, AsyncReadableByteChannel, AsyncWritableByteChannel}
 import de.sciss.audiofile.AudioFile.Frames
 import de.sciss.audiofile.AudioFileHeader.opNotSupported
 import de.sciss.log.Logger
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.math.{max, min}
 
 /** The <code>AudioFile</code> allows reading and writing
@@ -462,8 +461,12 @@ object AudioFile extends ReaderFactory with AudioFilePlatform {
   }
 
   private trait AsyncBasic extends AsyncAudioFile {
-    protected final val sync = new AnyRef
-    protected final var framePositionRef = 0L
+    protected final val sync              = new AnyRef
+    protected final var framePositionRef  = 0L
+    protected final var _state            = 0     // 0 - idle, 1 - read, 2 - write, 3 - closed
+    protected final var _shouldClose      = false
+//    protected final var _pending: Future[Unit] = null
+    protected final var _dirty            = false
 
     protected def afh: AudioFileHeader
     protected val bh : AsyncBufferHandler
@@ -475,6 +478,19 @@ object AudioFile extends ReaderFactory with AudioFilePlatform {
 
     def spec: AudioFileSpec = afh.spec
 
+    protected final def checkState(): Unit = _state match {
+      case 0 => ()
+      case 1 => throw new IOException(s"File $sourceString has a pending read" )
+      case 2 => throw new IOException(s"File $sourceString has a pending write")
+      case 3 => throw new IOException(s"File $sourceString was already closed" )
+    }
+
+    protected final def reachedTarget(): Unit = {
+      log.debug(s"reachedTarget() ${_state} -> ${_shouldClose}")
+      _state = 0
+      if (_shouldClose) flushAndClose()
+    }
+
     override def toString: String = {
       val s           = spec.toString
       val specString  = s.substring(14)
@@ -484,12 +500,55 @@ object AudioFile extends ReaderFactory with AudioFilePlatform {
     protected def accessString: String
     protected def sourceString: String
 
-    final def isOpen: Boolean = ch.isOpen
-
-    def close(): Future[Unit] = {
-      import bh.executionContext
-      flush().flatMap(_ => ch.close())
+    final def isOpen: Boolean = sync.synchronized {
+      !(_state == 3 || _shouldClose)
     }
+
+    private[this] lazy val _closedPr = Promise[Unit]()
+
+    private def flushAndClose(): Unit = {
+      import bh.executionContext
+      val fut = flush().flatMap { _ =>
+        sync.synchronized {
+          val res = ch.close()
+          _state  = 3
+          res
+        }
+      }
+      _closedPr.completeWith(fut)
+    }
+
+    def close(): Future[Unit] = sync.synchronized {
+      log.debug(s"close() state = ${_state} dirty = ${_dirty}")
+      _shouldClose = true
+      _state match {
+        case 0 =>
+          if (_dirty) {
+            flushAndClose()
+            _closedPr.future
+          } else {
+            _state = 3
+            Future.unit
+          }
+
+        case 1 | 2  => _closedPr.future
+        case 3      => Future.unit
+      }
+    }
+
+//    def close(): Future[Unit] = sync.synchronized {
+//      _targetState = 3
+//      _state match {
+//        case 3  => Future.unit
+//        case _  =>
+//          import bh.executionContext
+//          flush().flatMap { _ =>
+//            ch.close()
+//          } .andThen { _ =>
+//            _state = 3
+//          }
+//      }
+//    }
 
     final def cleanUp(): Unit =
       try {
@@ -499,12 +558,11 @@ object AudioFile extends ReaderFactory with AudioFilePlatform {
         case _: IOException =>
       }
 
-    final def seek(frame: Long): this.type = {
-      val physical = sampleDataOffset + frame * bh.frameSize
-      sync.synchronized {
-        ch.position       = physical
-        framePositionRef  = frame
-      }
+    final def seek(frame: Long): this.type = sync.synchronized {
+      checkState()
+      val physical      = sampleDataOffset + frame * bh.frameSize
+      ch.position       = physical
+      framePositionRef  = frame
       this
     }
 
@@ -516,16 +574,20 @@ object AudioFile extends ReaderFactory with AudioFilePlatform {
 
     final def isReadable = true
 
-    final def read(data: Frames, off: Int, len: Int): Future[Unit] = {
+    final def read(data: Frames, off: Int, len: Int): Future[Unit] = sync.synchronized {
+      if (len <= 0) return Future.unit
+      checkState()
+      _state = 1
+
       import bh.executionContext
       val oldPos = position
-      bh.read(data, off, len).andThen { case _ =>
+      val _pending = bh.read(data, off, len).andThen { case _ =>
         sync.synchronized {
-          if (framePositionRef != oldPos) throw new ConcurrentModificationException()
           framePositionRef = oldPos + len
+          reachedTarget()
         }
-        ()
       }
+      _pending
     }
   }
 
@@ -534,33 +596,45 @@ object AudioFile extends ReaderFactory with AudioFilePlatform {
 
     protected def afh: AsyncWritableAudioFileHeader
 
-    final protected var numFramesRef = 0L
+    final protected var numFramesRef  : Long = 0L    // protected by `sync`
+//    final protected var flushFramesRef: Long = 0L    // protected by `sync`
 
     final def isWritable = true
 
     override def numFrames: Long = sync.synchronized { numFramesRef }
 
-    final def write(data: Frames, off: Int, len: Int): Future[Unit] = {
+    final def write(data: Frames, off: Int, len: Int): Future[Unit] = sync.synchronized {
+      if (len <= 0) return Future.unit
+      checkState()
+      _state  = 2
+      _dirty  = true
+
       import bh.executionContext
       val oldPos = position
       val newPos = oldPos + len
-      bh.write(data, off, len).andThen { case _ =>
+      val _pending = bh.write(data, off, len).andThen { case _ =>
         sync.synchronized {
-          if (framePositionRef != oldPos) throw new ConcurrentModificationException()
           framePositionRef = newPos
           if (newPos > numFramesRef) numFramesRef = newPos
+          reachedTarget()
         }
-        ()
       }
+      _pending
     }
 
-    final def flush(): Future[Unit] =
-      afh.updateAsync(numFrames)
+    final def flush(): Future[Unit] = sync.synchronized {
+      log.debug(s"flush() state = ${_state} dirty = ${_dirty}")
+      if (!_dirty) return Future.unit
+      checkState()
 
-    //    final override def close(): Unit = {
-//      flush()
-//      ch.close()
-//    }
+      _state = 2 // 'write'
+      import bh.executionContext
+      val _pending = afh.updateAsync(numFramesRef).andThen { case _ =>
+        _dirty = false
+        reachedTarget()
+      }
+      _pending
+    }
   }
 
   private final class AsyncReadableImpl(protected val ch  : AsyncReadableByteChannel,

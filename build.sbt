@@ -8,6 +8,7 @@ lazy val deps = new {
   val main = new {
     val asyncFile = "0.1.0-SNAPSHOT"
     val dom       = "1.1.0"
+    val log       = "0.1.1"
     val serial    = "2.0.0"
   }
   val test = new {
@@ -16,7 +17,7 @@ lazy val deps = new {
 }
 
 lazy val commonJvmSettings = Seq(
-  crossScalaVersions := Seq("0.27.0-RC1", "2.13.3", "2.12.12"),
+  crossScalaVersions := Seq(/*"0.27.0-RC1",*/ "2.13.3", "2.12.12"),
 )
 
 lazy val root = crossProject(JSPlatform, JVMPlatform).in(file("."))
@@ -34,6 +35,7 @@ lazy val root = crossProject(JSPlatform, JVMPlatform).in(file("."))
     initialCommands in console := """import de.sciss.audiofile._""",
     libraryDependencies ++= Seq(
       "de.sciss"      %%% "asyncfile" % deps.main.asyncFile,
+      "de.sciss"      %%% "log"       % deps.main.log,
       "de.sciss"      %%% "serial"    % deps.main.serial,
       "org.scalatest" %%% "scalatest" % deps.test.scalaTest % Test,
     ),
