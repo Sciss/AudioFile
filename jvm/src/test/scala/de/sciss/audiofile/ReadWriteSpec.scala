@@ -15,9 +15,9 @@ class ReadWriteSpec extends TempFileSpec {
     case cw: AudioFileType.CanWrite => cw
   }
 
-//  val rwTypes: Vec[AudioFileType] = Vector(AudioFileType.AIFF)
+//  val rwTypes: Vec[AudioFileType] = Vector(AudioFileType.Wave64)
 
-  val chanNums: List[Int] = List(1, 2, 3)
+  val chanNums: List[Int] = /*1 :: Nil */ List(1, 2, 3)
 
   val bufSize    = 8192
   val totalSize  = 10000
@@ -60,7 +60,7 @@ class ReadWriteSpec extends TempFileSpec {
   }
 
   rwTypes.foreach { tpe =>
-    tpe.supportedFormats.foreach { smpFmt =>
+    /* (SampleFormat.Int16 :: Nil) */ tpe.supportedFormats.foreach { smpFmt =>
       chanNums.foreach { numCh =>
         val fileSpec = AudioFileSpec(tpe, smpFmt, numCh, sr)
         "AudioFile" should s"write and read $fileSpec" in { f =>

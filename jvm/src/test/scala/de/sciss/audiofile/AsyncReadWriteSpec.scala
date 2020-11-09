@@ -18,13 +18,13 @@ import scala.concurrent.Future
 class AsyncReadWriteSpec extends FixtureAsyncFlatSpec {
   final type FixtureParam = File
 
-//  val rwTypes: Vec[AudioFileType] = AudioFileType.readable.collect {
-//    case cw: AudioFileType.CanWrite => cw
-//  }
+  val rwTypes: Vec[AudioFileType] = AudioFileType.readable.collect {
+    case cw: AudioFileType.CanWrite => cw
+  }
 
-  val rwTypes: Vec[AudioFileType] = Vector(AudioFileType.Wave)
+//  val rwTypes: Vec[AudioFileType] = Vector(AudioFileType.Wave64)
 
-  val chanNums: List[Int] = List(1, 2, 3)
+  val chanNums: List[Int] = /* 1 :: Nil */ List(1, 2, 3)
 
   val bufSize    = 8192
   val totalSize  = 10000
@@ -74,7 +74,7 @@ class AsyncReadWriteSpec extends FixtureAsyncFlatSpec {
   }
 
   rwTypes.foreach { tpe =>
-    tpe.supportedFormats.foreach { smpFmt =>
+    /* (SampleFormat.Int16 :: Nil) */ tpe.supportedFormats.foreach { smpFmt =>
       chanNums.foreach { numCh =>
         val fileSpec = AudioFileSpec(tpe, smpFmt, numCh, sr)
         "AsyncAudioFile" should s"write and read $fileSpec" in { f =>

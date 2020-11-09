@@ -14,10 +14,13 @@
 package de.sciss.audiofile.impl
 
 import java.io.{DataInput, DataInputStream, DataOutput, EOFException, IOException, RandomAccessFile}
-import java.nio.ByteOrder
+import java.nio.{Buffer, ByteBuffer, ByteOrder}
+import java.util.ConcurrentModificationException
 
-import de.sciss.asyncfile.AsyncWritableByteChannel
+import de.sciss.asyncfile.{AsyncReadableByteBuffer, AsyncReadableByteChannel, AsyncWritableByteChannel}
 import de.sciss.audiofile.{AsyncWritableAudioFileHeader, AudioFileHeader, AudioFileSpec, AudioFileType, WritableAudioFileHeader}
+
+import scala.concurrent.Future
 
 /** The 64 bit version of Wave.
   *
@@ -32,21 +35,25 @@ private[audiofile] object Wave64Header extends AbstractRIFFHeader {
   // private final val RIFF_MAGIC1a	= 0x72696666	// 'riff' ; first 4 bytes of RIFF-GUID in big endian notation
   // private final val RIFF_MAGIC1b	= 0x2E91CF11   //          next 2 shorts of RIFF-GUID in big endian notation
 
-  private final val RIFF_MAGIC1 = 0x726966662E91CF11L   // RIFF-GUID in big endian notation
-  private final val RIFF_MAGIC2 = 0xA5D628DB04C10000L   // ...
+  private final val RIFF_MAGIC1     = 0x726966662E91CF11L   // RIFF-GUID in big endian notation
+  private final val RIFF_MAGIC2     = 0xA5D628DB04C10000L   // ...
 
-  private final val WAVE_MAGIC1 = 0x77617665F3ACD311L   // WAVE-GUID in big endian notation
-  private final val WAVE_MAGIC2 = 0x8CD100C04F8EDB8AL   // ...
+  private final val WAVE_MAGIC1     = 0x77617665F3ACD311L   // WAVE-GUID in big endian notation
+  private final val WAVE_MAGIC2     = 0x8CD100C04F8EDB8AL   // ...
 
   // chunk identifiers
-  private final val FMT_MAGIC1  = 0x666D7420F3ACD311L   // 'fmt ' GUID in big endian notation
-  private final val FMT_MAGIC2  = 0x8CD100C04F8EDB8AL
+  private final val FMT_MAGIC1      = 0x666D7420F3ACD311L   // 'fmt ' GUID in big endian notation
+  private final val FMT_MAGIC1_LE   = 0x11D3ACF320746D66L   // 'fmt ' GUID in little endian notation
+  private final val FMT_MAGIC2      = 0x8CD100C04F8EDB8AL
+  private final val FMT_MAGIC2_LE   = 0x8ADB8E4FC000D18CL
 
-  private final val DATA_MAGIC1 = 0x64617461F3ACD311L   // 'data' GUID in big endian notation
-  private final val DATA_MAGIC2 = 0x8CD100C04F8EDB8AL
+  private final val DATA_MAGIC1     = 0x64617461F3ACD311L   // 'data' GUID in big endian notation
+  private final val DATA_MAGIC1_LE  = 0x11D3ACF361746164L   // 'data' GUID in little endian notation
+  private final val DATA_MAGIC2     = 0x8CD100C04F8EDB8AL
+  private final val DATA_MAGIC2_LE  = 0x8ADB8E4FC000D18CL
 
-  private final val FACT_MAGIC1 = 0x66616374F3ACD311L   // 'fact' GUID in big endian notation
-  private final val FACT_MAGIC2 = 0x8CD100C04F8EDB8AL
+  private final val FACT_MAGIC1     = 0x66616374F3ACD311L   // 'fact' GUID in big endian notation
+  private final val FACT_MAGIC2     = 0x8CD100C04F8EDB8AL
 
   @throws(classOf[IOException])
   def identify(dis: DataInputStream): Boolean = dis.readLong() == RIFF_MAGIC1 && dis.readLong() == RIFF_MAGIC2 && {
@@ -56,14 +63,14 @@ private[audiofile] object Wave64Header extends AbstractRIFFHeader {
 
   @throws(classOf[IOException])
   protected def readDataInput(din: DataInput): AudioFileHeader = {
-    val riffMagic1 = din.readLong()
-    val riffMagic2 = din.readLong()
+    val riffMagic1 = din.readLong()     // 8
+    val riffMagic2 = din.readLong()     // 16
     if (riffMagic1 != RIFF_MAGIC1 || riffMagic2 != RIFF_MAGIC2) {
       formatError(s"Not RIFF magic: 0x${riffMagic1.toHexString}, 0x${riffMagic2.toHexString}")
     }
-    din.skipBytes(8) // len = readLittleLong
-    val waveMagic1 = din.readLong()
-    val waveMagic2 = din.readLong()
+    din.skipBytes(8) // len = readLittleLong  // 24
+    val waveMagic1 = din.readLong()           // 32
+    val waveMagic2 = din.readLong()           // 40
     if (waveMagic1 != WAVE_MAGIC1 || waveMagic2 != WAVE_MAGIC2) {
       formatError(s"Not WAVE magic: 0x${waveMagic1.toHexString}, 0x${waveMagic2.toHexString}")
     }
@@ -101,12 +108,65 @@ private[audiofile] object Wave64Header extends AbstractRIFFHeader {
     throw new IOException(s"${AudioFileType.Wave64.name} header misses data chunk")
   }
 
+  def readAsync(ch: AsyncReadableByteChannel): Future[AudioFileHeader] = {
+    val ab = new AsyncReadableByteBuffer(ch)
+    import ab._
+
+    ensure(40).flatMap { _ =>
+      val riffMagic1 = buffer.getLong() // 8
+      val riffMagic2 = buffer.getLong() // 16
+      if (riffMagic1 != RIFF_MAGIC1 || riffMagic2 != RIFF_MAGIC2) {
+        formatError(s"Not RIFF magic: 0x${riffMagic1.toHexString}, 0x${riffMagic2.toHexString}")
+      }
+      skip(8) // len = readLittleLong     // 24
+      val waveMagic1 = buffer.getLong()   // 32
+      val waveMagic2 = buffer.getLong()   // 40
+      if (waveMagic1 != WAVE_MAGIC1 || waveMagic2 != WAVE_MAGIC2) {
+        formatError(s"Not WAVE magic: 0x${waveMagic1.toHexString}, 0x${waveMagic2.toHexString}")
+      }
+      buffer.order(ByteOrder.LITTLE_ENDIAN)
+
+      def readChunk(fc: FormatChunk): Future[AudioFileHeader] =
+        ensure(24).flatMap { _ =>
+          val magic1Le  = buffer.getLong()        // 8
+          val magic2Le  = buffer.getLong()        // 16
+          val chunkLen  = buffer.getLong() - 24   // minus 16-bytes magic and 8-bytes length // 24
+          val chunkRem  = (chunkLen + 7) & 0xFFFFFFFFFFFFFFF8L
+
+          if (magic1Le == FMT_MAGIC1_LE && magic2Le == FMT_MAGIC2_LE) {
+            val fcFut = readFormatChunkAsync(ab, chunkRem.toInt)
+            fcFut.flatMap { fc1 =>
+              val chunkRem1 = fc1.chunkSkip
+              skip(chunkRem1)
+              readChunk(fc1)
+            }
+
+          } else if (magic1Le == DATA_MAGIC1_LE && magic2Le == DATA_MAGIC2_LE) {
+            purge()
+            if (fc != null) {
+              val afh = createReader(fc, AudioFileType.Wave64, chunkLen)
+              Future.successful(afh)
+            } else {
+              Future.failed(new IOException("Wave64 header misses FMT chunk"))
+            }
+
+          } else {  // ignore unknown chunks
+            skip(chunkRem)
+            readChunk(fc)
+          }
+        }
+
+      readChunk(null)
+    }
+  }
+
   final protected def createWriter(raf: RandomAccessFile, spec: AudioFileSpec, factSmpNumOffset: Long,
                                    dataChunkLenOff: Long): WritableAudioFileHeader =
     new WritableFileHeader(raf, spec, factSmpNumOffset = factSmpNumOffset, dataChunkLenOff = dataChunkLenOff)
 
   final protected def createAsyncWriter(ch: AsyncWritableByteChannel, spec: AudioFileSpec, factSmpNumOffset: Long,
-                                        dataChunkLenOff: Long): AsyncWritableAudioFileHeader = ???
+                                        dataChunkLenOff: Long): AsyncWritableAudioFileHeader =
+    new AsyncWritableFileHeader(ch, spec, factSmpNumOffset = factSmpNumOffset, dataChunkLenOff = dataChunkLenOff)
 
   final protected def writeRiffMagic(dout: DataOutput, fileSize: Long): Unit = {
     dout.writeLong(RIFF_MAGIC1)
@@ -165,6 +225,55 @@ private[audiofile] object Wave64Header extends AbstractRIFFHeader {
 
       raf.seek(oldPos)
       numFrames0 = numFrames
+    }
+
+    def byteOrder: ByteOrder = spec.byteOrder.get
+  }
+
+  final private class AsyncWritableFileHeader(ch: AsyncWritableByteChannel, val spec: AudioFileSpec,
+                                         factSmpNumOffset: Long, dataChunkLenOff: Long)
+    extends AsyncWritableAudioFileHeader {
+
+    private[this] val sync          = new AnyRef
+    private[this] var numFramesRef  = 0L
+    private[this] val bb            = ByteBuffer.allocate(8).order(byteOrder)
+
+    def updateAsync(numFrames: Long): Future[Unit] = {
+      import ch.executionContext
+
+      val oldNumFr = sync.synchronized { numFramesRef }
+      if (numFrames == oldNumFr) return Future.unit
+
+      val oldPos    = ch.position
+      val fileSize  = ch.size
+
+      ch.position_=(cookieSize)
+      (bb: Buffer).clear()
+      bb.putLong(0, fileSize)
+
+      ch.write(bb).flatMap { _ =>
+        val futFact = if (factSmpNumOffset == 0L) Future.unit else {
+          ch.position_=(factSmpNumOffset)
+          (bb: Buffer).clear()
+          bb.putLong(0, numFrames)
+          ch.write(bb)
+        }
+
+        futFact.flatMap { _ =>
+          ch.position_=(dataChunkLenOff)
+          val dataChunkSize = fileSize - (dataChunkLenOff - cookieSize)
+          (bb: Buffer).clear()
+          bb.putLong(0, dataChunkSize)
+          ch.write(bb).map { _ =>
+            ch.position_=(oldPos)
+            sync.synchronized {
+              if (numFramesRef != oldNumFr) throw new ConcurrentModificationException
+              numFramesRef = numFrames
+            }
+            ()
+          }
+        }
+      }
     }
 
     def byteOrder: ByteOrder = spec.byteOrder.get

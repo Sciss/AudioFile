@@ -242,7 +242,8 @@ object AudioFileType extends AudioFileTypePlatform {
 
       def read(dis: DataInputStream ): AudioFileHeader = reader(dis.available())
 
-      def readAsync(ch: AsyncReadableByteChannel): Future[AudioFileHeader]  = ???
+      def readAsync(ch: AsyncReadableByteChannel): Future[AudioFileHeader] =
+        Future.successful(reader(ch.size))
 
       protected def reader(fileSize: Long): AudioFileHeader = {
         val bpf         = spec.numChannels * (spec.sampleFormat.bitsPerSample >> 3)
@@ -270,7 +271,11 @@ object AudioFileType extends AudioFileTypePlatform {
     private[audiofile] def read    (dis: DataInputStream ): AudioFileHeader = Impl.read(dis)
     private[audiofile] def write   (dos: DataOutputStream, spec: AudioFileSpec): WritableAudioFileHeader = Impl.write(dos, spec)
 
-    private[audiofile] def readAsync (ch: AsyncReadableByteChannel): Future[AudioFileHeader] = ???
-    private[audiofile] def writeAsync(ch: AsyncWritableByteChannel, spec: AudioFileSpec): Future[AsyncWritableAudioFileHeader] = ???
+    private[audiofile] def readAsync (ch: AsyncReadableByteChannel): Future[AudioFileHeader] =
+      Impl.readAsync(ch)
+
+    private[audiofile] def writeAsync(ch: AsyncWritableByteChannel,
+                                      spec: AudioFileSpec): Future[AsyncWritableAudioFileHeader] =
+      Impl.writeAsync(ch, spec)
   }
 }
