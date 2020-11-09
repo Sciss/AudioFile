@@ -239,7 +239,7 @@ private[audiofile] object Wave64Header extends AbstractRIFFHeader {
     private[this] val bb            = ByteBuffer.allocate(8).order(byteOrder)
 
     def updateAsync(numFrames: Long): Future[Unit] = {
-      import ch.executionContext
+      import ch.fileSystem.executionContext
 
       val oldNumFr = sync.synchronized { numFramesRef }
       if (numFrames == oldNumFr) return Future.unit

@@ -191,7 +191,7 @@ private[audiofile] object IRCAMHeader {
   }
 
   def writeAsync(ch: AsyncWritableByteChannel, spec: AudioFileSpec): Future[AsyncWritableAudioFileHeader] = {
-    import ch.executionContext
+    import ch.fileSystem.executionContext
     val bs        = new ByteArrayOutputStream()
     val dout      = new DataOutputStream(bs)
     val spec1     = writeDataOutput(dout, spec)

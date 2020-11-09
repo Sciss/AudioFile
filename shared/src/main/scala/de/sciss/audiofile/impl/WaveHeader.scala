@@ -201,7 +201,7 @@ private[impl] trait AbstractRIFFHeader extends BasicHeader {
   }
 
   def writeAsync(ch: AsyncWritableByteChannel, spec: AudioFileSpec): Future[AsyncWritableAudioFileHeader] = {
-    import ch.executionContext
+    import ch.fileSystem.executionContext
     val bs        = new ByteArrayOutputStream()
     val dout      = new DataOutputStream(bs)
     val spec1     = fixOutputSpec(spec)
@@ -485,7 +485,7 @@ private[audiofile] object WaveHeader extends AbstractRIFFHeader {
     private[this] val bb            = ByteBuffer.allocate(4).order(byteOrder)
 
     def updateAsync(numFrames: Long): Future[Unit] = {
-      import ch.executionContext
+      import ch.fileSystem.executionContext
 
       val oldNumFr = sync.synchronized { numFramesRef }
       if (numFrames == oldNumFr) return Future.unit
