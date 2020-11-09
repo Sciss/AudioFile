@@ -22,7 +22,7 @@ class AsyncReadWriteSpec extends FixtureAsyncFlatSpec {
 //    case cw: AudioFileType.CanWrite => cw
 //  }
 
-  val rwTypes: Vec[AudioFileType] = Vector(AudioFileType.NeXT)
+  val rwTypes: Vec[AudioFileType] = Vector(AudioFileType.Wave)
 
   val chanNums: List[Int] = List(1, 2, 3)
 

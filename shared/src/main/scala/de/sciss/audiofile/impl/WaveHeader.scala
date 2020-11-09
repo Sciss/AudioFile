@@ -14,11 +14,15 @@
 package de.sciss.audiofile.impl
 
 import java.io.{DataInput, DataInputStream, DataOutput, DataOutputStream, EOFException, IOException, RandomAccessFile}
-import java.nio.ByteOrder
+import java.nio.{Buffer, ByteBuffer, ByteOrder}
+import java.util.ConcurrentModificationException
 
-import de.sciss.audiofile.{AudioFileHeader, AudioFileSpec, AudioFileType, ReadableAudioFileHeader, SampleFormat, WritableAudioFileHeader}
+import de.sciss.asyncfile.{AsyncReadableByteBuffer, AsyncReadableByteChannel, AsyncWritableByteChannel}
+import de.sciss.audiofile.{AsyncWritableAudioFileHeader, AudioFileHeader, AudioFileSpec, AudioFileType, ReadableAudioFileHeader, SampleFormat, WritableAudioFileHeader}
+import de.sciss.serial.impl.ByteArrayOutputStream
 
 import scala.annotation.switch
+import scala.concurrent.Future
 
 private[impl] object AbstractRIFFHeader {
 
@@ -54,7 +58,7 @@ private[impl] trait AbstractRIFFHeader extends BasicHeader {
     new ReadableAudioFileHeader(spec, ByteOrder.LITTLE_ENDIAN)
   }
 
-  final protected def readFormatChunk(din: DataInput, chunkLen: Int): FormatChunk = {
+  final protected def readFormatChunk(din: DataInput, chunkRem: Int): FormatChunk = {
     val form          = readLittleUShort(din) // format
     val numChannels   = readLittleUShort(din) // # of channels
     val sampleRate    = readLittleInt   (din) // sample rate (integer)
@@ -62,12 +66,12 @@ private[impl] trait AbstractRIFFHeader extends BasicHeader {
     val bytesPerFrame = readLittleUShort(din) // bytes per frame (= #chan * #bits/8)
     val bitsPerSample = readLittleUShort(din) // # of bits per sample
     if (((bitsPerSample & 0x07) != 0) ||
-        ((bitsPerSample >> 3) * numChannels != bytesPerFrame) ||
-        ((bitsPerSample >> 3) * numChannels * sampleRate != bps)) encodingError()
+      ((bitsPerSample >> 3) * numChannels != bytesPerFrame) ||
+      ((bitsPerSample >> 3) * numChannels * sampleRate != bps)) encodingError()
 
     val unsignedPCM = bytesPerFrame == numChannels
 
-    var chunkSkip = chunkLen - 16
+    var chunkSkip = chunkRem - 16
 
     val isPCM = (form: @switch) match {
       case FORMAT_PCM   => true
@@ -80,7 +84,7 @@ private[impl] trait AbstractRIFFHeader extends BasicHeader {
         din.readInt()                   // channel mask, ignore
         val i3 = readLittleUShort(din)  // GUID first two bytes
         if ((i2 != bitsPerSample) ||
-           ((i3 != FORMAT_PCM) &&
+          ((i3 != FORMAT_PCM) &&
             (i3 != FORMAT_FLOAT))) encodingError()
         chunkSkip -= 10
         i3 == FORMAT_PCM
@@ -91,7 +95,7 @@ private[impl] trait AbstractRIFFHeader extends BasicHeader {
     val sampleFormat = if (isPCM) {
       (bitsPerSample: @switch) match {
         case  8 => assert(unsignedPCM)
-                   SampleFormat.UInt8   // else SampleFormat.Int8
+          SampleFormat.UInt8   // else SampleFormat.Int8
         case 16 => SampleFormat.Int16
         case 24 => SampleFormat.Int24
         case 32 => SampleFormat.Int32
@@ -107,6 +111,69 @@ private[impl] trait AbstractRIFFHeader extends BasicHeader {
 
     FormatChunk(sampleFormat, numChannels = numChannels, sampleRate = sampleRate,
       bytesPerFrame = bytesPerFrame, chunkSkip = chunkSkip)
+  }
+
+  final protected def readFormatChunkAsync(ab: AsyncReadableByteBuffer, chunkRem: Int): Future[FormatChunk] = {
+    import ab._
+
+    ensure(16).flatMap { _ =>
+      val form          = buffer.getShort() & 0xFFFF  // format                                                 // 2
+      val numChannels   = buffer.getShort()           // # of channels                                          // 4
+      val sampleRate    = buffer.getInt()             // sample rate (integer)                                  // 8
+      val bps           = buffer.getInt()             // bytes per frame and second (= #chan * #bits/8* rate)   // 12
+      val bytesPerFrame = buffer.getShort()           // bytes per frame (= #chan * #bits/8)                    // 14
+      val bitsPerSample = buffer.getShort()           // # of bits per sample                                   // 16
+      if (((bitsPerSample & 0x07) != 0) ||
+          ((bitsPerSample >> 3) * numChannels != bytesPerFrame) ||
+          ((bitsPerSample >> 3) * numChannels * sampleRate != bps)) encodingError()
+
+      val unsignedPCM = bytesPerFrame == numChannels
+
+      val chunkSkip0 = chunkRem - 16
+
+      val futPCMChunk: Future[(Boolean, Int)] = (form: @switch) match {
+        case FORMAT_PCM   => Future.successful((true  , chunkSkip0))
+        case FORMAT_FLOAT => Future.successful((false , chunkSkip0))
+        case FORMAT_EXT   =>
+          if (chunkSkip0 < 24) incompleteError()
+          ensure(10).map { _ =>
+            val i1 = buffer.getShort()          // extension size                 // 2
+            if (i1 < 22) incompleteError()
+            val i2 = buffer.getShort()          // #valid bits per sample         // 4
+            buffer.getInt()                     // channel mask, ignore           // 8
+            val i3 = buffer.getShort() & 0xFFFF // GUID first two bytes           // 10
+            if ((i2 != bitsPerSample) ||
+               ((i3 != FORMAT_PCM) &&
+                (i3 != FORMAT_FLOAT))) encodingError()
+
+            (i3 == FORMAT_PCM, chunkSkip0 - 10)
+          }
+
+        case _ => encodingError()
+      }
+
+      futPCMChunk.map { case (isPCM, chunkSkip) =>
+        val sampleFormat = if (isPCM) {
+          (bitsPerSample: @switch) match {
+            case  8 => assert(unsignedPCM)
+                       SampleFormat.UInt8   // else SampleFormat.Int8
+            case 16 => SampleFormat.Int16
+            case 24 => SampleFormat.Int24
+            case 32 => SampleFormat.Int32
+            case _  => encodingError()
+          }
+        } else {
+          (bitsPerSample: @switch) match {
+            case 32 => SampleFormat.Float
+            case 64 => SampleFormat.Double
+            case _  => encodingError()
+          }
+        }
+
+        FormatChunk(sampleFormat, numChannels = numChannels, sampleRate = sampleRate,
+          bytesPerFrame = bytesPerFrame, chunkSkip = chunkSkip)
+      }
+    }
   }
 
   final protected def fixOutputSpec(spec: AudioFileSpec): AudioFileSpec = {
@@ -133,8 +200,25 @@ private[impl] trait AbstractRIFFHeader extends BasicHeader {
     createWriter(raf, spec1, factSmpNumOffset = factSmpNumOffset, dataChunkLenOff = dataChunkLenOff)
   }
 
+  def writeAsync(ch: AsyncWritableByteChannel, spec: AudioFileSpec): Future[AsyncWritableAudioFileHeader] = {
+    import ch.executionContext
+    val bs        = new ByteArrayOutputStream()
+    val dout      = new DataOutputStream(bs)
+    val spec1     = fixOutputSpec(spec)
+    val writeRes  = writeDataOutput(dout, spec1, writeSize = false)
+    val dst       = ByteBuffer.wrap(bs.buffer, 0, bs.size)
+    val fut       = ch.write(dst)
+    fut.map { _ =>
+      import writeRes._
+      createAsyncWriter(ch, spec1, factSmpNumOffset = factSmpNumOffset, dataChunkLenOff = dataChunkLenOff)
+    }
+  }
+
   protected def createWriter(raf: RandomAccessFile, spec: AudioFileSpec, factSmpNumOffset: Long,
                              dataChunkLenOff: Long): WritableAudioFileHeader
+
+  protected def createAsyncWriter(ch: AsyncWritableByteChannel, spec: AudioFileSpec, factSmpNumOffset: Long,
+                                  dataChunkLenOff: Long): AsyncWritableAudioFileHeader
 
   // The size field between the RIFF- and the WAVE-GUID (starting at byte offset 16 in the file) specifies the
   // total size of the file including the header itself. In contrast, for RIFF/WAV files, the size field at
@@ -150,10 +234,10 @@ private[impl] trait AbstractRIFFHeader extends BasicHeader {
   protected def chunkLenSize : Int
   protected def chunkPad     : Int
 
-  private final class HeaWriteHeaderResult(val factSmpNumOffset: Long, val dataChunkLenOff: Long)
+  private final class WriteHeaderResult(val factSmpNumOffset: Long, val dataChunkLenOff: Long)
 
   @throws(classOf[IOException])
-  private def writeDataOutput(dout: DataOutput, spec: AudioFileSpec, writeSize: Boolean): HeaWriteHeaderResult = {
+  private def writeDataOutput(dout: DataOutput, spec: AudioFileSpec, writeSize: Boolean): WriteHeaderResult = {
     // floating point requires FACT extension
     val isFloat         = spec.sampleFormat == SampleFormat.Float || spec.sampleFormat == SampleFormat.Double
     val fmtChunkSize    = cookieSize + chunkLenSize + (if (isFloat) 18 else 16) // FORMAT_FLOAT has extension of size 2
@@ -204,7 +288,7 @@ private[impl] trait AbstractRIFFHeader extends BasicHeader {
     val dataChunkSize = fileSize - dataChunkOff
     writeDataMagic(dout, dataChunkSize)
 
-    new HeaWriteHeaderResult(factSmpNumOffset, dataChunkLenOff)
+    new WriteHeaderResult(factSmpNumOffset, dataChunkLenOff)
   }
 }
 
@@ -213,13 +297,15 @@ private[audiofile] object WaveHeader extends AbstractRIFFHeader {
   import AbstractRIFFHeader._
   import de.sciss.audiofile.AudioFileHeader._
 
-  private final val RIFF_MAGIC  = 0x52494646  // 'RIFF'
-  private final val WAVE_MAGIC  = 0x57415645  // 'WAVE' (off 8)
+  private final val RIFF_MAGIC    = 0x52494646  // 'RIFF'
+  private final val WAVE_MAGIC    = 0x57415645  // 'WAVE' (off 8)
 
   // chunk identifiers
-  private final val FMT_MAGIC   = 0x666D7420  // 'fmt '
-  private final val FACT_MAGIC  = 0x66616374  // 'fact'
-  private final val DATA_MAGIC  = 0x64617461  // 'data'
+  private final val FMT_MAGIC     = 0x666D7420  // 'fmt '
+  private final val FMT_MAGIC_LE  = 0x20746D66  // 'fmt ' (little endian)
+  private final val FACT_MAGIC    = 0x66616374  // 'fact'
+  private final val DATA_MAGIC    = 0x64617461  // 'data'
+  private final val DATA_MAGIC_LE = 0x61746164  // 'data' (little endian)
   //   private final val CUE_MAGIC		= 0x63756520	// 'cue '
   //   private final val SMPL_MAGIC		= 0x73616D6C	// 'smpl'
   //   private final val INST_MAGIC		= 0x696E7374	// 'inst'
@@ -238,10 +324,10 @@ private[audiofile] object WaveHeader extends AbstractRIFFHeader {
 
   @throws(classOf[IOException])
   protected def readDataInput(din: DataInput): AudioFileHeader = {
-    val riffMagic = din.readInt()
+    val riffMagic = din.readInt()   // 4
     if (riffMagic != RIFF_MAGIC) formatError(s"Not RIFF magic: 0x${riffMagic.toHexString}")
-    din.readInt()
-    val waveMagic = din.readInt()
+    din.readInt()                   // 8
+    val waveMagic = din.readInt()   // 12
     if (waveMagic != WAVE_MAGIC) formatError(s"Not WAVE magic: 0x${waveMagic.toHexString}")
 
     var chunkRem = 0
@@ -257,7 +343,7 @@ private[audiofile] object WaveHeader extends AbstractRIFFHeader {
 
         (magic: @switch) match {
           case FMT_MAGIC =>
-            fc = readFormatChunk(din, chunkLen)
+            fc = readFormatChunk(din, chunkRem)
             chunkRem = fc.chunkSkip
 
           case DATA_MAGIC =>
@@ -272,9 +358,59 @@ private[audiofile] object WaveHeader extends AbstractRIFFHeader {
     throw new IOException(s"${AudioFileType.Wave.name} header misses data chunk")
   }
 
+  def readAsync(ch: AsyncReadableByteChannel): Future[AudioFileHeader] = {
+    val ab = new AsyncReadableByteBuffer(ch)
+    import ab._
+
+    ensure(12).flatMap { _ =>
+      val riffMagic = buffer.getInt()   // 4
+      if (riffMagic != RIFF_MAGIC) formatError(s"Not RIFF magic: 0x${riffMagic.toHexString}")
+      buffer.getInt()                   // 8
+      val waveMagic = buffer.getInt()   // 12
+      if (waveMagic != WAVE_MAGIC) formatError(s"Not WAVE magic: 0x${waveMagic.toHexString}")
+      buffer.order(ByteOrder.LITTLE_ENDIAN)
+
+      def readChunk(fc: FormatChunk): Future[AudioFileHeader] =
+        ensure(8).flatMap { _ =>
+          val magicLe   = buffer.getInt()
+          val chunkLen  = buffer.getInt()
+          val chunkRem  = (chunkLen + 1) & 0xFFFFFFFE
+
+          (magicLe: @switch) match {
+            case FMT_MAGIC_LE =>
+              val fcFut = readFormatChunkAsync(ab, chunkRem)
+              fcFut.flatMap { fc1 =>
+                val chunkRem1 = fc1.chunkSkip
+                skip(chunkRem1)
+                readChunk(fc1)
+              }
+
+            case DATA_MAGIC_LE =>
+              purge()
+              if (fc != null) {
+                val afh = createReader(fc, AudioFileType.Wave, chunkLen)
+                Future.successful(afh)
+              } else {
+                Future.failed(new IOException("WAVE header misses FMT chunk"))
+              }
+
+            case _ => // ignore unknown chunks
+              skip(chunkRem)
+              readChunk(fc)
+          }
+        }
+
+      readChunk(null)
+    }
+  }
+
   final protected def createWriter(raf: RandomAccessFile, spec: AudioFileSpec, factSmpNumOffset: Long,
                                    dataChunkLenOff: Long): WritableAudioFileHeader =
     new WritableFileHeader(raf, spec, factSmpNumOffset = factSmpNumOffset, dataChunkLenOff = dataChunkLenOff)
+
+  final protected def createAsyncWriter(ch: AsyncWritableByteChannel, spec: AudioFileSpec, factSmpNumOffset: Long,
+                                        dataChunkLenOff: Long): AsyncWritableAudioFileHeader =
+    new AsyncWritableFileHeader(ch, spec, factSmpNumOffset = factSmpNumOffset, dataChunkLenOff = dataChunkLenOff)
 
   final protected def writeRiffMagic(dout: DataOutput, fileSize: Long): Unit = {
     dout.writeInt(RIFF_MAGIC)
@@ -335,6 +471,60 @@ private[audiofile] object WaveHeader extends AbstractRIFFHeader {
 
       raf.seek(oldPos)
       numFrames0 = numFrames
+    }
+
+    def byteOrder: ByteOrder = spec.byteOrder.get
+  }
+
+  final private class AsyncWritableFileHeader(ch: AsyncWritableByteChannel, val spec: AudioFileSpec,
+                                              factSmpNumOffset: Long, dataChunkLenOff: Long)
+    extends AsyncWritableAudioFileHeader {
+
+    private[this] val sync          = new AnyRef
+    private[this] var numFramesRef  = 0L
+    private[this] val bb            = ByteBuffer.allocate(4).order(byteOrder)
+
+    def updateAsync(numFrames: Long): Future[Unit] = {
+      import ch.executionContext
+
+      val oldNumFr = sync.synchronized { numFramesRef }
+      if (numFrames == oldNumFr) return Future.unit
+
+      // val dataSize   = numFrames * ((spec.sampleFormat.bitsPerSample >> 3) * spec.numChannels)
+      val oldPos    = ch.position
+      val fileSize  = ch.size
+
+      ch.position_=(cookieSize)
+      (bb: Buffer).clear()
+      bb.putInt(0, (fileSize - (cookieSize + chunkLenSize)).toInt)
+
+      ch.write(bb).flatMap { _ =>
+        val futFact = if (factSmpNumOffset == 0L) Future.unit else {
+          ch.position_=(factSmpNumOffset)
+          //println( "factSmpNumOffset " + factSmpNumOffset )
+          // "With no mention of the number of channels in this computation,
+          // this implies that dwSampleLength is the number of samples per channel."
+          (bb: Buffer).clear()
+          bb.putInt(0, numFrames.toInt)
+          ch.write(bb)
+        }
+
+        futFact.flatMap { _ =>
+          ch.position_=(dataChunkLenOff)
+          //println( "dataChunkLenOff " + dataChunkLenOff )
+          val dataChunkSize = fileSize - (dataChunkLenOff + chunkLenSize)
+          (bb: Buffer).clear()
+          bb.putInt(0, dataChunkSize.toInt) // data Chunk len
+          ch.write(bb).map { _ =>
+            ch.position_=(oldPos)
+            sync.synchronized {
+              if (numFramesRef != oldNumFr) throw new ConcurrentModificationException
+              numFramesRef = numFrames
+            }
+            ()
+          }
+        }
+      }
     }
 
     def byteOrder: ByteOrder = spec.byteOrder.get

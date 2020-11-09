@@ -16,7 +16,8 @@ package de.sciss.audiofile.impl
 import java.io.{DataInput, DataInputStream, DataOutput, EOFException, IOException, RandomAccessFile}
 import java.nio.ByteOrder
 
-import de.sciss.audiofile.{AudioFileHeader, AudioFileSpec, AudioFileType, WritableAudioFileHeader}
+import de.sciss.asyncfile.AsyncWritableByteChannel
+import de.sciss.audiofile.{AsyncWritableAudioFileHeader, AudioFileHeader, AudioFileSpec, AudioFileType, WritableAudioFileHeader}
 
 /** The 64 bit version of Wave.
   *
@@ -103,6 +104,9 @@ private[audiofile] object Wave64Header extends AbstractRIFFHeader {
   final protected def createWriter(raf: RandomAccessFile, spec: AudioFileSpec, factSmpNumOffset: Long,
                                    dataChunkLenOff: Long): WritableAudioFileHeader =
     new WritableFileHeader(raf, spec, factSmpNumOffset = factSmpNumOffset, dataChunkLenOff = dataChunkLenOff)
+
+  final protected def createAsyncWriter(ch: AsyncWritableByteChannel, spec: AudioFileSpec, factSmpNumOffset: Long,
+                                        dataChunkLenOff: Long): AsyncWritableAudioFileHeader = ???
 
   final protected def writeRiffMagic(dout: DataOutput, fileSize: Long): Unit = {
     dout.writeLong(RIFF_MAGIC1)

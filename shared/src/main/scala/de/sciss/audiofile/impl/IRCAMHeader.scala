@@ -110,7 +110,7 @@ private[audiofile] object IRCAMHeader {
     val spec = new AudioFileSpec(fileType = AudioFileType.IRCAM, sampleFormat = sampleFormat,
       numChannels = numChannels, sampleRate = sampleRate, byteOrder = Some(reader.byteOrder),
       numFrames = numFrames)
-    ReadableAudioFileHeader(spec, reader.byteOrder)
+    new ReadableAudioFileHeader(spec, reader.byteOrder)
   }
 
   def readAsync(ch: AsyncReadableByteChannel): Future[AudioFileHeader] = {
@@ -160,7 +160,7 @@ private[audiofile] object IRCAMHeader {
             val spec = new AudioFileSpec(fileType = AudioFileType.IRCAM, sampleFormat = sampleFormat,
               numChannels = numChannels, sampleRate = sampleRate, byteOrder = Some(buffer.order()),
               numFrames = numFrames)
-            val afh = ReadableAudioFileHeader(spec, buffer.order)
+            val afh = new ReadableAudioFileHeader(spec, buffer.order)
             Future.successful(afh)
 
           } else if (id == BICSF_LINKCODE) {

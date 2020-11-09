@@ -152,7 +152,7 @@ private[audiofile] object AIFFHeader extends BasicHeader {
 
             val spec  = AudioFileSpec(fileType = AudioFileType.AIFF, sampleFormat = sampleFormat,
               numChannels = numChannels, sampleRate = sampleRate, byteOrder = Some(byteOrder), numFrames = numFrames)
-            afh       = ReadableAudioFileHeader(spec, byteOrder)
+            afh       = new ReadableAudioFileHeader(spec, byteOrder)
 
 
           // case INST_MAGIC =>
@@ -239,7 +239,7 @@ private[audiofile] object AIFFHeader extends BasicHeader {
 
                 val spec  = audiofile.AudioFileSpec(fileType = AudioFileType.AIFF, sampleFormat = sampleFormat,
                   numChannels = numChannels, sampleRate = sampleRate, byteOrder = Some(byteOrder), numFrames = numFrames)
-                val _afh = ReadableAudioFileHeader(spec, byteOrder)
+                val _afh = new ReadableAudioFileHeader(spec, byteOrder)
                 skip(chunkLen)
                 readChunk(_afh)
               }

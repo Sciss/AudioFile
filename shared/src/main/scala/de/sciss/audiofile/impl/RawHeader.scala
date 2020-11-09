@@ -16,13 +16,19 @@ package de.sciss.audiofile.impl
 import java.io.{DataOutputStream, RandomAccessFile}
 import java.nio.ByteOrder
 
-import de.sciss.audiofile.{AudioFileSpec, WritableAudioFileHeader}
+import de.sciss.asyncfile.AsyncWritableByteChannel
+import de.sciss.audiofile.{AsyncWritableAudioFileHeader, AudioFileSpec, WritableAudioFileHeader}
+
+import scala.concurrent.Future
 
 private[audiofile] object RawHeader {
   def write(raf: RandomAccessFile, spec: AudioFileSpec): WritableAudioFileHeader = initWrite(spec)
   def write(dos: DataOutputStream, spec: AudioFileSpec): WritableAudioFileHeader = initWrite(spec)
 
-  private def initWrite(spec: AudioFileSpec): WritableAudioFileHeader = {
+  def writeAsync(ch: AsyncWritableByteChannel, spec: AudioFileSpec): Future[AsyncWritableAudioFileHeader] =
+    Future.successful(initWrite(spec))
+
+  private def initWrite(spec: AudioFileSpec): WritableAudioFileHeader with AsyncWritableAudioFileHeader = {
     val spec1 = if (spec.byteOrder.isDefined) spec else spec.copy(byteOrder = Some(ByteOrder.nativeOrder()))
     new NonUpdatingWritableHeader(spec1)
   }

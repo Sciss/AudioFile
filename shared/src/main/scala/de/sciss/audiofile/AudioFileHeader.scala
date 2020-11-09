@@ -168,7 +168,7 @@ private[audiofile] trait AudioFileHeader {
   def spec: AudioFileSpec
 }
 
-private[audiofile] case class ReadableAudioFileHeader(spec: AudioFileSpec, byteOrder: ByteOrder)
+private[audiofile] class ReadableAudioFileHeader(val spec: AudioFileSpec, val byteOrder: ByteOrder)
   extends AudioFileHeader
 
 private[audiofile] trait WritableAudioFileHeader extends AudioFileHeader {

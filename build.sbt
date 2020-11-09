@@ -12,7 +12,7 @@ lazy val deps = new {
     val serial    = "2.0.0"
   }
   val test = new {
-    val scalaTest = "3.2.2"
+    val scalaTest = "3.2.3"
   }
 }
 
@@ -37,12 +37,8 @@ lazy val root = crossProject(JSPlatform, JVMPlatform).in(file("."))
       "de.sciss"      %%% "asyncfile" % deps.main.asyncFile,
       "de.sciss"      %%% "log"       % deps.main.log,
       "de.sciss"      %%% "serial"    % deps.main.serial,
+      "org.scalatest" %%% "scalatest" % deps.test.scalaTest % Test,
     ),
-    libraryDependencies ++= {
-      if (isDotty.value) Nil else Seq(
-        "org.scalatest" %%% "scalatest" % deps.test.scalaTest % Test,
-      )
-    },
     scalacOptions ++= Seq(
       "-deprecation", "-unchecked", "-feature", "-encoding", "utf8", "-Xlint", "-Xsource:2.13",
     ),

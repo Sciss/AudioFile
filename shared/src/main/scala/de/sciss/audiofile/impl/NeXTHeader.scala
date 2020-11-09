@@ -71,7 +71,7 @@ private[audiofile] object NeXTHeader {
     val spec = new AudioFileSpec(fileType = AudioFileType.NeXT, sampleFormat = sampleFormat,
       numChannels = numChannels, sampleRate = sampleRate, byteOrder = Some(ByteOrder.BIG_ENDIAN),
       numFrames = numFrames)
-    ReadableAudioFileHeader(spec, ByteOrder.BIG_ENDIAN)
+    new ReadableAudioFileHeader(spec, ByteOrder.BIG_ENDIAN)
   }
 
   def readAsync(ch: AsyncReadableByteChannel): Future[AudioFileHeader] = {
@@ -108,7 +108,7 @@ private[audiofile] object NeXTHeader {
       val spec = new AudioFileSpec(fileType = AudioFileType.NeXT, sampleFormat = sampleFormat,
         numChannels = numChannels, sampleRate = sampleRate, byteOrder = Some(ByteOrder.BIG_ENDIAN),
         numFrames = numFrames)
-      ReadableAudioFileHeader(spec, ByteOrder.BIG_ENDIAN)
+      new ReadableAudioFileHeader(spec, ByteOrder.BIG_ENDIAN)
     }
   }
 

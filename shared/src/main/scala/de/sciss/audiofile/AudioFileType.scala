@@ -173,10 +173,12 @@ object AudioFileType extends AudioFileTypePlatform {
     private[audiofile] def write   (dos: DataOutputStream, spec: AudioFileSpec): WritableAudioFileHeader =
       Impl.write(dos, spec)
 
-    private[audiofile] def readAsync (ch: AsyncReadableByteChannel): Future[AudioFileHeader] = ???
+    private[audiofile] def readAsync (ch: AsyncReadableByteChannel): Future[AudioFileHeader] =
+      Impl.readAsync(ch)
 
     private[audiofile] def writeAsync(ch: AsyncWritableByteChannel,
-                                      spec: AudioFileSpec): Future[AsyncWritableAudioFileHeader] = ???
+                                      spec: AudioFileSpec): Future[AsyncWritableAudioFileHeader] =
+      Impl.writeAsync(ch, spec)
   }
 
   /** IRCAM, Berkeley or Carl sound format (BICSF). */
@@ -221,7 +223,8 @@ object AudioFileType extends AudioFileTypePlatform {
       Impl.write(dos, spec)
 
     private[audiofile] def writeAsync(ch: AsyncWritableByteChannel,
-                               spec: AudioFileSpec): Future[AsyncWritableAudioFileHeader] = ???
+                               spec: AudioFileSpec): Future[AsyncWritableAudioFileHeader] =
+      Impl.writeAsync(ch, spec)
 
     def reader(spec: AudioFileSpec): ReaderFactory = {
       val spec1 = if (spec.fileType == Raw) spec else spec.copy(fileType = Raw)
@@ -247,7 +250,7 @@ object AudioFileType extends AudioFileTypePlatform {
         val byteOrder   = spec.byteOrder.getOrElse(ByteOrder.nativeOrder())
         val spec1       = spec.copy(byteOrder = Some(byteOrder),
           numFrames     = numFrames)
-        ReadableAudioFileHeader(spec1, byteOrder)
+        new ReadableAudioFileHeader(spec1, byteOrder)
       }
     }
   }
