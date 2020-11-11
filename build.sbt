@@ -1,12 +1,12 @@
 lazy val baseName  = "AudioFile"
 lazy val baseNameL = baseName.toLowerCase
 
-lazy val projectVersion = "2.2.0-SNAPSHOT"
+lazy val projectVersion = "2.2.0"
 lazy val mimaVersion    = "2.2.0"
 
 lazy val deps = new {
   val main = new {
-    val asyncFile = "0.1.0-SNAPSHOT"
+    val asyncFile = "0.1.0"
     val dom       = "1.1.0"
     val log       = "0.1.1"
     val serial    = "2.0.0"
@@ -30,7 +30,7 @@ lazy val root = crossProject(JSPlatform, JVMPlatform).in(file("."))
     scalaVersion       := "2.13.3",
     description        := "A library to read and write uncompressed audio files (AIFF, WAVE, etc.)",
     homepage           := Some(url(s"https://github.com/Sciss/${name.value}")),
-    licenses           := Seq("LGPL v2.1+" -> url("http://www.gnu.org/licenses/lgpl-2.1.txt")),
+    licenses           := Seq("AGPL v3+" -> url("http://www.gnu.org/licenses/agpl-3.0.txt")),
     mimaPreviousArtifacts := Set("de.sciss" %% baseNameL % mimaVersion),
     initialCommands in console := """import de.sciss.audiofile._""",
     libraryDependencies ++= Seq(
