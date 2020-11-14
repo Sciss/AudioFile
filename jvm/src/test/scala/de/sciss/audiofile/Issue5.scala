@@ -2,11 +2,11 @@ package de.sciss.audiofile
 
 class Issue5 extends TempFileSpec {
   "Wave64" should "correctly report numFrames" in { f =>
-    val data = Array.ofDim[Float](1, 1)
+    val data = Array.ofDim[Double](1, 1)
     val afOut = AudioFile.openWrite(f, AudioFileSpec(AudioFileType.Wave64, SampleFormat.Int24, numChannels = 1,
       sampleRate = 48000.0))
     try {
-      data(0)(0) = 0.1234f
+      data(0)(0) = 0.1234
       afOut.write(data)
     } finally {
       afOut.cleanUp()
@@ -19,7 +19,7 @@ class Issue5 extends TempFileSpec {
       assert (afIn.sampleRate === 48000.0)
 
       afIn.read(data)
-      assert (data(0)(0) === 0.1234f +- 1.0e-4f)
+      assert (data(0)(0) === 0.1234 +- 1.0e-4)
 
     } finally {
       afIn.cleanUp()

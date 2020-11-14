@@ -189,7 +189,7 @@ private[audiofile] object BufferReader {
           val b = frames(ch)
           if (b != null) {
             var i = ch; var j = position; while (i < m) {
-              b(j) = arrayBuf(i).toFloat / 0x7F
+              b(j) = arrayBuf(i).toDouble / 0x7F
               i += numChannels; j += 1
             }
           }
@@ -220,7 +220,7 @@ private[audiofile] object BufferReader {
             var i = ch; var j = position; while (i < m) {
               val arr1 = arrayBuf(i)
               // java can't handle unsigned bytes
-              b(j) = (if (arr1 < 0) 0x80 + arr1 else arr1 - 0x80).toFloat / 0x7F
+              b(j) = (if (arr1 < 0) 0x80 + arr1 else arr1 - 0x80).toDouble / 0x7F
               i += numChannels; j += 1
             }
           }
@@ -249,7 +249,7 @@ private[audiofile] object BufferReader {
           val b = frames(ch)
           if (b != null) {
             var i = ch; var j = position; while (i < m) {
-              b(j) = arrayBuf(i).toFloat / 0x7FFF
+              b(j) = arrayBuf(i).toDouble / 0x7FFF
               i += numChannels; j += 1
             }
           }
@@ -280,7 +280,7 @@ private[audiofile] object BufferReader {
             var i = p; var j = position; while (i < m) {
               b(j) = ((arrayBuf(i) << 16 ) |
                      ((arrayBuf(i + 1) & 0xFF) << 8) |
-                      (arrayBuf(i + 2) & 0xFF)).toFloat / 0x7FFFFF
+                      (arrayBuf(i + 2) & 0xFF)).toDouble / 0x7FFFFF
               i += iStep; j += 1
             }
           }
@@ -311,7 +311,7 @@ private[audiofile] object BufferReader {
             var i = p; var j = position; while (i < m) {
               b(j) = ((arrayBuf(i) & 0xFF)|
                      ((arrayBuf(i + 1) & 0xFF) << 8) |
-                      (arrayBuf(i + 2) << 16 )).toFloat / 0x7FFFFF
+                      (arrayBuf(i + 2) << 16 )).toDouble / 0x7FFFFF
               i += iStep; j += 1
             }
           }
@@ -340,7 +340,7 @@ private[audiofile] object BufferReader {
           val b = frames(ch)
           if (b != null) {
             var i = ch; var j = position; while (i < m) {
-              b(j) = arrayBuf(i).toFloat / 0x7FFFFFFF
+              b(j) = arrayBuf(i).toDouble / 0x7FFFFFFF
               i += numChannels; j += 1
             }
           }
@@ -398,7 +398,7 @@ private[audiofile] object BufferReader {
           val b = frames(ch)
           if (b != null) {
             var i = ch; var j = position; while (i < m) {
-              b(j) = arrayBuf(i).toFloat
+              b(j) = arrayBuf(i)
               i += numChannels; j += 1
             }
           }
@@ -656,7 +656,7 @@ private[audiofile] object BufferWriter {
         var ch = 0; while (ch < numChannels) {
           val b = frames(ch)
           var i = ch; var j = position; while (i < m) {
-            arrayBuf(i) = b(j)
+            arrayBuf(i) = b(j).toFloat
             i += numChannels; j += 1
           }
           ch += 1

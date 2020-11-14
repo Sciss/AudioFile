@@ -20,7 +20,7 @@ import AudioFile.Frames
 import de.sciss.asyncfile.{AsyncReadableByteChannel, AsyncWritableByteChannel}
 
 import scala.concurrent.{ExecutionContext, Future}
-import scala.{Float => SFloat, Int => SInt}
+import scala.{Double => SDouble, Int => SInt}
 import scala.math.min
 
 private[audiofile] trait AsyncBufferHandler extends BufferHandler {
@@ -119,7 +119,7 @@ private[audiofile] object AsyncBufferReader {
 
     private final val sync = new AnyRef
 
-    protected def arrayToSamples(smp: Array[SFloat], smpOff: SInt, arrOff: SInt, arrStep: SInt, arrStop: SInt): Unit
+    protected def arrayToSamples(smp: Array[SDouble], smpOff: SInt, arrOff: SInt, arrStep: SInt, arrStop: SInt): Unit
 
     protected def bufferToArray(numSmp: SInt): Unit
 
@@ -154,10 +154,10 @@ private[audiofile] object AsyncBufferReader {
   trait ByteLike extends Base with AsyncBufferReader {
     me: BufferHandler.Byte =>
 
-    protected def arrayToSamples(smp: Array[SFloat], smpOff: SInt,
+    protected def arrayToSamples(smp: Array[SDouble], smpOff: SInt,
                                  arrOff: SInt, arrStep: SInt, arrStop: SInt): Unit = {
       var i = arrOff; var j = smpOff; while (i < arrStop) {
-        smp(j) = arrayBuf(i).toFloat / 0x7F
+        smp(j) = arrayBuf(i).toDouble / 0x7F
         i += arrStep; j += 1
       }
     }
@@ -172,12 +172,12 @@ private[audiofile] object AsyncBufferReader {
   trait UByteLike extends Base with AsyncBufferReader {
     me: BufferHandler.UByte =>
 
-    protected def arrayToSamples(smp: Array[SFloat], smpOff: SInt,
+    protected def arrayToSamples(smp: Array[SDouble], smpOff: SInt,
                                  arrOff: SInt, arrStep: SInt, arrStop: SInt): Unit = {
       var i = arrOff; var j = smpOff; while (i < arrStop) {
         val arr1 = arrayBuf(i)
         // java can't handle unsigned bytes
-        smp(j) = (if (arr1 < 0) 0x80 + arr1 else arr1 - 0x80).toFloat / 0x7F
+        smp(j) = (if (arr1 < 0) 0x80 + arr1 else arr1 - 0x80).toDouble / 0x7F
         i += arrStep; j += 1
       }
     }
@@ -192,10 +192,10 @@ private[audiofile] object AsyncBufferReader {
   trait ShortLike extends Base with AsyncBufferReader {
     me: BufferHandler.Short =>
 
-    protected def arrayToSamples(smp: Array[SFloat], smpOff: SInt,
+    protected def arrayToSamples(smp: Array[SDouble], smpOff: SInt,
                                  arrOff: SInt, arrStep: SInt, arrStop: SInt): Unit = {
       var i = arrOff; var j = smpOff; while (i < arrStop) {
-        smp(j) = arrayBuf(i).toFloat / 0x7FFF
+        smp(j) = arrayBuf(i).toDouble / 0x7FFF
         i += arrStep; j += 1
       }
     }
@@ -210,14 +210,14 @@ private[audiofile] object AsyncBufferReader {
   trait ThreeBytesBELike extends Base with AsyncBufferReader {
     me: BufferHandler.ThreeBytes =>
 
-    protected def arrayToSamples(smp: Array[SFloat], smpOff: SInt,
+    protected def arrayToSamples(smp: Array[SDouble], smpOff: SInt,
                                  arrOff: SInt, arrStep: SInt, arrStop: SInt): Unit = {
       var i = arrOff * 3; val iStep = arrStep * 3; val iStop = arrStop * 3; var j = smpOff; while (i < iStop) {
         smp(j) = (
            (arrayBuf(i)             << 16) |
           ((arrayBuf(i + 1) & 0xFF) <<  8) |
            (arrayBuf(i + 2) & 0xFF)
-          ).toFloat / 0x7FFFFF
+          ).toDouble / 0x7FFFFF
         i += iStep; j += 1
       }
     }
@@ -232,14 +232,14 @@ private[audiofile] object AsyncBufferReader {
   trait ThreeBytesLELike extends Base with AsyncBufferReader {
     me: BufferHandler.ThreeBytes =>
 
-    protected def arrayToSamples(smp: Array[SFloat], smpOff: SInt,
+    protected def arrayToSamples(smp: Array[SDouble], smpOff: SInt,
                                  arrOff: SInt, arrStep: SInt, arrStop: SInt): Unit = {
       var i = arrOff * 3; val iStep = arrStep * 3; val iStop = arrStop * 3; var j = smpOff; while (i < iStop) {
         smp(j) = (
              (arrayBuf(i)     & 0xFF)        |
             ((arrayBuf(i + 1) & 0xFF) <<  8) |
              (arrayBuf(i + 2)         << 16)
-          ).toFloat / 0x7FFFFF
+          ).toDouble / 0x7FFFFF
         i += iStep; j += 1
       }
     }
@@ -254,10 +254,10 @@ private[audiofile] object AsyncBufferReader {
   trait IntLike extends Base with AsyncBufferReader {
     me: BufferHandler.Int =>
 
-    protected def arrayToSamples(smp: Array[SFloat], smpOff: SInt,
+    protected def arrayToSamples(smp: Array[SDouble], smpOff: SInt,
                                  arrOff: SInt, arrStep: SInt, arrStop: SInt): Unit = {
       var i = arrOff; var j = smpOff; while (i < arrStop) {
-        smp(j) = arrayBuf(i).toFloat / 0x7FFFFFFF
+        smp(j) = arrayBuf(i).toDouble / 0x7FFFFFFF
         i += arrStep; j += 1
       }
     }
@@ -272,7 +272,7 @@ private[audiofile] object AsyncBufferReader {
   trait FloatLike extends Base with AsyncBufferReader {
     me: BufferHandler.Float =>
 
-    protected def arrayToSamples(smp: Array[SFloat], smpOff: SInt,
+    protected def arrayToSamples(smp: Array[SDouble], smpOff: SInt,
                                  arrOff: SInt, arrStep: SInt, arrStop: SInt): Unit = {
       var i = arrOff; var j = smpOff; while (i < arrStop) {
         smp(j) = arrayBuf(i)
@@ -290,7 +290,7 @@ private[audiofile] object AsyncBufferReader {
   trait DoubleLike extends Base with AsyncBufferReader {
     me: BufferHandler.Double =>
 
-    protected def arrayToSamples(smp: Array[SFloat], smpOff: SInt,
+    protected def arrayToSamples(smp: Array[SDouble], smpOff: SInt,
                                  arrOff: SInt, arrStep: SInt, arrStop: SInt): Unit = {
       var i = arrOff; var j = smpOff; while (i < arrStop) {
         smp(j) = arrayBuf(i).toFloat
@@ -378,7 +378,7 @@ private[audiofile] object AsyncBufferWriter {
   trait Base extends AsyncBufferWriter {
     private final val sync = new AnyRef
 
-    protected def samplesToArray(smp: Array[SFloat], smpOff: SInt, arrOff: SInt, arrStep: SInt, arrStop: SInt): Unit
+    protected def samplesToArray(smp: Array[SDouble], smpOff: SInt, arrOff: SInt, arrStep: SInt, arrStop: SInt): Unit
 
     protected def arrayToBuffer(numSmp: SInt): Unit
 
@@ -408,7 +408,7 @@ private[audiofile] object AsyncBufferWriter {
   trait ByteLike extends Base with AsyncBufferWriter {
     me: BufferHandler.Byte =>
 
-    protected final def samplesToArray(smp: Array[SFloat], smpOff: SInt,
+    protected final def samplesToArray(smp: Array[SDouble], smpOff: SInt,
                                        arrOff: SInt, arrStep: SInt, arrStop: SInt): Unit = {
       var i = arrOff; var j = smpOff; while (i < arrStop) {
         arrayBuf(i) = (smp(j) * 0x7F).toByte
@@ -426,7 +426,7 @@ private[audiofile] object AsyncBufferWriter {
   trait UByteLike extends Base with AsyncBufferWriter {
     me: BufferHandler.UByte =>
 
-    protected final def samplesToArray(smp: Array[SFloat], smpOff: SInt,
+    protected final def samplesToArray(smp: Array[SDouble], smpOff: SInt,
                                        arrOff: SInt, arrStep: SInt, arrStop: SInt): Unit = {
       var i = arrOff; var j = smpOff; while (i < arrStop) {
         arrayBuf(i) = (smp(j) * 0x7F + 0x80).toByte
@@ -444,7 +444,7 @@ private[audiofile] object AsyncBufferWriter {
   trait ShortLike extends Base with AsyncBufferWriter {
     me: BufferHandler.Short =>
 
-    protected final def samplesToArray(smp: Array[SFloat], smpOff: SInt,
+    protected final def samplesToArray(smp: Array[SDouble], smpOff: SInt,
                                        arrOff: SInt, arrStep: SInt, arrStop: SInt): Unit = {
       var i = arrOff; var j = smpOff; while (i < arrStop) {
         arrayBuf(i) = (smp(j) * 0x7FFF).toShort
@@ -462,7 +462,7 @@ private[audiofile] object AsyncBufferWriter {
   trait ThreeBytesBELike extends Base with AsyncBufferWriter {
     me: BufferHandler.ThreeBytes =>
 
-    protected final def samplesToArray(smp: Array[SFloat], smpOff: SInt,
+    protected final def samplesToArray(smp: Array[SDouble], smpOff: SInt,
                                        arrOff: SInt, arrStep: SInt, arrStop: SInt): Unit = {
       var i = arrOff * 3; val iStep = arrStep * 3; val iStop = arrStop * 3; var j = smpOff; while (i < iStop) {
         val k = (smp(j) * 0x7FFFFF).toInt
@@ -483,7 +483,7 @@ private[audiofile] object AsyncBufferWriter {
   trait ThreeBytesLELike extends Base with AsyncBufferWriter {
     me: BufferHandler.ThreeBytes =>
 
-    protected final def samplesToArray(smp: Array[SFloat], smpOff: SInt,
+    protected final def samplesToArray(smp: Array[SDouble], smpOff: SInt,
                                        arrOff: SInt, arrStep: SInt, arrStop: SInt): Unit = {
       var i = arrOff * 3; val iStep = arrStep * 3; val iStop = arrStop * 3; var j = smpOff; while (i < iStop) {
         val k = (smp(j) * 0x7FFFFF).toInt
@@ -504,7 +504,7 @@ private[audiofile] object AsyncBufferWriter {
   trait IntLike extends Base with AsyncBufferWriter {
     me: BufferHandler.Int =>
 
-    protected final def samplesToArray(smp: Array[SFloat], smpOff: SInt,
+    protected final def samplesToArray(smp: Array[SDouble], smpOff: SInt,
                                        arrOff: SInt, arrStep: SInt, arrStop: SInt): Unit = {
       var i = arrOff; var j = smpOff; while (i < arrStop) {
         arrayBuf(i) = (smp(j) * 0x7FFFFFFF).toInt
@@ -522,10 +522,10 @@ private[audiofile] object AsyncBufferWriter {
   trait FloatLike extends Base with AsyncBufferWriter {
     me: BufferHandler.Float =>
 
-    protected final def samplesToArray(smp: Array[SFloat], smpOff: SInt,
+    protected final def samplesToArray(smp: Array[SDouble], smpOff: SInt,
                                        arrOff: SInt, arrStep: SInt, arrStop: SInt): Unit = {
       var i = arrOff; var j = smpOff; while (i < arrStop) {
-        arrayBuf(i) = smp(j)
+        arrayBuf(i) = smp(j).toFloat
         i += arrStep; j += 1
       }
     }
@@ -540,10 +540,10 @@ private[audiofile] object AsyncBufferWriter {
   trait DoubleLike extends Base with AsyncBufferWriter {
     me: BufferHandler.Double =>
 
-    protected final def samplesToArray(smp: Array[SFloat], smpOff: SInt,
+    protected final def samplesToArray(smp: Array[SDouble], smpOff: SInt,
                                        arrOff: SInt, arrStep: SInt, arrStop: SInt): Unit = {
       var i = arrOff; var j = smpOff; while (i < arrStop) {
-        arrayBuf(i) = smp(j).toDouble
+        arrayBuf(i) = smp(j)
         i += arrStep; j += 1
       }
     }

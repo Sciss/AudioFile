@@ -19,7 +19,7 @@ To use the library in your project:
 
     "de.sciss" %% "audiofile" % v
 
-The current version `v` is `"2.2.0"`
+The current version `v` is `"2.3.0"`
 
 ## contributing
 
@@ -56,12 +56,12 @@ More recently, an asynchronous I/O API was added, which is the only API availabl
 virtual machine does not allow synchronous I/O. On the JVM, synchronous I/O is slightly faster and allows for a much
 simpler control flow (no need to map futures).
 
-To the user, __frame data__ is always represented as de-interleaved 32-bit floating point data, so you create a user 
+To the user, __frame data__ is always represented as de-interleaved 64-bit floating point data, so you create a user 
 buffer through `Array.ofDim[Float](numChannels, bufFrames)`, or use a convenience method such 
 as `AudioFile.buffer(...)`. In other words, all sample frames are mapped from their native `SampleFormat` such as
-16-bit integer to floating-point numbers in the range -1 to +1. Integers up to 24-bit can be represented this way
-without loss of precision. In the future, we might support the native storage format and/or 64-bit floating point
-data.
+16-bit integer to floating-point numbers in the range -1 to +1. Integers up to 32-bit can be represented this way
+without loss of precision. In the future, we might support the native storage format and/or 32-bit floating point
+data (like it used to be before version 2.3.0).
 
 The synchronous `AudioFile` implementation is currently not thread-safe, so one should use a single file only from
 within the same thread. Alternatively, use a lock and validate the frame position before each read/write. The

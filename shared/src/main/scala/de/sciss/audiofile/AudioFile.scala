@@ -39,7 +39,7 @@ import scala.math.{max, min}
   *
   * Reading and writing data requires a user-buffer which holds de-interleaved
   * floating point data, that is a two dimensional <code>Array</code> which
-  * holds <code>Float</code> data. A type alias <code>Frames</code> is provided
+  * holds <code>Double</code> data. A type alias <code>Frames</code> is provided
   * for this, and two helper methods <code>buffer</code>: one static to
   * construct an arbitrary user-buffer, one in class <code>AudioFile</code>
   * which creates a buffer with the appropriate channel number.
@@ -153,10 +153,10 @@ object AudioFile extends ReaderFactory with AudioFilePlatform {
 
   // ---- generic ----
 
-  type Frames = Array[Array[Float]]
+  type Frames = Array[Array[Double]]
 
   def buffer(numChannels: Int, bufFrames: Int = 8192): Frames =
-    Array.ofDim[Float](numChannels, bufFrames)
+    Array.ofDim[Double](numChannels, bufFrames)
 
   /** System property key. The boolean property can be set to `true` or `false`.
     * It will only be read once, the first time a buffer is allocated. The default is `false`.
@@ -237,7 +237,7 @@ object AudioFile extends ReaderFactory with AudioFilePlatform {
     @throws(classOf[IOException])
     final def copyTo(target: AudioFile, len: Long): this.type = {
       val tempBufSize = min(len, 8192).toInt
-      val tempBuf     = Array.ofDim[Float](spec.numChannels, tempBufSize)
+      val tempBuf     = Array.ofDim[Double](spec.numChannels, tempBufSize)
       var remaining   = len
 
       while (remaining > 0) {
