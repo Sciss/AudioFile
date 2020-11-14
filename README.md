@@ -19,7 +19,7 @@ To use the library in your project:
 
     "de.sciss" %% "audiofile" % v
 
-The current version `v` is `"2.3.0"`
+The current version `v` is `"2.3.1"`
 
 ## contributing
 
