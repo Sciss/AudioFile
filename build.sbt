@@ -2,7 +2,7 @@ lazy val baseName  = "AudioFile"
 lazy val baseNameL = baseName.toLowerCase
 
 lazy val projectVersion = "2.3.0"
-lazy val mimaVersion    = "2.2.0"
+lazy val mimaVersion    = "2.3.0"
 
 lazy val deps = new {
   val main = new {
