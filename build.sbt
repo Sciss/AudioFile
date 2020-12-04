@@ -1,12 +1,12 @@
 lazy val baseName  = "AudioFile"
 lazy val baseNameL = baseName.toLowerCase
 
-lazy val projectVersion = "2.3.1"
+lazy val projectVersion = "2.3.2-SNAPSHOT"
 lazy val mimaVersion    = "2.3.0"
 
 lazy val deps = new {
   val main = new {
-    val asyncFile = "0.1.0"
+    val asyncFile = "0.1.2"
     val dom       = "1.1.0"
     val log       = "0.1.1"
     val serial    = "2.0.0"
@@ -17,7 +17,7 @@ lazy val deps = new {
 }
 
 lazy val commonJvmSettings = Seq(
-  crossScalaVersions := Seq("3.0.0-M1", "2.13.3", "2.12.12"),
+  crossScalaVersions := Seq("3.0.0-M2", "2.13.4", "2.12.12"),
 )
 
 lazy val root = crossProject(JSPlatform, JVMPlatform).in(file("."))
@@ -27,7 +27,7 @@ lazy val root = crossProject(JSPlatform, JVMPlatform).in(file("."))
     name               := baseName,
     version            := projectVersion,
     organization       := "de.sciss",
-    scalaVersion       := "2.13.3",
+    scalaVersion       := "2.13.4",
     description        := "A library to read and write uncompressed audio files (AIFF, WAVE, etc.)",
     homepage           := Some(url(s"https://github.com/Sciss/${name.value}")),
     licenses           := Seq("AGPL v3+" -> url("http://www.gnu.org/licenses/agpl-3.0.txt")),
@@ -45,8 +45,8 @@ lazy val root = crossProject(JSPlatform, JVMPlatform).in(file("."))
     scalacOptions in (Compile, compile) ++= {
       val jdkGt8  = scala.util.Properties.isJavaAtLeast("9")
       val sv      = scalaVersion.value
-      val isDotty = sv.startsWith("3.") // https://github.com/lampepfl/dotty/issues/8634
-      val sq0     = (if (!isDotty && jdkGt8) List("-release", "8") else Nil)
+      val dot     = isDotty.value  // https://github.com/lampepfl/dotty/issues/8634
+      val sq0     = (if (!dot && jdkGt8) List("-release", "8") else Nil)
       if (sv.startsWith("2.12.")) sq0 else "-Wvalue-discard" :: sq0
     }, // JDK >8 breaks API; skip scala-doc
     // ---- build info ----
