@@ -57,7 +57,7 @@ virtual machine does not allow synchronous I/O. On the JVM, synchronous I/O is s
 simpler control flow (no need to map futures).
 
 To the user, __frame data__ is always represented as de-interleaved 64-bit floating point data, so you create a user 
-buffer through `Array.ofDim[Float](numChannels, bufFrames)`, or use a convenience method such 
+buffer through `Array.ofDim[Double](numChannels, bufFrames)`, or use a convenience method such 
 as `AudioFile.buffer(...)`. In other words, all sample frames are mapped from their native `SampleFormat` such as
 16-bit integer to floating-point numbers in the range -1 to +1. Integers up to 32-bit can be represented this way
 without loss of precision. In the future, we might support the native storage format and/or 32-bit floating point
