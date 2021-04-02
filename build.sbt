@@ -6,18 +6,18 @@ lazy val mimaVersion    = "2.3.0"
 
 lazy val deps = new {
   val main = new {
-    val asyncFile = "0.1.2"
+    val asyncFile = "0.1.3"
     val dom       = "1.1.0"
     val log       = "0.1.1"
     val serial    = "2.0.1"
   }
   val test = new {
-    val scalaTest = "3.2.4"
+    val scalaTest = "3.2.7"
   }
 }
 
 lazy val commonJvmSettings = Seq(
-  crossScalaVersions := Seq("3.0.0-RC1", "2.13.4", "2.12.13"),
+  crossScalaVersions := Seq("3.0.0-RC2", "2.13.5", "2.12.13"),
 )
 
 // sonatype plugin requires that these are in global
@@ -31,7 +31,7 @@ lazy val root = crossProject(JSPlatform, JVMPlatform).in(file("."))
     name               := baseName,
 //    version            := projectVersion,
 //    organization       := "de.sciss",
-    scalaVersion       := "2.13.4",
+    scalaVersion       := "2.13.5",
     description        := "A library to read and write uncompressed audio files (AIFF, WAVE, etc.)",
     homepage           := Some(url(s"https://github.com/Sciss/${name.value}")),
     licenses           := Seq("AGPL v3+" -> url("http://www.gnu.org/licenses/agpl-3.0.txt")),

@@ -335,7 +335,6 @@ object AudioFile extends ReaderFactory with AudioFilePlatform {
     final def read(data: Frames, off: Int, len: Int): this.type = opNotSupported
   }
 
-  @throws(classOf[IOException])
   private[audiofile] trait StreamLike extends Basic {
 
     final def seek(frame: Long): this.type = opNotSupported
